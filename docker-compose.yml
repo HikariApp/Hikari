@@ -1,7 +1,7 @@
 services:
   discord_bot:
-    image: ghcr.io/yuzuk1shimotsuki/skylar3-internal/stable:latest
-    container_name: skylar3-application
+    image: ghcr.io/hikariapp/hikari/stable:latest
+    container_name: hikari-application
     ports:
       - "9000:9000"
     env_file:
