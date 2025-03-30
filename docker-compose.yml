@@ -1,0 +1,35 @@
+services:
+  discord_bot:
+    image: ghcr.io/yuzuk1shimotsuki/skylar3-internal/stable:latest
+    container_name: skylar3-application
+    ports:
+      - "9000:9000"
+    env_file:
+      - .env
+    volumes:
+      - "./configs/Bot:/app/configs/Bot"
+    restart: no  # Setting it to something else would broke the shutdown and restart functionality that the bot already have
+    stop_signal: SIGTERM
+    init: true  # This enables proper signal handling
+    networks:
+      - web-network
+
+  lavalink:
+    # Pin the image version to Lavalink v4
+    image: ghcr.io/lavalink-devs/lavalink:4
+    container_name: lavalink
+    volumes:
+      # Mount application.yml from the same directory or use environment variables
+      - "./configs/Lavalink/application.yml:/opt/Lavalink/application.yml"
+      # Persist plugins between restarts, make sure to set the correct permissions (user: 322, group: 322)
+      - "./plugins/:/opt/Lavalink/plugins/"
+    restart: no
+    ports:
+      - "2333:2333"
+    networks:
+      - web-network
+
+networks:
+  # Set up a replication network
+  web-network:
+    external: true
