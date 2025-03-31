@@ -189,8 +189,6 @@ class DropdownView(View):
         super().__init__()
         self.add_item(MySelect())
 
-# ----------<Music Player>----------
-
 def format_source(source: str = None, url: str = None):
     match source.lower():
         case "youtube":
@@ -1255,9 +1253,6 @@ class MusicPlayer(commands.Cog):
         
         await player.set_filters(filters)
         await interaction.response.send_message(embed=nightcore_embed)
-
-
-    # ----------</Music Player>----------
 
 
 async def setup(bot):

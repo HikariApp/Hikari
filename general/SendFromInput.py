@@ -9,10 +9,6 @@ class SendFromInput(commands.Cog):
         global bool_value
         self.bot = bot
 
-
-    # ----------<Send from input>----------
-
-
     # Send message from user input
     @app_commands.command(description="Send your message or attatchment")
     @app_commands.describe(silent="Send it as a silent message?")
@@ -50,8 +46,6 @@ class SendFromInput(commands.Cog):
             msg = await interaction.followup.send('\u200b', silent=True)
             await msg.delete()
 
-    # ----------</Send from input>----------
 
 async def setup(bot):
     await bot.add_cog(SendFromInput(bot))
-  

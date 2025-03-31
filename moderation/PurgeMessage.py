@@ -10,9 +10,6 @@ class PurgeMessage(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    # ----------<Purge>----------
-
-
     # Purge messages
     @app_commands.command(name="purge", description="Delete messages from the present text channel. This command does not deletes pinned messages.")
     @app_commands.checks.has_permissions(administrator=True)
@@ -44,9 +41,6 @@ class PurgeMessage(commands.Cog):
         
         else:
             raise error
-        
-
-# ----------</Purge>----------
 
 
 async def setup(bot):

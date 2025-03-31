@@ -8,10 +8,6 @@ class DisplayUserInfo(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-
-    # ----------<Display avatar or user info>----------
-
-
     # Displaing an avatar of a user to everyone
     @app_commands.command(description="Displays your avatar or someone else's avatar to everyone.")
     @app_commands.describe(user="The user to get avatar for")
@@ -59,9 +55,6 @@ class DisplayUserInfo(commands.Cog):
         
         else:
             raise error
-
-
-    # ----------</Display avatar or user info>----------
 
 
 async def setup(bot):

@@ -10,10 +10,6 @@ class ReactingMessages(commands.Cog):
 
     reaction = app_commands.Group(name="reaction", description="Reacting to messages")
 
-
-    # ----------<Reacting to messages>----------
-
-
     # Function of reacting to messages
     async def add_reaction(self, interaction, message, emoji):
         try:
@@ -155,8 +151,7 @@ class ReactingMessages(commands.Cog):
             
         else:
             raise error  # Raise other errors to ensure they aren't ignored
-    # ----------</Reacting to messages>----------
-    
+
 
 async def setup(bot):
     await bot.add_cog(ReactingMessages(bot))
