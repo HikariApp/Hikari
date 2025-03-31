@@ -11,10 +11,6 @@ class LockChannel(commands.Cog):
 
     antiraid = app_commands.Group(name="antiraid", description="Commands to lock all channels")
 
-
-    # ----------<Locks and unlocks text channels>----------
-
-
     # Function for locking a text channel
     async def lock_channels(self, interaction, channel, reason):
         roles = interaction.guild.roles
@@ -201,9 +197,6 @@ class LockChannel(commands.Cog):
         
         else:
             raise error
-
-
-# ----------</Locks and unlocks text channels>----------
 
 
 async def setup(bot):

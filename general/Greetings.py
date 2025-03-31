@@ -88,10 +88,6 @@ class Greetings(commands.Cog):
         self._last_member = None
         self.db = self.bot.get_cluster()
 
-
-    # ----------<Greetings>----------
-
-
     # Configure or update the welcome message for the server
     @app_commands.command(description="Configure or update the welcome message for the server")
     @app_commands.allowed_installs(guilds=True, users=False)
@@ -178,9 +174,6 @@ The administration team of this server
         
         if channel is not None:
             await channel.send(server_welcome_message)
-
-
-    # ----------</Greetings>----------
 
 
 async def setup(bot):

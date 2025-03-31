@@ -18,10 +18,6 @@ class Mute(commands.Cog):
     def cog_unload(self):
         self.unmute_text_task.cancel()  # Stop the task when the cog is unloaded
 
-
-    # ----------<Mutes a member from text channel>----------
-
-
     # Convert time string to seconds and detailed duration breakdown
     def parse_duration(self, duration_str: str) -> Union[dict, str]:
         units = {
@@ -81,7 +77,7 @@ class Mute(commands.Cog):
                 total_duration = self.parse_duration(duration_str)
                 
                 if total_duration == "error_improper_format":
-                    mute_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> Looks like the time fomrmat you entered it's not vaild :thinking: ... Perhaps enter again and gave me a chance to handle it, {interaction.user.mention} :pleading_face:?", inline=False)
+                    mute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Looks like the time fomrmat you entered it's not vaild :thinking: ... Perhaps enter again and gave me a chance to handle it, {interaction.user.mention} :pleading_face:?", inline=False)
                     mute_error_embed.add_field(name="Supported time format:", value=f"**1**s = **1** second | **2**m = **2** minutes | **5**h = **5** hours | **10**d = **10** days | **3**w = **3** weeks | **6**y = **6** years.", inline=False)
                     return await interaction.response.send_message(embed=mute_error_embed)
             
@@ -89,7 +85,7 @@ class Mute(commands.Cog):
                 muted = await interaction.guild.create_role("Muted", permissions=Permissions(send_messages=False))
             
             if muted in member.roles:
-                mute_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> {member.mention} is already muted!")
+                mute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {member.mention} is already muted!")
                 return await interaction.response.send_message(embed=mute_error_embed, ephemeral=True)
             
             duration_message = "for " + " and ".join(", ".join([f"**{value}** {unit[:-1]}" + ("s" if value > 1 else "") for unit, value in total_duration.items() if unit != "total_seconds" and value != 0]).rsplit(", ", 1)) + " " if duration_str is not None else ""
@@ -121,7 +117,7 @@ class Mute(commands.Cog):
         except Forbidden as e:
             if e.status == 403 and e.code == 50013:
                 # Handling rare forbidden case
-                mute_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> I couldn't **mute** that user by changing the user's roles. Please **double-check** my **permissions** and **role position**.")
+                mute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **mute** that user by changing the user's roles. Please **double-check** my **permissions** and **role position**.")
                 await interaction.response.send_message(embed=mute_error_embed)
             
             else:
@@ -179,17 +175,17 @@ class Mute(commands.Cog):
         mute_error_embed = Embed(title="", color=discord.Colour.red())
         
         if member == interaction.user:
-            mute_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> {interaction.user.mention}, You can't **mute yourself**!")
+            mute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {interaction.user.mention}, You can't **mute yourself**!")
             return await interaction.response.send_message(embed=mute_error_embed)
         
         if member.guild_permissions.administrator and interaction.user != interaction.guild.owner:
             
             if not await self.bot.is_owner(interaction.user):
-                mute_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> Stop trying to **mute an admin**! :rolling_eyes:")
+                mute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Stop trying to **mute an admin**! :rolling_eyes:")
                 return await interaction.response.send_message(embed=mute_error_embed)
         
         if member == self.bot.user:
-            mute_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> {interaction.user.mention}, I can't **mute myself**!")
+            mute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {interaction.user.mention}, I can't **mute myself**!")
             return await interaction.response.send_message(embed=mute_error_embed)
         
         await self.mute_text(interaction, member, duration, reason)
@@ -200,19 +196,16 @@ class Mute(commands.Cog):
         mute_error_embed = Embed(title="", color=discord.Colour.red())
         
         if isinstance(error, MissingPermissions):
-            mute_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> This command **requires** `moderate members` permission, and you probably **don't have** it, {interaction.user.mention}.")
+            mute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `moderate members` permission, and you probably **don't have** it, {interaction.user.mention}.")
             await interaction.response.send_message(embed=mute_error_embed)
         
         elif isinstance(error, BotMissingPermissions):
-            mute_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> I couldn't **mute** that user by changing the user's roles. Please **double-check** my **permissions** and **role position**.")
+            mute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **mute** that user by changing the user's roles. Please **double-check** my **permissions** and **role position**.")
             await interaction.response.send_message(embed=mute_error_embed)
         
         else:
             raise error
         
-
-# ----------</Mutes a member from text channel>----------
-
 
 async def setup(bot):
     await bot.add_cog(Mute(bot))

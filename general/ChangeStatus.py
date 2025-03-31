@@ -10,10 +10,6 @@ class ChangeStatus(commands.Cog):
 
     change = app_commands.Group(name="change", description="Change the status of the application")
 
-
-    # ----------<Change status>----------
-
-
     # Fucntion to get the desired activity
     async def get_type(self, type: str, name: str | None, url: str | None):        
         if type == "custom":
@@ -85,9 +81,6 @@ class ChangeStatus(commands.Cog):
 
         selected_activity = await self.get_type(type=activity_type.value if activity_type else None, name=activity_name, url=url) if activity_type else None
         await self.bot.change_presence(status=status, activity=selected_activity)
-
-
-# ----------</Change status>----------
 
 
 async def setup(bot):

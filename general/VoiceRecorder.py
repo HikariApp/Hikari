@@ -156,23 +156,23 @@ class VoiceRecorder(commands.Cog):
         start_recording_success_embed = Embed(title="", color=interaction.user.color)
         start_recording_failure_embed = Embed(title="", color=Colour.red())
         if not interaction.user.voice:
-            start_recording_failure_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> You must be connected to a voice channel to use this command.", inline=False)
+            start_recording_failure_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> You must be connected to a voice channel to use this command.", inline=False)
             return await interaction.response.send_message(embed=start_recording_failure_embed, ephemeral=True)
 
         if self.bot.voice_clients:
             if isinstance(self.bot.voice_clients[0], wavelink.Player):
-                start_recording_failure_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> The voice client is now being occupied by the music player, Please terminate the player and try again.", inline=False)
+                start_recording_failure_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> The voice client is now being occupied by the music player, Please terminate the player and try again.", inline=False)
                 return await interaction.response.send_message(embed=start_recording_failure_embed, ephemeral=True)
             
             else:
-                start_recording_failure_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> I'm already connected to a voice channel.", inline=False)
+                start_recording_failure_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm already connected to a voice channel.", inline=False)
                 return await interaction.response.send_message(embed=start_recording_failure_embed, ephemeral=True)
 
         voice_channel = interaction.user.voice.channel
         voice_client = await voice_channel.connect(cls=voice_recv.VoiceRecvClient)
 
         if voice_client.is_listening():
-            start_recording_failure_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> Recording is already in progress.", inline=False)
+            start_recording_failure_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Recording is already in progress.", inline=False)
             return await interaction.response.send_message(embed=start_recording_failure_embed, ephemeral=True)
 
         self.is_recording = True
@@ -194,7 +194,7 @@ class VoiceRecorder(commands.Cog):
         stop_recording_success_embed = Embed(title="", color=interaction.user.color)
         stop_recording_failure_embed = Embed(title="", color=Colour.red())
         if not voice_client or not self.is_recording:
-            stop_recording_failure_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> No recording in progress.", inline=False)
+            stop_recording_failure_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> No recording in progress.", inline=False)
             return await interaction.response.send_message(embed=stop_recording_failure_embed, ephemeral=True)
 
         await interaction.response.defer()
@@ -230,7 +230,7 @@ class VoiceRecorder(commands.Cog):
 
                 except discord.errors.HTTPException as e:
                     if e.status == 413 and e.code == 40005:  # File too large
-                        stop_recording_failure_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> Failed to send the recording because the file was too large", inline=False)
+                        stop_recording_failure_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Failed to send the recording because the file was too large", inline=False)
                         return await interaction.followup.send(embed=stop_recording_failure_embed, ephemeral=True)
                     
                     else:
@@ -241,7 +241,7 @@ class VoiceRecorder(commands.Cog):
                     os.remove(temp_file_path)
 
         else:
-            stop_recording_failure_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> Recording **failed** or the file is **empty**.", inline=False)
+            stop_recording_failure_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Recording **failed** or the file is **empty**.", inline=False)
             return await interaction.followup.send(embed=stop_recording_failure_embed, ephemeral=True)
         
 

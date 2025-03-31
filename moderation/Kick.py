@@ -10,10 +10,6 @@ class Kick(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-
-    # ----------<Kick members>----------
-
-
     # Kicks a member from the entire server
     @app_commands.command(description="Kicks a member")
     @app_commands.checks.has_permissions(kick_members=True)
@@ -27,21 +23,21 @@ class Kick(commands.Cog):
         try:
             
             if interaction.guild.get_member(member.id) is None:
-                kick_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> {member.mention} is **not in the server** currently.")
+                kick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {member.mention} is **not in the server** currently.")
                 return await interaction.response.send_message(embed=kick_error_embed)
             
             if member == interaction.user:
-                kick_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> {interaction.user.mention}, You can't **kick yourself**!")
+                kick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {interaction.user.mention}, You can't **kick yourself**!")
                 return await interaction.response.send_message(embed=kick_error_embed)
             
             if member == self.bot.user:
-                kick_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> {interaction.user.mention}, I can't **kick myself**!")
+                kick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {interaction.user.mention}, I can't **kick myself**!")
                 return await interaction.response.send_message(embed=kick_error_embed)
             
             if member.guild_permissions.administrator and interaction.user != interaction.guild.owner:
                 
                 if not await self.bot.is_owner(interaction.user):
-                    kick_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> Stop trying to **ban an admin**! :rolling_eyes:")
+                    kick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Stop trying to **ban an admin**! :rolling_eyes:")
                     return await interaction.response.send_message(embed=kick_error_embed)
             
             if reason is not None:
@@ -57,7 +53,7 @@ class Kick(commands.Cog):
         except Forbidden as e:
             if e.status == 403 and e.code == 50013:
                 # Handling rare forbidden case
-                kick_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> I couldn't **kick** that user. Please **double-check** my **permissions** and **role position**.")
+                kick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **kick** that user. Please **double-check** my **permissions** and **role position**.")
                 await interaction.response.send_message(embed=kick_error_embed)
             
             else:
@@ -69,18 +65,15 @@ class Kick(commands.Cog):
         kick_error_embed = Embed(title="", color=discord.Colour.red())
         
         if isinstance(error, MissingPermissions):
-            kick_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> This command **requires** `kick_members` permission, and you probably **don't have** it, {interaction.user.mention}.")
+            kick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `kick_members` permission, and you probably **don't have** it, {interaction.user.mention}.")
             await interaction.response.send_message(embed=kick_error_embed)
         
         elif isinstance(error, BotMissingPermissions):
-            kick_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> I couldn't **kick** that member. Please **double-check** my **permissions** and **role position**.")
+            kick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **kick** that member. Please **double-check** my **permissions** and **role position**.")
             await interaction.response.send_message(embed=kick_error_embed)
         
         else:
             raise error
-
-
-# ----------</Kick members>----------
 
 
 async def setup(bot):

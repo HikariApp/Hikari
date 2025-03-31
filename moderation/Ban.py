@@ -11,10 +11,6 @@ class Ban(commands.Cog):
 
     ban = app_commands.Group(name="ban", description="Bans a user")
 
-
-    # ----------<Ban users or members>----------
-
-
     # Main session to ban a user
     async def ban_user(self, interaction: Interaction, user: discord.User, reason: Optional[str], ban_from_guild: bool):
         ban_embed = Embed(title="", color=interaction.user.color)
@@ -35,7 +31,7 @@ class Ban(commands.Cog):
             elif user.guild_permissions.administrator and interaction.user != interaction.guild.owner:
                 
                 if not await self.bot.is_owner(interaction.user):
-                    ban_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> Stop trying to **ban an admin**! :rolling_eyes:")
+                    ban_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Stop trying to **ban an admin**! :rolling_eyes:")
                     return await interaction.response.send_message(embed=ban_error_embed)
             
             else:
@@ -54,7 +50,7 @@ class Ban(commands.Cog):
         
             if e.status == 403 and e.code == 50013:
                 # Handling rare forbidden case
-                ban_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> I couldn't **ban** that user. Please **double-check** my **permissions** and **role position**.")
+                ban_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **ban** that user. Please **double-check** my **permissions** and **role position**.")
                 await interaction.response.send_message(embed=ban_error_embed)
             
             else:
@@ -66,19 +62,19 @@ class Ban(commands.Cog):
         ban_error_embed = Embed(title="", color=discord.Colour.red())
         
         if interaction.guild.get_member(user.id) is None and not ban_from_guild:
-            ban_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> {user.mention} is **not in the server** currently.\nTo **ban them from the server**, use the command </ban guild:1187832408888840205> instead. :wink:")
+            ban_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {user.mention} is **not in the server** currently.\nTo **ban them from the server**, use the command </ban guild:1187832408888840205> instead. :wink:")
             return await interaction.response.send_message(embed=ban_error_embed)
         
         if user == interaction.user:
-            ban_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> {interaction.user.mention}, You can't **ban yourself**!")
+            ban_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {interaction.user.mention}, You can't **ban yourself**!")
             return await interaction.response.send_message(embed=ban_error_embed)
         
         if user == self.bot.user:
-            ban_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> {interaction.user.mention}, I can't **ban myself**!")
+            ban_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {interaction.user.mention}, I can't **ban myself**!")
             return await interaction.response.send_message(embed=ban_error_embed)
         
         if await self.is_banned(interaction, user):
-            ban_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> {user.mention} is **already banned**!")
+            ban_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {user.mention} is **already banned**!")
             return await interaction.response.send_message(embed=ban_error_embed)
         
         await self.ban_user(interaction, user, reason, ban_from_guild)
@@ -124,20 +120,16 @@ class Ban(commands.Cog):
         ban_error_embed = Embed(title="", color=discord.Colour.red())
         
         if isinstance(error, MissingPermissions):
-            ban_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> This command **requires** `ban_members` permission, and you probably **don't have** it, {interaction.user.mention}.")
+            ban_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `ban_members` permission, and you probably **don't have** it, {interaction.user.mention}.")
             await interaction.response.send_message(embed=ban_error_embed)
         
         elif isinstance(error, BotMissingPermissions):
-            ban_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> I couldn't **ban** that user. Please **double-check** my **permissions** and **role position**.")
+            ban_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **ban** that user. Please **double-check** my **permissions** and **role position**.")
             await interaction.response.send_message(embed=ban_error_embed)
         
         else:
             raise error
 
 
-# ----------</Ban users or members>----------
-
-
 async def setup(bot):
     await bot.add_cog(Ban(bot))
-

@@ -10,10 +10,6 @@ class MessageFiltering(commands.Cog):
         self.is_sysdel = False    # Default
         self.db = self.bot.get_cluster()
 
-
-  # ---------<Message Filtering>----------
-
-
     # Toggle the option of deleting messages from the system channel
     @app_commands.command(name="sysdel", description="Configure the option of deleting messages from the system channel")
     @app_commands.allowed_installs(guilds=True, users=False)
@@ -35,7 +31,7 @@ class MessageFiltering(commands.Cog):
             # Check if the current mode is the same as the requested mode
             if existing_setting.get("delete_on_system_channel") == mode:
                 current_status = "enabled" if mode else "disabled"
-                sysdel_failure_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> The **delete on system channel** option is already **{current_status}** for this server.")
+                sysdel_failure_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> The **delete on system channel** option is already **{current_status}** for this server.")
                 return await interaction.response.send_message(embed=sysdel_failure_embed, ephemeral=True)
             
             else:
@@ -60,7 +56,7 @@ class MessageFiltering(commands.Cog):
         sysdel_error_embed = Embed(title="", color=discord.Colour.red())
         
         if isinstance(error, MissingPermissions):
-            sysdel_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> This command **requires** `Manage Server` permission, and you probably **don't have** it, {interaction.user.mention}.")
+            sysdel_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `Manage Server` permission, and you probably **don't have** it, {interaction.user.mention}.")
             await interaction.response.send_message(embed=sysdel_error_embed)
         else:
             raise error
@@ -93,9 +89,6 @@ class MessageFiltering(commands.Cog):
         
         if self.is_sysdel and message.stickers == [] and message.channel == message.guild.system_channel:
             await message.delete()
-
-
-  # ----------</Message Filtering>----------
 
 
 async def setup(bot):

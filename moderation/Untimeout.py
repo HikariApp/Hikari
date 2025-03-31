@@ -10,10 +10,6 @@ class Untimeout(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-
-    # ----------<Untimeout members>----------
-
-
     # Untimeouts a member
     @app_commands.command(name="untimeout", description="Remove timeouts for a member")
     @app_commands.checks.has_permissions(moderate_members=True)
@@ -39,18 +35,15 @@ class Untimeout(commands.Cog):
         untimeout_error_embed = Embed(title="", color=discord.Colour.red())
         
         if isinstance(error, MissingPermissions):
-            untimeout_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> This command **requires** `moderate members` permission, and you probably **don't have** it, {interaction.user.mention}.")
+            untimeout_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `moderate members` permission, and you probably **don't have** it, {interaction.user.mention}.")
             await interaction.response.send_message(embed=untimeout_error_embed)
         
         elif isinstance(error, BotMissingPermissions):
-            untimeout_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> I couldn't **untimeout** that user. Please **double-check** my **permissions** and **role position**.")
+            untimeout_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **untimeout** that user. Please **double-check** my **permissions** and **role position**.")
             await interaction.response.send_message(embed=untimeout_error_embed)
         
         else:
             raise error
-
-
-    # ----------</Timeout and untimeout members>----------
 
 
 async def setup(bot):
