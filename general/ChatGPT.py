@@ -469,9 +469,6 @@ async def openai_error_embed_handler(interaction, e, title):
     await interaction.followup.send(embed=error_embed)
 
 
-# ----------<ChatGPT>----------
-
-
 class ChatGPTModal(Modal):
     """
     A Discord Modal to collect user input for the ChatGPT command.
@@ -498,7 +495,7 @@ class ChatGPTModal(Modal):
         database = self.db_cluster["chatgpt"]
         channels_collection = database["discord_channels"]
         await interaction.response.defer()
-        wait_message = await interaction.followup.send("<a:LoadingCustom:1295993639641812992> *Waiting for GPT to respond...*", wait=True)
+        wait_message = await interaction.followup.send("<a:loading:1356354873569841262> *Waiting for GPT to respond...*", wait=True)
 
         try:
             channel_id = interaction.channel.id
@@ -577,60 +574,60 @@ class ChatGPTModal(Modal):
             await openai_error_embed_handler(
                 interaction=interaction,
                 e=e,
-                title="<a:CrossRed:1274034371724312646> OpenAI API request timed out"
+                title="<a:crossred:1356353067024515266> OpenAI API request timed out"
             )
 
         except openai.APIConnectionError as e:
             await openai_error_embed_handler(
                 interaction=interaction,
                 e=e,
-                title="<a:CrossRed:1274034371724312646> Failed to connect to OpenAI API"
+                title="<a:crossred:1356353067024515266> Failed to connect to OpenAI API"
             )
 
         except openai.RateLimitError as e:
             await openai_error_embed_handler(
                 interaction=interaction,
                 e=e,
-                title="<a:CrossRed:1274034371724312646> OpenAI API request rate limit exceeded"
+                title="<a:crossred:1356353067024515266> OpenAI API request rate limit exceeded"
             )
 
         except openai.BadRequestError as e:
             await openai_error_embed_handler(
                 interaction=interaction,
                 e=e,
-                title="<a:CrossRed:1274034371724312646> Invalid request to OpenAI API"
+                title="<a:crossred:1356353067024515266> Invalid request to OpenAI API"
             )
 
         except openai.AuthenticationError as e:
             await openai_error_embed_handler(
                 interaction=interaction,
                 e=e,
-                title="<a:CrossRed:1274034371724312646> Authentication error with OpenAI API"
+                title="<a:crossred:1356353067024515266> Authentication error with OpenAI API"
             )
 
         except openai.APIError as e:
             await openai_error_embed_handler(
                 interaction=interaction,
                 e=e,
-                title="<a:CrossRed:1274034371724312646> An error returned from OpenAI API"
+                title="<a:crossred:1356353067024515266> An error returned from OpenAI API"
             )
         except openai.PermissionDeniedError:
             await openai_error_embed_handler(
                 interaction=interaction,
                 e=e,
-                title="<a:CrossRed:1274034371724312646> An error returned from OpenAI API"
+                title="<a:crossred:1356353067024515266> An error returned from OpenAI API"
             )
         except openai.ContentFilterFinishReasonError:
             await openai_error_embed_handler(
                 interaction=interaction,
                 e=e,
-                title="<a:CrossRed:1274034371724312646> ContentFilter error returned from OpenAI API"
+                title="<a:crossred:1356353067024515266> ContentFilter error returned from OpenAI API"
             )
         except openai.LengthFinishReasonError:
             await openai_error_embed_handler(
                 interaction=interaction,
                 e=e,
-                title="<a:CrossRed:1274034371724312646> An error returned from OpenAI API"
+                title="<a:crossred:1356353067024515266> An error returned from OpenAI API"
             )
 
 
@@ -706,7 +703,7 @@ class ChatGPT(commands.Cog):
             channel_records_exist = await channels_collection.find_one(query)
     
             if not channel_records_exist:
-                return [f"<a:CrossRed:1274034371724312646> No **chat history** found on <#{interaction.channel.id}>.", False]
+                return [f"<a:crossred:1356353067024515266> No **chat history** found on <#{interaction.channel.id}>.", False]
 
             await channels_collection.delete_one(query)
             await channels_collection.delete_one(query)
@@ -718,13 +715,13 @@ class ChatGPT(commands.Cog):
         
         elif type == "thread":
             if not isinstance(interaction.channel, discord.Thread):
-                return [f"<a:CrossRed:1274034371724312646> <#{interaction.channel.id}> is **not a thread**.", False]    # channel.mention doesn't work for discord.DMChannel objects
+                return [f"<a:crossred:1356353067024515266> <#{interaction.channel.id}> is **not a thread**.", False]    # channel.mention doesn't work for discord.DMChannel objects
             
             # Check if any records exist on the channel
             channel_records_exist = await channels_collection.find_one(query)
     
             if not channel_records_exist:
-                return [f"<a:CrossRed:1274034371724312646> No **chat history** found on <#{interaction.channel.id}>.", False]
+                return [f"<a:crossred:1356353067024515266> No **chat history** found on <#{interaction.channel.id}>.", False]
 
             await channels_collection.delete_one(query)
             await channels_collection.delete_one(query)
@@ -733,13 +730,13 @@ class ChatGPT(commands.Cog):
         
         elif type == "server":
             if isinstance(interaction.channel, discord.DMChannel) or guild_id is None:
-                return [f"<a:CrossRed:1274034371724312646> <#{interaction.channel.id}> is **not belongs to** a **server**.", False]
+                return [f"<a:crossred:1356353067024515266> <#{interaction.channel.id}> is **not belongs to** a **server**.", False]
             
             # Check if any records exist on the server
             server_records_exist = await channels_collection.find_one({"guild_id": guild_id})
             
             if not server_records_exist:
-                return [f"<a:CrossRed:1274034371724312646> No **chat history** found on **this server**.", False]
+                return [f"<a:crossred:1356353067024515266> No **chat history** found on **this server**.", False]
 
             await channels_collection.delete_many({"guild_id": guild_id})
             await channels_collection.delete_many({"guild_id": guild_id})
@@ -750,7 +747,7 @@ class ChatGPT(commands.Cog):
             all_records_exist = await channels_collection.find_one({})
     
             if not all_records_exist:
-                return ["<a:CrossRed:1274034371724312646> No **chat history** found on **all server(s), channel(s) or thread(s)**.", False]
+                return ["<a:crossred:1356353067024515266> No **chat history** found on **all server(s), channel(s) or thread(s)**.", False]
     
             # Delete all records
             await channels_collection.delete_many({})
@@ -788,12 +785,5 @@ class ChatGPT(commands.Cog):
         await interaction.response.send_message(embed=reset_embed, ephemeral=True)
         
 
-# ----------</ChatGPT>----------
-
-
 async def setup(bot):
     await bot.add_cog(ChatGPT(bot))
-
-
-
-

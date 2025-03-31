@@ -15,7 +15,6 @@ class PollNew(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
 
-
     # Getting required message ID from user input
     async def get_message_id(self, message: str):
         try:
