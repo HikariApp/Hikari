@@ -1108,3 +1108,37 @@ A blank line will now shown and deletes immediately when the command are all fin
 # 20250211 v2.1.4
 
 (+) Fix OpenAI issues after switching server
+
+#
+
+# 20250330 (night) v2.1.5 (*)
+
+# IMPORTANT UPDATE
+
+(-/+) Rebranded the bot as another name due to the original bot somehow **got deleted**, and resumed development process
+
+(-) Removed most of the redundant codes and comments
+
+(-/+) Refactor *"root/startup.py"** for another server migration
+
+(+) Updated all env varibles for the new bot
+
+(-/+) Moved the entire application ownership from person to a newly created organization (this repo)
+
+(-/+) Replaced OpenAI serivce token
+
+(+) Minior code improvement
+
+(+) Created multiple backup just in case
+
+#
+
+# 20250401 (afternoon) v2.1.7 (*)
+
+(-/+) Completely rewrited **"root/general/SendFromInput.py"** and renamed it to **"root/general/SendAsBot.py"**, and fixed most of the error handling for this cog
+
+(+) Admin permission is now required for **"root/general/SendAsBot.py"** to work
+
+(+) Minior code improvement
+
+(-/+) Refactor progress will begin soon
