@@ -1142,3 +1142,19 @@ A blank line will now shown and deletes immediately when the command are all fin
 (+) Minior code improvement
 
 (-/+) Refactor progress will begin soon
+
+#
+
+# 20250406 (midnight) v2.1.8 (*)
+
+(-/+) Completely rewrited **"root/general/ChatGPT.py"** for new thread structure and renamed it to **"root/general/ChatBot.py"**
+
+(+) Fixed Heatbeat failure by implementing AsyncOpenAI
+
+(+) Admin permission is now required for reset to work
+
+(+) Updated model from gpt4/gpt4o to gpt4o/gpt4.5
+
+(+) Minior code improvement
+
+(-/+) Refactor progress will begin soon
