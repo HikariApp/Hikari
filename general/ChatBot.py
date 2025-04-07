@@ -12,6 +12,7 @@ from discord.ui import Modal, TextInput
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 from typing import Optional, List, Dict, Any
+from errorhandling import NotBotOwnerError
 
 # Load environment variables
 load_dotenv()
@@ -872,11 +873,19 @@ class ChatBot(commands.Cog):
 
     # Command to initiate ChatBot interaction
     @app_commands.command(name="chatbot", description="Chat with our AI assistant in a dedicated thread.")
+    @app_commands.allowed_installs(guilds=True, users=False)
+    @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=True)
     @app_commands.checks.has_permissions(create_public_threads=True)
     @app_commands.checks.bot_has_permissions(create_public_threads=True)
     @app_commands.describe(attachment="File to upload (optional).")
     async def chatbot(self, interaction: discord.Interaction, attachment: Optional[discord.Attachment] = None):
         """Command to initiate ChatBot interaction"""
+        chatbot_error_embed = Embed(title="", color=discord.Colour.red())
+        if isinstance(interaction.channel, discord.Thread):
+            # Check if the command is used in a thread
+            chatbot_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I don't have the ablilty to start a new conversation in an **existing thread** :thinking: ... Perhaps try to use it in a **text channel** instead. {interaction.user.mention} :pleading_face: ?")
+            return await interaction.response.send_message(embed=chatbot_error_embed)
+
         await interaction.response.send_modal(ChatBotModal(ai_openai=self.ai_openai, ai_repository=self.ai_repository))
 
         if attachment:
@@ -966,7 +975,6 @@ class ChatBot(commands.Cog):
         """Reset ChatBot history based on selected scope"""
         
         if not await self.bot.is_owner(interaction.user) and type.value == "all":
-            from errorhandling.ErrorHandling import NotBotOwnerError
             return await interaction.response.send_message(NotBotOwnerError())
         
         guild_id = interaction.guild.id if interaction.guild else None
