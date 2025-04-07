@@ -1158,3 +1158,14 @@ A blank line will now shown and deletes immediately when the command are all fin
 (+) Minior code improvement
 
 (-/+) Refactor progress will begin soon
+
+
+#
+
+# 20250407 (afternoon) v2.1.9
+
+(-/+) Replaced some outdated icons (emoji)
+
+(+) Add proper error handling for user attempting to start a new conversation in a existing thread in **"/root/general/ChatBot.py"**.
+
+(+) Minior code improvement
