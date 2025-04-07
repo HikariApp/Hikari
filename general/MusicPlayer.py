@@ -560,7 +560,7 @@ class MusicPlayer(commands.Cog):
                 return result_dict
             
             load_error = to_dict(str(load_error))
-            load_error_embed = discord.Embed(title="<a:CrossRed:1274034371724312646> Error while loading tracks with wavelink", color=interaction.user.colour)
+            load_error_embed = discord.Embed(title="<a:crossred:1356353067024515266> Error while loading tracks with wavelink", color=interaction.user.colour)
             load_error_embed.add_field(name=f"{load_error["message"]}", value=f"{load_error["error"]}\n\nSeverity: {load_error["severity"]}\nCause: {load_error["cause"]}", inline=False)
             return await interaction.followup.send(embed=load_error_embed)
         
