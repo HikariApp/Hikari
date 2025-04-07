@@ -1162,7 +1162,7 @@ A blank line will now shown and deletes immediately when the command are all fin
 
 #
 
-# 20250407 (afternoon) v2.1.9
+# 20250407 (afternoon) v2.2.0
 
 (-/+) Replaced some outdated icons (emoji)
 
