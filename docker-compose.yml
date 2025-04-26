@@ -11,8 +11,6 @@ services:
     restart: no  # Setting it to something else would broke the shutdown and restart functionality that the bot already have
     stop_signal: SIGTERM
     init: true  # This enables proper signal handling
-    networks:
-      - web-network
 
   lavalink:
     # Pin the image version to Lavalink v4
@@ -26,10 +24,4 @@ services:
     restart: no
     ports:
       - "2333:2333"
-    networks:
-      - web-network
 
-networks:
-  # Set up a replication network
-  web-network:
-    external: true
