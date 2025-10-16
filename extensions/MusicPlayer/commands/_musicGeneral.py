@@ -6,7 +6,7 @@ import discord
 from pomice import LoopMode, Timescale
 from discord import app_commands, Color, Embed
 from discord.ext import commands
-from .._player import BetterPlayer
+from extensions.MusicPlayer._player import BetterPlayer
 from errorhandling.ErrorHandling import *
 
 logger = logging.getLogger("music_v2")

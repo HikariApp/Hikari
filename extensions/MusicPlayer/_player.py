@@ -2,7 +2,7 @@ import logging
 import asyncio
 import pomice
 from copy import copy
-from _audioMetadataExtractor import *
+from extensions.MusicPlayer._audioMetadataExtractor import *
 from contextlib import suppress
 from datetime import timedelta
 from typing import List, Optional, Iterable
