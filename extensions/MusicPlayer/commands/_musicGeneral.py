@@ -64,20 +64,6 @@ class MusicGeneral(commands.Cog):
     async def on_pomice_track_exception(self, player: BetterPlayer, track, _):
         await player.nextTrack()
 
-    @commands.hybrid_command(aliases=["dc"])
-    async def leave(self, ctx: commands.Context):
-        player = ctx.voice_client
-        if player is None:
-            return await ctx.send("I'm not in a voice channel.")
-        try:
-            await player.destroy()
-        except Exception:
-            try:
-                await player.disconnect()
-            except Exception:
-                pass
-        await ctx.send("Left the channel.")
-
 
     # Discord Autocomplete for Web search, rewrited for discord.py, and now for pomice (11-10-2025)
     async def web_serach_autocomplete(self, ctx: Optional[commands.Context], search: str) -> List[app_commands.Choice[str]]:

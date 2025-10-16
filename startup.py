@@ -25,7 +25,7 @@ load_dotenv()
 nest_asyncio.apply()
 app = Quart("DiscordBot")
 extensions = []
-extensions_folders = ['general', 'moderation', 'errorhandling', 'configs']
+extensions_folders = ['general', 'moderation', 'extensions', 'errorhandling', 'configs']
 logger = setup_logger('discord_bot', 'bot.log', logging.INFO)
 intents = discord.Intents.default()
 intents.message_content = True
@@ -152,7 +152,7 @@ async def get_extensions():
                     if extension == "general.ChatGPT" and os.getenv("ENABLE_AI") == "False":
                         continue
 
-                    if extension == "general.MusicPlayer" and os.getenv("ENABLE_MUSIC") == "False":
+                    if extension == "extensions.MusicPlayer.Music" and os.getenv("ENABLE_MUSIC") == "False":
                         continue
 
                     extensions.append(extension)
