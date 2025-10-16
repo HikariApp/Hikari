@@ -4,8 +4,8 @@ import io
 import time
 import numpy as np
 import wave
-import wavelink
 import tempfile
+from ..extensions.MusicPlayer._player import BetterPlayer
 from discord import app_commands, Colour, Embed, Interaction
 from discord.ext import voice_recv
 from discord.ext.voice_recv import AudioSink, VoiceData, WaveSink
@@ -160,7 +160,7 @@ class VoiceRecorder(commands.Cog):
             return await interaction.response.send_message(embed=start_recording_failure_embed, ephemeral=True)
 
         if self.bot.voice_clients:
-            if isinstance(self.bot.voice_clients[0], wavelink.Player):
+            if isinstance(self.bot.voice_clients[0], BetterPlayer):
                 start_recording_failure_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> The voice client is now being occupied by the music player, Please terminate the player and try again.", inline=False)
                 return await interaction.response.send_message(embed=start_recording_failure_embed, ephemeral=True)
             
