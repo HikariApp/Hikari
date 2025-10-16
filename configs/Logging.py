@@ -9,9 +9,11 @@ def setup_logger(name, log_file, level=logging.INFO):
     
     # Create handlers
     file_handler = logging.FileHandler(log_file)
+    stream_handler = logging.StreamHandler()
     
     # Add handlers to the logger
     logger.addHandler(file_handler)
+    logger.addHandler(stream_handler)
     
     return logger
 
