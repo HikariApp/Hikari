@@ -2,7 +2,8 @@ import discord
 import asyncio
 import re
 import logging
-import wavelink
+import pomice
+from ..extensions.MusicPlayer._player import BetterPlayer
 from discord import app_commands, Embed, Interaction, Forbidden, Member, VoiceChannel
 from discord.ext import commands, tasks
 from discord.app_commands import BotMissingPermissions
@@ -68,8 +69,8 @@ class VoiceChannel(commands.Cog):
     @app_commands.command(description="Invokes me to a voice channel")
     @app_commands.describe(channel="Channel to join. Leave this blank if you want the bot to join where you are.")
     async def join(self, interaction: Interaction, channel: Optional[discord.VoiceChannel] = None):
-        player: wavelink.Player
-        player = cast(wavelink.Player, interaction.guild.voice_client)
+        player: BetterPlayer
+        player = cast(BetterPlayer, interaction.guild.voice_client)
         join_embed = discord.Embed(title="", color=interaction.user.colour)
         voice_channel = channel
 
@@ -83,7 +84,7 @@ class VoiceChannel(commands.Cog):
         if not player:
             try:
                 # Join voice channel
-                player = await voice_channel.connect(cls=wavelink.Player)
+                player = await voice_channel.connect(cls=pomice.Player)
                 set_fallback_text_channel(interaction, interaction.channel)
                 join_embed.add_field(name="", value=f"I've joined the voice channel {voice_channel.mention}")
                 return await interaction.response.send_message(embed=join_embed)
@@ -112,8 +113,8 @@ class VoiceChannel(commands.Cog):
     # Leaving voice channel
     @app_commands.command(description="Leaving a voice channel")
     async def leave(self, interaction: Interaction):
-        player: wavelink.Player
-        player = cast(wavelink.Player, interaction.guild.voice_client)
+        player: pomice.Player
+        player = cast(pomice.Player, interaction.guild.voice_client)
         leaving_vc = discord.Embed(title="", description="", color=self.bot.user.color)
         leaving_vc_error_embed = discord.Embed(title="", color=discord.Colour.red())
 
@@ -370,8 +371,8 @@ class VoiceChannel(commands.Cog):
     @app_commands.describe(channel="Channel to move me to. Leave this blank if you want to move me into where you are.")
     @app_commands.describe(reason="Reason for move")
     async def move_bot(self, interaction: Interaction, channel: Optional[discord.VoiceChannel] = None, reason: Optional[str] = None):
-        player: wavelink.Player
-        player = cast(wavelink.Player, interaction.guild.voice_client)
+        player: BetterPlayer
+        player = cast(BetterPlayer, interaction.guild.voice_client)
         move_bot_embed = discord.Embed(title="", color=interaction.user.color)
         move_bot_error_embed = discord.Embed(title="", color=discord.Colour.red())
 

@@ -110,11 +110,24 @@ async def load_extensions():
         logger.info(extension)
 
 
+# Getting all extensions from the extensions folders
+# UPDATE 17-10-2025: Rewrited with asyncio.to_thread and os.walk to support subdirectories, and you can name a file starts with `_` to prevent loading
 async def get_extensions():
     """
     This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
-    Getting all extensions
+    Getting all extensions from the extensions folders ends with `.py` and not starts with `_`, see Note below for more details.
+
+    Note
+    ----------
+    This function has been rewrited, and now uses `asyncio.to_thread` to run blocking I/O operations in a separate thread, preventing the main event loop from being blocked.
+
+    Since the latest rewrite, this function is now fully asynchronous and non-blocking.
+
+    And you can now add subdirectories in the extensions folders, and the function will find them all.
+
+    Also, you can named your files starts with `_` to prevent them from being loaded as extensions, which is useful for utility modules.
+
     """
     global extensions_folders
     extensions = []
@@ -125,19 +138,24 @@ async def get_extensions():
         if not os.path.exists(folder_path):
             continue
 
-        filenames = await asyncio.to_thread(os.listdir, folder_path)
+        # Use os.walk to recursively traverse directories
+        walk_result = await asyncio.to_thread(list, os.walk(folder_path))
+        
+        for root, _, files in walk_result:
+            for filename in files:
+                if filename.endswith('.py') and not filename.startswith('_'):
+                    # Convert file path to discord.py Cog format
+                    relative_path = os.path.relpath(os.path.join(root, filename), ".").replace(os.sep, ".")
+                    extension = relative_path[:-3]  # Remove .py extension
+                    print(f"Found extension: {extension}")
 
-        for filename in filenames:
-            if filename.endswith('.py'):
-                extension = f'{folder}.{filename[:-3]}'
+                    if extension == "general.ChatGPT" and os.getenv("ENABLE_AI") == "False":
+                        continue
 
-                if extension == "general.ChatGPT" and os.getenv("ENABLE_AI") == "False":
-                    continue
+                    if extension == "general.MusicPlayer" and os.getenv("ENABLE_MUSIC") == "False":
+                        continue
 
-                if extension == "general.MusicPlayer" and os.getenv("ENABLE_MUSIC") == "False":
-                    continue
-
-                extensions.append(extension)
+                    extensions.append(extension)
 
     return extensions
 
@@ -520,6 +538,7 @@ async def restart_():
         The restart message to client devices.
     
     """
+
     await bot.close()
     await bot.close_db()
     await instruction_queue.put("restart")    # Put "restart" to the queue to restart the web server
