@@ -1,8 +1,8 @@
 import logging
 from discord.ext import commands, tasks
-from ._nodeManager import NodeManager
-from .commands._musicGeneral import MusicGeneral
-from .commands._musicQueueSystem import MusicQueueSystem
+from extensions.MusicPlayer._nodeManager import NodeManager
+from extensions.MusicPlayer.commands._musicGeneral import MusicGeneral
+from extensions.MusicPlayer.commands._musicQueueSystem import MusicQueueSystem
 
 logging.basicConfig(level=logging.INFO)
 
