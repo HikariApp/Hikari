@@ -1,10 +1,7 @@
-import logging
 import os
 import pomice
 from discord.ext import commands
 
-
-logger = logging.getLogger("music_v2")
 
 class NodeManager:
     def __init__(self, bot: commands.Bot):
@@ -13,11 +10,14 @@ class NodeManager:
 
     async def start_nodes(self) -> None:
         """Initialize and start the Lavalink nodes."""
+        print(os.getenv("LAVALINK_HOST"))
+        print(os.getenv("LAVALINK_PORT"))
+        print(os.getenv("LAVALINK_IS_SECURE"))
         try:
             await self.pomice.create_node(
                 bot=self.bot,
                 host=os.getenv("LAVALINK_HOST"),
-                port=os.getenv("LAVALINK_PORT"),
+                port=int(os.getenv("LAVALINK_PORT")),
                 secure=os.getenv("LAVALINK_IS_SECURE").lower() == "true",
                 password=os.getenv("LAVALINK_PASSWORD"),
                 identifier="MAIN",
