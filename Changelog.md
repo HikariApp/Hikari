@@ -1169,3 +1169,11 @@ A blank line will now shown and deletes immediately when the command are all fin
 (+) Add proper error handling for user attempting to start a new conversation in a existing thread in **"/root/general/ChatBot.py"**.
 
 (+) Minior code improvement
+
+-----------------------------------------------------------------------------------------------------------------------------
+
+#
+
+# 20251016 (*)
+
+# Rewrited the entire Music Plaer system
