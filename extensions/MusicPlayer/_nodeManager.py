@@ -1,7 +1,9 @@
+import logging
 import os
 import pomice
 from discord.ext import commands
 
+logger = logging.getLogger("music_v2")
 
 class NodeManager:
     def __init__(self, bot: commands.Bot):
