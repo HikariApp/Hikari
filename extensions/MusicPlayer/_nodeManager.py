@@ -12,9 +12,6 @@ class NodeManager:
 
     async def start_nodes(self) -> None:
         """Initialize and start the Lavalink nodes."""
-        print(os.getenv("LAVALINK_HOST"))
-        print(os.getenv("LAVALINK_PORT"))
-        print(os.getenv("LAVALINK_IS_SECURE"))
         try:
             await self.pomice.create_node(
                 bot=self.bot,
