@@ -50,10 +50,7 @@ class ChangeStatus(commands.Cog):
     @change.command(name="status", description="Changing the bot status (Permitted to team admins only)")
     @app_commands.describe(status="Status of the bot")
     @app_commands.rename(activity_type="type")
-    @app_commands.describe(activity_type="The type you would like to display. Choose '(Ignore)' if you want to leave it blank.")
     @app_commands.rename(activity_name="name")
-    @app_commands.describe(activity_name="The text you would like the bot to display on bio")
-    @app_commands.describe(url="The URL you want to redirect (For streaming only)")
     @app_commands.choices(status=[
         app_commands.Choice(name="Idle", value="idle"),
         app_commands.Choice(name="Invisible", value="invisible"),
@@ -69,12 +66,35 @@ class ChangeStatus(commands.Cog):
         app_commands.Choice(name="Competing In", value="competing")
         ])
     async def change_status(self, interaction: Interaction, status: app_commands.Choice[str], activity_type: Optional[app_commands.Choice[str]] = None, activity_name: Optional[str] = None, url: Optional[str] = None):
-        change_status_embed = Embed(title="", color=interaction.user.color)
+        """
+        Changing the bot status (Permitted to team admins only)
+
+        Parameters
+        ----------
+        status : app_commands.Choice[str]
+            Status of the bot
+
+        activity_type : Optional[app_commands.Choice[str]]
+            The type you would like to display. Choose '(Ignore)' if you want to leave it blank.
+
+        activity_name : Optional[app_commands.Choice[str]]
+            The text you would like the bot to display on bio
+
+        url : Optional[str]
+            The URL you want to redirect (For streaming only)
+
+        Returns
+        -------
+        None
+
+        """
+
+        embed = Embed(title="", color=interaction.user.color)
         if not await self.bot.is_owner(interaction.user):
             return await interaction.response.send_message(NotBotOwnerError())
         
-        change_status_embed.add_field(name="", value=f"Changing status...", inline=False)
-        await interaction.response.send_message(embed=change_status_embed, ephemeral=True, delete_after=0)
+        embed.add_field(name="", value=f"Changing status...", inline=False)
+        await interaction.response.send_message(embed=embed, ephemeral=True, delete_after=0)
 
         # Set the status to the selected option.
         status = Status.__getattribute__(Status, status.value)
