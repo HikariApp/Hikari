@@ -872,14 +872,29 @@ class ChatBot(commands.Cog):
 
 
     # Command to initiate ChatBot interaction
-    @app_commands.command(name="chatbot", description="Chat with our AI assistant in a dedicated thread.")
+    @app_commands.command()
     @app_commands.allowed_installs(guilds=True, users=False)
     @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=True)
     @app_commands.checks.has_permissions(create_public_threads=True)
     @app_commands.checks.bot_has_permissions(create_public_threads=True)
-    @app_commands.describe(attachment="File to upload (optional).")
     async def chatbot(self, interaction: discord.Interaction, attachment: Optional[discord.Attachment] = None):
-        """Command to initiate ChatBot interaction"""
+        """
+        Chat with our ChatBot in a dedicated thread.
+
+        Parameters
+        ----------
+        interaction: discord.Interaction
+            The interaction object from Discord.
+
+        attachment: Optional[discord.Attachment]
+            The file attachment to be sent along with the message.
+
+        Returns
+        ----------
+        None
+
+        """
+
         chatbot_error_embed = Embed(title="", color=discord.Colour.red())
         if isinstance(interaction.channel, discord.Thread):
             # Check if the command is used in a thread
@@ -971,8 +986,23 @@ class ChatBot(commands.Cog):
         app_commands.Choice(name="Reset for current server", value="server"),
         app_commands.Choice(name="Reset for all channel(s) and server(s)", value="all")
     ])
-    async def resetchatbot(self, interaction: Interaction, type: app_commands.Choice[str]):
-        """Reset ChatBot history based on selected scope"""
+    async def resetchatbot(self, interaction: Interaction, type: app_commands.Choice[str]) -> None:
+        """
+        Clear chat history in ChatBot
+
+        Parameters
+        ----------
+        interaction: discord.Interaction
+            The interaction object from Discord.
+
+        type: app_commands.Choice[str]
+            The reset options choice.
+
+        Returns
+        ----------
+        None
+        
+        """
         
         if not await self.bot.is_owner(interaction.user) and type.value == "all":
             return await interaction.response.send_message(NotBotOwnerError())
