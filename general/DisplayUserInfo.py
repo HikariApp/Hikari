@@ -32,13 +32,13 @@ async def createAvatarEmbed(user: User, avatar_url: str) -> Embed:
 
 # Dropdown menu for selecting avatar type
 class AvatarSelectForGuild(Select):
-    def __init__(self, user):
+    def __init__(self, user: User):
+        self.user = user
         options = [
-            SelectOption(label="Global Avatar", value="global"),
-            SelectOption(label="Server Avatar", value="server"),
+            SelectOption(label="Global Avatar", description=f"Retrieve the global avatar of @{self.user.display_name}.", value="global"),
+            SelectOption(label="Server Avatar", description=f"Retrieve the server avatar of @{self.user.display_name}, if any.", value="server"),
         ]
         super().__init__(placeholder="Choose an avatar type...", options=options)
-        self.user = user
 
     async def callback(self, interaction: Interaction):
         embed = None
