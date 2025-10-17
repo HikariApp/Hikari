@@ -27,7 +27,7 @@ class AudioMetadataExtractor:
         If True, performs a partial HTTP Range request for URL sources.
 
     bytesRange : int, optional
-        Number of bytes to fetch if streaming. Default is 1 MB.
+        Number of bytes to fetch if streaming. Default is 2 MB.
 
         WARNING: Setting this too low may result in incomplete metadata.
 
@@ -131,7 +131,7 @@ class AudioMetadataExtractor:
 
     """
 
-    def __init__(self, source: str | bytes | io.BytesIO, stream: bool = False, bytesRange: int = 1 * 1048576):
+    def __init__(self, source: str | bytes | io.BytesIO, stream: bool = False, bytesRange: int = 2 * 1048576):
         self._audio = self._loadAudio(source, stream, bytesRange)
 
 
