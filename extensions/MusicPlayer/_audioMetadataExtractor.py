@@ -27,9 +27,9 @@ class AudioMetadataExtractor:
         If True, performs a partial HTTP Range request for URL sources.
 
     bytesRange : int, optional
-        Number of bytes to fetch if streaming. Default is 4 MB.
+        Number of bytes to fetch if streaming. This should be greater than or equal to 4 MB.
 
-        WARNING: Setting this too low may result in incomplete metadata.
+        WARNING: Failure to do so will lead to missing metadata fields.
 
     Attributes
     ----------
