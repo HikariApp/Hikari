@@ -1,6 +1,8 @@
 import logging
+import os
 import pomice
 from discord.ext import commands
+
 
 logger = logging.getLogger("music_v2")
 
@@ -14,10 +16,10 @@ class NodeManager:
         try:
             await self.pomice.create_node(
                 bot=self.bot,
-                host="lavalink.lolicon.wtf",
-                port=443,
-                secure=True,
-                password="youshallnotpass",
+                host=os.getenv("LAVALINK_HOST"),
+                port=os.getenv("LAVALINK_PORT"),
+                secure=os.getenv("LAVALINK_IS_SECURE").lower() == "true",
+                password=os.getenv("LAVALINK_PASSWORD"),
                 identifier="MAIN",
             )
             logger.info("Pomice node created successfully.")
