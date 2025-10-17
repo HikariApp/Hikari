@@ -620,9 +620,9 @@ class BetterPlayer(pomice.Player):
                     self.controller = None
             embed, customArtworkFile = await self.nowPlayingEmbed(self.current)
             if customArtworkFile is not None:
-                self.controller = await self.context.send(embed=embed, file=customArtworkFile) if (self.context and not self.controller) else None
+                self.controller = await self.context.send(embed=embed, silent=True, file=customArtworkFile) if (self.context and not self.controller) else None
             else:
-                self.controller = await self.context.send(embed=embed) if (self.context and not self.controller) else None
+                self.controller = await self.context.send(embed=embed, silent=True) if (self.context and not self.controller) else None
             await asyncio.sleep(0.5)  # Small delay to ensure message is sent before next update
 
         finally:
