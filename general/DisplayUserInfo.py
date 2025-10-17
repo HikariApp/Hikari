@@ -65,7 +65,8 @@ class DisplayUserInfo(commands.Cog):
     # Displaying the avatar of you or a specfied user to everyone
     # UPTATE 18-10-2025: This command has been heavily rewritten to include more info and better formatting, see Note below
     @commands.hybrid_command(aliases=["ava"])
-    @app_commands.allowed_installs(users=True, guilds=True)
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dm=True, private_channels=True)
     async def avatar(self, ctx: commands.Context, user: Optional[User] = None):
         """
         Displays your avatar or someone else's avatar to everyone.
@@ -108,7 +109,8 @@ class DisplayUserInfo(commands.Cog):
     # Displaing the info of you or a specfied user to everyone
     # UPTATE 17-10-2025: This command has been heavily rewritten to include more info and better formatting, see Note below
     @commands.hybrid_command(aliases=["user", "whois"])
-    @app_commands.allowed_installs(users=True, guilds=True)
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dm=True, private_channels=True)
     async def userinfo(self, ctx: commands.Context, user: Optional[User] = None):
         """
         Displays information about yourself or another member in the server, such as ID and joined date.
@@ -173,7 +175,7 @@ class DisplayUserInfo(commands.Cog):
         if user.banner is None:
             try:
                 user = await self.bot.fetch_user(user.id)
-                
+
             except HTTPException:
                 pass  # Couldn’t fetch user
 
