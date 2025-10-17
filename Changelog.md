@@ -1176,4 +1176,4 @@ A blank line will now shown and deletes immediately when the command are all fin
 
 # 20251016 (*)
 
-# Rewrited the entire Music Plaer system
+# Rewrited the entire Music Player system
