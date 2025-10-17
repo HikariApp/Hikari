@@ -1,15 +1,71 @@
-from discord import Embed, User, Member, HTTPException, utils
+from discord import app_commands, Embed, Interaction, User, Member, SelectOption, HTTPException, utils
+from discord.ui import View, Select
 from discord.ext import commands
 from typing import Optional
 
+# Helper function to create an avatar embed
+async def createAvatarEmbed(user: User, avatar_url: str) -> Embed:
+    """
+    This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
+
+    Creates and returns an embed containing the user's avatar.
+
+    Parameters
+    ----------
+    user : `discord.User`
+        The user whose avatar is to be displayed.
+
+    avatar_url : `str`
+        The URL of the avatar image.
+
+    Returns
+    ----------
+    embed : `discord.Embed`
+        An embed object containing the user's avatar.
+    
+    """
+
+    embed = Embed()
+    embed.set_image(url=avatar_url)
+    embed.set_author(name=f"{user.display_name}", icon_url=avatar_url)
+    return embed
+
+# Dropdown menu for selecting avatar type
+class AvatarSelectForGuild(Select):
+    def __init__(self, user):
+        options = [
+            SelectOption(label="Global Avatar", value="global"),
+            SelectOption(label="Server Avatar", value="server"),
+        ]
+        super().__init__(placeholder="Choose an avatar type...", options=options)
+        self.user = user
+
+    async def callback(self, interaction: Interaction):
+        embed = None
+
+        if self.values[0] == "global":
+            avatar_url = self.user.display_avatar.url
+            embed = await createAvatarEmbed(self.user, avatar_url)
+            embed.title = "Global Avatar"
+
+        else:
+            member = interaction.guild.get_member(self.user.id)
+            avatar_url = member.display_avatar.url if member else self.user.display_avatar.url
+            embed = await createAvatarEmbed(self.user, avatar_url)
+            embed.title = "Server Avatar"
+        
+        embed.set_footer(text=f"Requested by {interaction.user.display_name}", icon_url=interaction.user.avatar.url)
+        await interaction.response.edit_message(embed=embed)
 
 class DisplayUserInfo(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
 
-    # Displaing an avatar of a user to everyone
+    # Displaying the avatar of you or a specfied user to everyone
+    # UPTATE 18-10-2025: This command has been heavily rewritten to include more info and better formatting, see Note below
     @commands.hybrid_command(aliases=["ava"])
+    @app_commands.allowed_installs(users=True, guilds=True)
     async def avatar(self, ctx: commands.Context, user: Optional[User] = None):
         """
         Displays your avatar or someone else's avatar to everyone.
@@ -26,23 +82,33 @@ class DisplayUserInfo(commands.Cog):
         ----------
         None
 
+        Note
+        ----------
+        This command has been heavily rewritten to provide a more comprehensive overview of the user's information.
+        - It now includes a dropdown menu to select between the user's global avatar and server-specific avatar (if applicable).
+        - The embed now displays the avatar in a larger format for better visibility.
+        - The formatting of the embed has been improved for clarity.
+
         """
         
         user = user or ctx.author
-        userAvatar = user.display_avatar.url
+        embed = await createAvatarEmbed(user, user.display_avatar.url)
+        embed.title = "Global Avatar"
+        view = None
         
-        embed = Embed(title="Avatar Link", url=userAvatar)
-        
-        embed.set_image(url=f"{userAvatar}")
-        embed.set_author(name=f"{user.display_name}", icon_url=f"{userAvatar}")
-        embed.set_footer(text=f'Requested by {ctx.author.display_name}', icon_url=f"{ctx.author.display_avatar.url}")
-        
-        await ctx.send(embed=embed)
+        if ctx.guild is not None:    # If not in a guild just show the global avatar to prevent errors
+            select = AvatarSelectForGuild(user)
+            view = View()
+            view.add_item(select)
+
+        embed.set_footer(text=f"Requested by {ctx.author.display_name}", icon_url=ctx.author.avatar.url)
+        await ctx.send(embed=embed, view=view or None)
 
 
     # Displaing the info of you or a specfied user to everyone
     # UPTATE 17-10-2025: This command has been heavily rewritten to include more info and better formatting, see Note below
     @commands.hybrid_command(aliases=["user", "whois"])
+    @app_commands.allowed_installs(users=True, guilds=True)
     async def userinfo(self, ctx: commands.Context, user: Optional[User] = None):
         """
         Displays information about yourself or another member in the server, such as ID and joined date.
@@ -107,6 +173,7 @@ class DisplayUserInfo(commands.Cog):
         if user.banner is None:
             try:
                 user = await self.bot.fetch_user(user.id)
+                
             except HTTPException:
                 pass  # Couldn’t fetch user
 
@@ -118,7 +185,6 @@ class DisplayUserInfo(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(DisplayUserInfo(bot))
-
 
 
 
