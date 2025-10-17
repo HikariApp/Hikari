@@ -27,6 +27,7 @@ async def createAvatarEmbed(user: User, avatar_url: str) -> Embed:
 
     embed = Embed()
     embed.set_image(url=avatar_url)
+    embed.url = avatar_url
     embed.set_author(name=f"{user.display_name}", icon_url=avatar_url)
     return embed
 
