@@ -66,7 +66,7 @@ class DisplayUserInfo(commands.Cog):
     # UPTATE 18-10-2025: This command has been heavily rewritten to include more info and better formatting, see Note below
     @commands.hybrid_command(aliases=["ava"])
     @app_commands.allowed_installs(guilds=True, users=True)
-    @app_commands.allowed_contexts(guilds=True, dm=True, private_channels=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def avatar(self, ctx: commands.Context, user: Optional[User] = None):
         """
         Displays your avatar or someone else's avatar to everyone.
@@ -110,7 +110,7 @@ class DisplayUserInfo(commands.Cog):
     # UPTATE 17-10-2025: This command has been heavily rewritten to include more info and better formatting, see Note below
     @commands.hybrid_command(aliases=["user", "whois"])
     @app_commands.allowed_installs(guilds=True, users=True)
-    @app_commands.allowed_contexts(guilds=True, dm=True, private_channels=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def userinfo(self, ctx: commands.Context, user: Optional[User] = None):
         """
         Displays information about yourself or another member in the server, such as ID and joined date.
