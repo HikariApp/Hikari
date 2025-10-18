@@ -2,7 +2,7 @@ import discord
 from discord import app_commands, Embed, Interaction, Activity, ActivityType, CustomActivity, Status
 from discord.ext import commands
 from typing import Optional
-from errorhandling.ErrorHandling import *
+from errorhandling._errorHandling import *
 
 class ChangeStatus(commands.Cog):
     def __init__(self, bot):

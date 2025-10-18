@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands, Interaction
 from discord.ext import commands
-from errorhandling.ErrorHandling import *
+from errorhandling._errorHandling import *
 
 # Main cog
 class ReactingMessages(commands.Cog):

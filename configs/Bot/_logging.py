@@ -14,13 +14,7 @@ def setup_logger(name, log_file, level=logging.INFO):
     # Add handlers to the logger
     logger.addHandler(file_handler)
     logger.addHandler(stream_handler)
-    
+
+
+    logger.propagate = False   # prevent root duplication
     return logger
-
-# This is just a configuration for logging. No commands.Cog are involved.
-class Logging(commands.Cog):
-    def __init__(self, bot) -> None:
-        self.bot = bot
-
-async def setup(bot):
-    await bot.add_cog(Logging(bot))
