@@ -68,10 +68,3 @@ class NotVaildEmojiError():
     def __repr__(self) -> str:
         return "It seems that the emoji you provided it's not a valid emoji :thinking:..."
 
-# This is just a configuration for which error meesages are needed to return when error occurs. No commands.Cog are involved.
-class ErrorHandling(commands.Cog):
-    def __init__(self, bot) -> None:
-        self.bot = bot
-
-async def setup(bot):
-    await bot.add_cog(ErrorHandling(bot))

@@ -11,8 +11,8 @@ from discord.app_commands.errors import MissingPermissions
 from datetime import datetime, timezone, timedelta
 from typing import cast, Optional, Union
 from general.VoiceChannelFallbackConfig import *
-from configs.Logging import setup_logger
-from errorhandling.ErrorHandling import *
+from configs.Bot._logging import setup_logger
+from errorhandling._errorHandling import *
 
 recording_vc = {}
 logger = setup_logger('discord_bot', 'bot.log', logging.INFO)

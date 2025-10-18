@@ -15,7 +15,7 @@ from datetime import datetime
 from typing import Dict, Optional
 from pydub import AudioSegment
 from general.VoiceChannelFallbackConfig import *
-from errorhandling.ErrorHandling import *
+from errorhandling._errorHandling import *
 
 load_dotenv()
 
