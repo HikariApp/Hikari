@@ -512,8 +512,19 @@ class MusicGeneral(commands.Cog):
         await ctx.send(embed=embed)
 
 
-    @commands.hybrid_group(name="repeat", fallback="one")
+    @commands.hybrid_group(name="repeat", help="Toggle repeat for the current track or the entire queue.")
     async def repeat(self, ctx: commands.Context):
+        # This is the main command group for repeat
+        # We won't implement any logic here, as the subcommands will handle the functionality
+        # If no subcommand is invoked, return an error message
+        embed = Embed(title="")
+        embed.add_field(name="", value=f"{ctx.author.mention}, you need to specify a subcommand: `one` or `all`.", inline=False)
+        embed.color = discord.Color.red()
+        await ctx.send(embed=embed)
+    
+
+    @repeat.command()
+    async def one(self, ctx: commands.Context):
         """
         Toggle repeat for the current track.
 
