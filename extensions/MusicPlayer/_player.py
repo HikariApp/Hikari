@@ -386,12 +386,25 @@ class BetterPlayer(pomice.Player):
             audioMetadata = AudioMetadataExtractor(track.uri, stream=True)
             embed.description = f"[{audioMetadata.title or track.title}]({track.uri})"
 
-            embed.add_field(name="Source:", value=track.track_type.name.title(), inline=False)
+            # Add a special source handling for some common links
+            if "plex.direct" in track.uri or "plex.tv" in track.uri:
+                # The track is from Plex Media Server
+                embed.add_field(name="Source:", value="Plex Media Server", inline=False)
+                embed.set_thumbnail(url="https://avatars.githubusercontent.com/u/324832")  # Plex logo
 
+            elif "cdn.discordapp.com" in track.uri:
+                # The track is from Discord CDN (i.e. uploaded file)
+                embed.add_field(name="Source:", value="Discord Upload", inline=False)
+
+            else:
+                # Generic source handling
+                embed.add_field(name="Source:", value=track.track_type.name.title(), inline=False)
+
+            # Retrieves the metadata if available
+            # We only display fields that are not None or empty to avoid exceeding Discord's embed field limits (25 fields)
             if audioMetadata and audioMetadata.artist:
                 embed.add_field(name="Artist:", value=audioMetadata.artist, inline=False)
 
-            # Retrieves the metadata if available
             if audioMetadata and audioMetadata.album:
                 embed.add_field(name="Album:", value=audioMetadata.album, inline=False)
 
@@ -413,17 +426,27 @@ class BetterPlayer(pomice.Player):
             if audioMetadata.samplingRate:
                 embed.add_field(name="Sampling Rate:", value=f"{audioMetadata.samplingRate} Hz", inline=False)
 
-            if audioMetadata and audioMetadata.bitrate:
-                embed.add_field(name="Bitrate:", value=f"{audioMetadata.bitrate} kbps", inline=False)
+            if audioMetadata and audioMetadata.bitDepth:
+                embed.add_field(name="Bit Depth:", value=f"{audioMetadata.bitDepth}-bit", inline=False)
+
+            if audioMetadata and audioMetadata.bitRate:
+                # This is the streaming bitrate, not the original file bitrate
+                embed.add_field(name="Streaming Bitrate:", value=f"{audioMetadata.bitRate} kbps", inline=False)
 
             if audioMetadata and audioMetadata.channels:
                 embed.add_field(name="Channels:", value=f"{audioMetadata.channels} ch.", inline=False)
 
-            if audioMetadata and audioMetadata.releaseTime:
-                embed.add_field(name="Release Date:", value=audioMetadata.releaseTime, inline=False)
+            if audioMetadata and audioMetadata.year:
+                embed.add_field(name="Year:", value=audioMetadata.year, inline=False)
+
+            if audioMetadata and audioMetadata.releaseDate:
+                embed.add_field(name="Release Date:", value=audioMetadata.releaseDate, inline=False)
 
             if audioMetadata and audioMetadata.label:
                 embed.add_field(name="Label:", value=audioMetadata.label, inline=False)
+
+            if audioMetadata and audioMetadata.publisher:
+                embed.add_field(name="Publisher:", value=audioMetadata.publisher, inline=False)
 
             if audioMetadata and audioMetadata.copyright:
                 embed.set_footer(text=f"{audioMetadata.copyright}")
