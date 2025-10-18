@@ -11,8 +11,9 @@ from ._musicGeneral import userColor
 logger = logging.getLogger("music_v2")
 PAGE_SIZE = 10
 
+
 # Build page options based on the upcoming items in the queue.
-def buildPagination(player: BetterPlayer, page_size: int) -> List[SelectOption]:
+def buildPagination(player: BetterPlayer, pageSize: int) -> List[SelectOption]:
     """
     Build page options based on the upcoming items in the queue.
 
@@ -23,7 +24,7 @@ def buildPagination(player: BetterPlayer, page_size: int) -> List[SelectOption]:
     player : `BetterPlayer`
         The music player instance containing the queue.
     
-    page_size : int
+    pageSize : int
         Number of tracks per page.
     
     Returns
@@ -33,30 +34,32 @@ def buildPagination(player: BetterPlayer, page_size: int) -> List[SelectOption]:
     
     """
 
-    total = len(player.queue)
+    total = len(player.queue.doubleEndedQueue)
     if total <= 0:
         return []
 
     # Upcoming starts right after current position
-    start_idx0 = min(max(player.queue.currentIndex, 0) + 1, total)  # zero-based, guard -1
-    upcoming_len = max(total - start_idx0, 0)
-    if upcoming_len <= 0:
+    upcomingTrackStartIndex = min(max(player.queue.currentIndex, 0) + 1, total)  # zero-based, guard -1
+    upcomingTracksCount = max(total - upcomingTrackStartIndex, 0)
+    if upcomingTracksCount <= 0:
         return []
 
-    pages = math.ceil(upcoming_len / page_size)
+    pages = math.ceil(upcomingTracksCount / pageSize)
     options: List[SelectOption] = []
+
     for i in range(pages):
-        s0 = start_idx0 + i * page_size
-        e0 = min(start_idx0 + (i + 1) * page_size - 1, total - 1)
+        # Zero-based
+        startIndexOfPage = upcomingTrackStartIndex + (i * pageSize)
+        endingIndexOfPage = min(upcomingTrackStartIndex + (i + 1) * pageSize - 1, total - 1)
+
         # 1-based for display
-        if s0 == e0:
-            desc = f"{s0 + 1}"
-        else:
-            desc = f"{s0 + 1} - {e0 + 1}"
-        options.append(SelectOption(label=str(i + 1), value=str(i + 1), description=desc))
+        description = f"{1 + startIndexOfPage}" if startIndexOfPage == endingIndexOfPage else f"{1 + startIndexOfPage} - {1 + endingIndexOfPage}"
+        options.append(SelectOption(label=str(i + 1), value=str(i + 1), description=description))
+
     return options
 
-def createQueueEmbed(player: BetterPlayer, color: Color, page: int, page_size: int) -> Embed:
+
+def createQueueEmbed(player: BetterPlayer, color: Color, page: int, pageSize: int) -> Embed:
     """
     Create an embed representing the current queue state.
 
@@ -70,8 +73,8 @@ def createQueueEmbed(player: BetterPlayer, color: Color, page: int, page_size: i
     
     page : int
         The page number to display (1-based).
-    
-    page_size : int
+
+    pageSize : int
         Number of tracks per page. Defaults to 10.
     
     Returns
@@ -92,40 +95,41 @@ def createQueueEmbed(player: BetterPlayer, color: Color, page: int, page_size: i
         embed.add_field(name="Upcoming Tracks:", value="There are no upcoming tracks will be played", inline=False)
     
     else:
-        current_idx = 0
+        currentTrackIndex = 0
         
         if total > 0:
-            current_idx = min(max(player.queue.currentIndex, 0), total - 1)
+            currentTrackIndex = min(max(player.queue.currentIndex, 0), total - 1)
         embed.add_field(
-            name=f"Now Playing :notes: ({current_idx + 1}/{max(total, 1)}) :",
-            value=f"> **#{current_idx + 1}** - {player.current.title} {player.current.requester.mention if player.current.requester else ''}",
+            name=f"Now Playing :notes: ({currentTrackIndex + 1}/{max(total, 1)}) :",
+            value=f"> **#{currentTrackIndex + 1}** - {player.current.title} {player.current.requester.mention if player.current.requester else ''}",
             inline=False,
         )
 
-        # Upcoming section heading
-        upcoming_start = min(max(player.queue.currentIndex, 0) + 1, total)
+        # Upcoming section
+        upcomingTrackStartIndex = min(max(player.queue.currentIndex, 0) + 1, total)
 
-        upcoming = player.queue.doubleEndedQueue[upcoming_start:]
+        upcomingTracks = player.queue.doubleEndedQueue[upcomingTrackStartIndex:]
         embed.add_field(
             name="Upcoming Tracks:",
-            value="" if upcoming else "There are no upcoming tracks will be played",
+            value="" if upcomingTracks else "There are no upcoming tracks will be played",
             inline=False,
         )
 
         # Upcoming list (paginated)
-        if upcoming:
-            total_pages = math.ceil(len(upcoming) / page_size)
-            page = max(1, min(page, total_pages))
-            s = (page - 1) * page_size
-            e = s + page_size
+        if upcomingTracks:
+            totalPages = math.ceil(len(upcomingTracks) / pageSize)
+            page = max(1, min(page, totalPages))
+            startIndexOfPage = (page - 1) * pageSize
+            endingIndexOfPage = startIndexOfPage + pageSize
             
-            for idx, track in enumerate(upcoming[s:e]):
-                absolute_idx1 = upcoming_start + s + idx + 1  # 1-based absolute index
+            for index, track in enumerate(upcomingTracks[startIndexOfPage:endingIndexOfPage]):
+                absIndex = upcomingTrackStartIndex + startIndexOfPage + (1 + index)  # 1-based absolute index
                 embed.add_field(
                     name="",
-                    value=f"> **#{absolute_idx1}** - {track.title} {track.requester.mention if track.requester else ''}",
+                    value=f"> **#{absIndex}** - {track.title} {track.requester.mention if track.requester else ''}",
                     inline=False,
                 )
+                
     if player.queue.is_looping:
         embed.add_field(name="", value="\u202a", inline=False)
 
@@ -137,9 +141,10 @@ def createQueueEmbed(player: BetterPlayer, color: Color, page: int, page_size: i
 
     return embed
 
+
 # Dropdown menu for selecting queue pages.
 class QueueSelect(Select):
-    def __init__(self, *, player: BetterPlayer, page_size: int) -> None:
+    def __init__(self, *, player: BetterPlayer, pageSize: int) -> None:
         """
         Initialize the `QueueSelect` dropdown menu.
         
@@ -148,7 +153,7 @@ class QueueSelect(Select):
         player : `BetterPlayer`
             The music player instance containing the queue.
 
-        page_size : int
+        pageSize : int
             Number of tracks per page.
 
         Returns
@@ -157,9 +162,9 @@ class QueueSelect(Select):
 
         """
         self.player = player
-        self.page_size = page_size
+        self.pageSize = pageSize
 
-        options = buildPagination(player, page_size)
+        options = buildPagination(player, pageSize)
         placeholder = "Page" if options else "No pages"
         super().__init__(
             placeholder=placeholder,
@@ -168,6 +173,7 @@ class QueueSelect(Select):
             options=options,
             disabled=not bool(options),
         )
+
 
     async def callback(self, interaction: Interaction):
         """
@@ -187,7 +193,7 @@ class QueueSelect(Select):
         """
 
         # Refresh options in case queue mutated
-        self.options = buildPagination(self.player, self.page_size)
+        self.options = buildPagination(self.player, self.pageSize)
 
         page = int(self.values[0]) if self.values else 1
 
@@ -195,7 +201,7 @@ class QueueSelect(Select):
             player=self.player,
             color=interaction.user.color,
             page=page,
-            page_size=self.page_size,
+            pageSize=self.pageSize,
         )
 
         # Check if there are any options available
@@ -205,14 +211,14 @@ class QueueSelect(Select):
         # Rebuild the whole view to ensure the latest options are reflected if there are options available
         new_view = QueueView(
             player=self.player,
-            page_size=self.page_size
+            pageSize=self.pageSize
         )
 
         await interaction.response.edit_message(embed=embed, view=new_view)
 
 
 class QueueView(View):
-    def __init__(self, *, player: BetterPlayer, page_size: int) -> None:
+    def __init__(self, *, player: BetterPlayer, pageSize: int) -> None:
         """
         Initialize the `QueueView` containing the `QueueSelect` dropdown menu.
 
@@ -222,7 +228,7 @@ class QueueView(View):
         player : `BetterPlayer`
             The music player instance containing the queue.
 
-        page_size : int
+        pageSize : int
             Number of tracks per page.
 
         Returns
@@ -233,13 +239,14 @@ class QueueView(View):
 
         super().__init__(timeout=300)   # 5 minutes timeout
         self.add_item(
-            QueueSelect(player=player, page_size=page_size)
+            QueueSelect(player=player, pageSize=pageSize)
         )
 
 
 class MusicQueueSystem(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+
 
     @commands.hybrid_command(aliases=["qu"])
     async def queue(self, ctx: commands.Context) -> None:
@@ -267,16 +274,17 @@ class MusicQueueSystem(commands.Cog):
         color = userColor(ctx)
 
         # Build embed
-        embed = createQueueEmbed(player=player, color=color, page=1, page_size=PAGE_SIZE)
+        embed = createQueueEmbed(player=player, color=color, page=1, pageSize=PAGE_SIZE)
 
         # Build view only if we have upcoming tracks in the queue
         options = buildPagination(player, PAGE_SIZE)
         if not options:
             return await ctx.send(embed=embed)
 
-        view = QueueView(player=player, page_size=PAGE_SIZE)
+        view = QueueView(player=player, pageSize=PAGE_SIZE)
         
         await ctx.send(embed=embed, view=view or None)
+
 
     @commands.hybrid_command(aliases=["rm", "pop"])
     async def remove(self, ctx: commands.Context, index: Optional[int] = None) -> None:
