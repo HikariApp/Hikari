@@ -1,20 +1,21 @@
 import io
-import math
+import os
+import tempfile
 import discord
+from math import floor
+from datetime import timedelta
 from urllib3 import PoolManager
 from PIL import Image
 from io import BytesIO
-from mutagen import File
-from datetime import timedelta
+from tinytag import TinyTag
 
 
 class AudioMetadataExtractor:
     """
-    Extracts and provides structured access to common metadata fields from a wide range
-    of audio formats (FLAC, MP3, MP4, OGG, etc.).
+    Lightweight audio metadata extractor based on TinyTag.
 
-    The class uses Mutagen to auto-detect the correct file type and parse its tags.
-    It supports both local files and HTTP(S) URLs (via partial range requests).
+    Supports MP3, FLAC, M4A, OGG, and a few others.  
+    Can handle both local files and HTTP(S) URLs (via partial range requests).
 
     All properties return `None` if the tag is missing.
 
@@ -27,664 +28,470 @@ class AudioMetadataExtractor:
         If True, performs a partial HTTP Range request for URL sources.
 
     bytesRange : int, optional
-        Number of bytes to fetch if streaming. This should be greater than or equal to 4 MB.
+        Number of bytes to fetch if streaming. Defaults to 20 MB.
 
-        WARNING: Failure to do so will lead to missing metadata fields.
+        WARNING: Failure to do so may lead to missing metadata fields.
 
-    Attributes
-    ----------
-    samplingRate : int | None
-        Audio sampling rate in Hz.
+    Examples
+    --------
+    >>> # For local file source (please ensure the filename without any spaces)
+    >>> extractor = AudioMetadataExtractor("path/to/audio.mp3")
+    >>> print(extractor.title)
+    >>> print(extractor.duration)
 
-    bitrate : int | None
-        Audio bitrate in kbps.
-
-    channels : int | None
-        Number of audio channels (1=mono, 2=stereo, etc.).
-
-    length : float | None
-        Length of the audio track in seconds.
-
-    duration : timedelta | None
-        Length of the audio track as a timedelta object.
-
-    lyrics : str | None
-        Lyrics of the track.
-
-    isrc : str | None
-        International Standard Recording Code.
-
-    iTunesPlaylistID : str | None
-        iTunes playlist identifier.
-
-    copyright : str | None
-        Copyright statement or rights holder.
-
-    albumSortOrder : str | None
-        Sorting key for the album title used by some players.
-
-    iTunesAlbumTitleID : str | None
-        iTunes-specific album title identifier.
-
-    date : str | None
-        Original release date or year.
-
-    discNumber : str | None
-        Current disc number (e.g., 1 for disc 1 of 2).
-
-    artist : str | None
-        Name of the performing artist or main performer.
-
-    upc : str | None
-        Universal Product Code (barcode) associated with the release.
-
-    performer : str | None
-        Contributing performer or musician.
-
-    releaseTime : str | None
-        Exact release timestamp when available.
-
-    titleSortOrder : str | None
-        Sorting key for the track title used by some media libraries.
-
-    label : str | None
-        Record label or publishing entity.
-
-    trackNumber : str | None
-        Track number within the album or disc.
-
-    albumArtistSortOrder : str | None
-        Sorting key for the album artist.
-
-    genre : str | None
-        Musical genre or style.
-
-    title : str | None
-        Track title.
-
-    albumArtist : str | None
-        Primary album artist (may differ from the performing artist).
-
-    artistSortOrder : str | None
-        Sorting key for the artist name.
-
-    discTotal : str | None
-        Total number of discs in the release.
-
-    album : str | None
-        Title of the album or release the track belongs to.
-
-    trackTotal : str | None
-        Total number of tracks in this album or disc.
-
-    coverImage : dict | None
-        Embedded album artwork with keys: mime (str), width (int),
-        height (int), desc (str), data (bytes).
-
-    Methods
-    -------
-    getMetadata() : dict | None
-        Return all parsed metadata as a dictionary.
-
-    getCoverArt() : dict | None
-        Return embedded cover image info, if available.
+    >>> # For URL source with streaming
+    >>> url_extractor = AudioMetadataExtractor("https://example.com/audio.flac", stream=True)
+    >>> print(url_extractor.artist)
 
     """
 
-    def __init__(self, source: str | bytes | io.BytesIO, stream: bool = False, bytesRange: int = 4 * 1048576):
-        self._audio = self._loadAudio(source, stream, bytesRange)
+    def __init__(self, source: str | bytes | io.BytesIO, stream: bool = False, bytesRange: int = 20 * 1048576):
+        self._tag = self._loadAudio(source, stream, bytesRange)
 
 
-    def _loadAudio(self, source: str | bytes | io.BytesIO, stream: bool, bytesRange: int) -> File:
-        """Load file or fetch from a URL into a Mutagen File object."""
-
+    def _loadAudio(self, source: str | bytes | io.BytesIO, stream: bool, bytesRange: int) -> TinyTag:
+        """Load from file, URL, or byte source via temporary file."""
         if isinstance(source, (bytes, io.BytesIO)):
-            bio = source if isinstance(source, io.BytesIO) else io.BytesIO(source)
-            return File(bio)
-
-        if isinstance(source, str):
-            if source.startswith(("http://", "https://")) and stream:
+            data = source.getvalue() if isinstance(source, io.BytesIO) else source
+        elif isinstance(source, str):
+            if source.startswith(("http://", "https://")):
                 http = PoolManager()
-                headers = {"Range": f"bytes=0-{bytesRange - 1}"}
-                resp = http.request("GET", source, headers=headers, preload_content=False)
-                data = resp.read()
+                headers = {"Range": f"bytes=0-{bytesRange - 1}"} if stream else {}
+                resp = http.request("GET", source, headers=headers)
+                data = resp.data
                 resp.release_conn()
-                return File(io.BytesIO(data))
-            
-            return File(source)
+            else:
+                # Local file path
+                return TinyTag.get(source, image=True)
+        else:
+            raise ValueError(f"Unsupported source type: {type(source)}")
 
-        raise ValueError(f"Unsupported source type for {source}")
+        # TinyTag requires file path — use safely via mkstemp
+        fd, tmp_path = tempfile.mkstemp(suffix=".tmp")
+        try:
+            with os.fdopen(fd, "wb") as tmp:
+                tmp.write(data)
+            tag = TinyTag.get(tmp_path, image=True)
+        finally:
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+        return tag
 
+    # -------------------------------------------------------
+    # Metadata Extraction
+    # -------------------------------------------------------
 
-    def getMetadata(self):
+    def getMetadata(self) -> dict:
         """
-        Extract and return all metadata as a dictionary.
-
-        Note: This does NOT include embedded cover image data. Use `getCoverArt` for that.
-
-        Returns
-        -------
-        dict | None
-            Dictionary of metadata fields and values.
-
-        """
+        Return structured metadata dictionary.
         
-        output = {}
+        Combines basic TinyTag fields with any additional tags found.
 
-        # Technical info
-        info = getattr(self._audio, "info", None)
-        if info:
-            output.update({
-                "sample_rate": getattr(info, "sample_rate", None),
-                "bitrate": getattr(info, "bitrate", None),
-                "channels": getattr(info, "channels", None),
-                "length": getattr(info, "length", None),
-            })
-
-        # Tags / metadata
-        tags = getattr(self._audio, "tags", None)
-        if tags:
-            for k, v in tags.items():
-                if isinstance(v, (list, tuple)):
-                    output[k] = v[0] if v else None
-                else:
-                    output[k] = v
-
-        return output if output else None
-
-
-    def getCoverArt(self):
+        Returns
+        -------
+        dict
+            Dictionary of metadata fields.
+        
         """
-        Returns the embedded cover image, if available.
+
+        t = self._tag
+        if not t:
+            return {}
+
+        basicInfo = t.__dict__.copy()
+        basicInfo.update(t.other)
+        return basicInfo
+    
+
+    def getCoverArt(self) -> dict | None:
+        """
+        Returns embedded artwork info, if available.
 
         Returns
         -------
         dict | None
-            Dictionary with keys: mime (str), width (int), height (int), desc (str), data (bytes), or `None` if no cover image is found.
+            Dictionary with keys: mime, width, height, desc, data.
+            Returns None if no artwork is found.
 
         """
 
-        a = self._audio
-        if not a:
+        if not self._tag:
             return None
 
-        # FLAC / MP4 pictures
-        if hasattr(a, "pictures") and a.pictures:
-            pic = a.pictures[0]
-            return {
-                "mime": getattr(pic, "mime", None),
-                "desc": getattr(pic, "desc", ""),
-                "width": getattr(pic, "width", None),
-                "height": getattr(pic, "height", None),
-                "data": pic.data,
-            }
-
-        # MP3 / ID3 artwork
-        if hasattr(a, "tags") and a.tags:
-            for key in a.tags.keys():
-                if key.startswith("APIC:") or key == "APIC":
-                    apic = a.tags[key]
-                    return {
-                        "mime": getattr(apic, "mime", None),
-                        "desc": getattr(apic, "desc", ""),
-                        "width": None,
-                        "height": None,
-                        "data": apic.data,
-                    }
-
-        # If no cover image found
-        return None
-    
-
-    @property
-    def samplingRate(self) -> int | None:
-        """
-        Returns the audio sampling rate in Hz.
-
-        Returns
-        -------
-        int | None
-            Sampling rate in Hertz (Hz), or `None` if unavailable.
-
-        """
-
-        value = self.getMetadata().get("sample_rate") if self.getMetadata() else None
-        return int(value) if value else None
-
-
-    @property
-    def bitrate(self) -> float | None:
-        """
-        Returns the audio bitrate, in kbps.
-
-        Returns
-        -------
-        int | None
-            Bitrate in kilobits per second (kbps), or `None` if unavailable.
-
-        """
-
-        value = self.getMetadata().get("bitrate") if self.getMetadata() else None
-        return float(value / 1000) if value else None
-    
-
-    @property
-    def channels(self) -> int | None:
-        """
-        Returns the number of audio channels.
-
-        Returns
-        -------
-        int | None
-            Number of audio channels (e.g., 1 for mono, 2 for stereo), or `None` if unavailable.
-
-        """
-
-        value = self.getMetadata().get("channels") if self.getMetadata() else None
-        return int(value) if value else None
-
-
-    @property
-    def length(self) -> float | None:
-        """
-        Returns the audio length, in seconds.
-
-        Returns
-        -------
-        float | None
-            Length of the audio track in seconds, or `None` if unavailable.
-
-        """
-
-        value = self.getMetadata().get("length") if self.getMetadata() else None
-        return float(value) if value else None
-
-
-    @property
-    def duration(self) -> str | None:
-        """
-        Returns the audio length, in timestamp.
-
-        Returns
-        -------
-        `timedelta` | None
-            Length of the audio track in timestamp, or `None` if unavailable.
-
-        """
-
-        value = self.getMetadata().get("length") if self.getMetadata() else None
-        return str(timedelta(seconds=math.floor(value))) if value else None
-
-
-    @property
-    def lyrics(self) -> str | None:
-        """
-        Retrieves the lyrics of the track.
-
-        Returns
-        -------
-        str | None
-            The song’s lyrics if embedded in the file, or `None` if not present.
-
-        """
-
-        return self.getMetadata().get("lyrics") if self.getMetadata() else None
-    
-
-    @property
-    def isrc(self) -> str | None:
-        """
-        Retrieves the International Standard Recording Code of the track.
-
-        Returns
-        -------
-        str | None
-            The official ISRC identifier for the recording, if available.
-
-        """
-
-        return self.getMetadata().get("isrc") if self.getMetadata() else None
-
-
-    @property
-    def iTunesPlaylistID(self) -> int | None:
-        """
-        Retrieves the iTunes playlist identifier.
-
-        Returns
-        -------
-        str | None
-            The Apple iTunes playlist or collection ID, or `None` if missing.
-
-        """
-
-        value = self.getMetadata().get("itunesplaylistid") if self.getMetadata() else None
-        return int(value) if value else None
-
-
-    @property
-    def copyright(self) -> str | None:
-        """
-        Retrieves the copyright statement or rights holder.
-
-        Returns
-        -------
-        str | None
-            Copyright or rights notice associated with the track, or `None`.
-
-        """
-
-        return self.getMetadata().get("copyright") if self.getMetadata() else None
-
-
-    @property
-    def albumSortOrder(self) -> str | None:
-        """
-        Retrieves the album sort order field.
-
-        Returns
-        -------
-        str | None
-            Sort key used by media libraries when ordering albums, or `None`.
-
-        """
-
-        return self.getMetadata().get("albumsortorder") if self.getMetadata() else None
-
-
-    @property
-    def iTunesAlbumTitleID(self) -> int | None:
-        """
-        Retrieves the iTunes album title identifier.
-
-        Returns
-        -------
-        str | None
-            The internal iTunes ID for the album title, if defined.
-
-        """
-
-        value = self.getMetadata().get("itunesalbumtitleid") if self.getMetadata() else None
-        return int(value) if value else None
-
-
-    @property
-    def date(self) -> str | None:
-        """
-        Retrieves the album's original release date.
-
-        Returns
-        -------
-        str | None
-            The date or year when the track was originally released, or `None`.
-
-        """
-
-        return self.getMetadata().get("date") if self.getMetadata() else None
-
-
-    @property
-    def discNumber(self) -> int | None:
-        """
-        Retrieves the disc number within a multi-disc set.
-
-        Returns
-        -------
-        str | None
-            Current disc number (e.g., '1' for disc 1 of 2), or `None`.
-
-        """
-
-        value = self.getMetadata().get("discnumber") if self.getMetadata() else None
-        return int(value) if value else None
-
-
-    @property
-    def artist(self) -> str | None:
-        """
-        Retrieves the artist of the track.
-
-        Returns
-        -------
-        str | None
-            The performing artist name, or `None` if missing.
-
-        """
-
-        return self.getMetadata().get("artist") if self.getMetadata() else None
-
-
-    @property
-    def upc(self) -> str | None:
-        """
-        Retrieves the Universal Product Code.
-
-        Returns
-        -------
-        str | None
-            UPC (barcode) linked to this release, or `None` if unavailable.
-
-        """
-
-        return self.getMetadata().get("upc") if self.getMetadata() else None
-
-
-    @property
-    def performer(self) -> str | None:
-        """
-        Retrieves the performer information.
-
-        Returns
-        -------
-        str | None
-            The credited performer or musician, or `None` if not encoded.
-
-        """
-
-        return self.getMetadata().get("performer") if self.getMetadata() else None
-
-
-    @property
-    def releaseTime(self) -> str | None:
-        """
-        Returns the release timestamp.
-
-        Returns
-        -------
-        str | None
-            Full release timestamp or date-time string, or `None`.
-
-        """
-
-        return self.getMetadata().get("releasetime") if self.getMetadata() else None
-
-
-    @property
-    def titleSortOrder(self) -> str | None:
-        """
-        Retrieves the title sort order.
-
-        Returns
-        -------
-        str | None
-            Sort key used for title ordering in libraries, or `None`.
-
-        """
-
-        return self.getMetadata().get("titlesortorder") if self.getMetadata() else None
-
-
-    @property
-    def label(self) -> str | None:
-        """
-        Retrieves the record label or publisher.
-
-        Returns
-        -------
-        str | None
-            Publishing or record label name, or `None` if absent.
-
-        """
-
-        return self.getMetadata().get("label") if self.getMetadata() else None
-
-
-    @property
-    def trackNumber(self) -> int | None:
-        """
-        Returns the track number on the disc or album.
-
-        Returns
-        -------
-        int | None
-            The track number (e.g., 3 for track 3), or `None` if unavailable.
-
-        """
-
-        value = self.getMetadata().get("tracknumber") if self.getMetadata() else None
-        return int(value) if value else None
-
-
-    @property
-    def albumArtistSortOrder(self) -> str | None:
-        """
-        Retrieves the album artist sort order key.
-
-        Returns
-        -------
-        str | None
-            Sort key used for the album artist field, or `None`.
-
-        """
-
-        return self.getMetadata().get("albumartistsortorder") if self.getMetadata() else None
-
-
-    @property
-    def genre(self) -> str | None:
-        """
-        Retrieves the musical genre.
-
-        Returns
-        -------
-        str | None
-            The genre or style of the track (e.g., 'Rock', 'Jazz'), or `None`.
-
-        """
-
-        return self.getMetadata().get("genre") if self.getMetadata() else None
+        image_data = self._tag.images.any.data
+        if not image_data:
+            return None
+
+        try:
+            img = Image.open(BytesIO(image_data))
+            mime = Image.MIME[img.format]
+            width, height = img.size
+            desc = "front cover"
+        except Exception:
+            return None
+
+        return {
+            "mime": mime,
+            "width": width,
+            "height": height,
+            "desc": desc,
+            "data": image_data,
+        }
+
+    # -------------------------------------------------------
+    # Convenience Properties
+    # -------------------------------------------------------
 
 
     @property
     def title(self) -> str | None:
         """
-        Returns the track title.
-
+        Return the title of the audio track.
+        
         Returns
         -------
         str | None
-            The name of the track, or `None` if the tag is missing.
+            Title of the track, or None if not available.
 
         """
 
-        return self.getMetadata().get("title") if self.getMetadata() else None
-
+        return self.getMetadata().get("title")
 
     @property
-    def albumartist(self) -> str | None:
+    def artist(self) -> str | None:
         """
-        Retrieves the primary album artist.
+        Return the artist of the audio track.
 
         Returns
         -------
         str | None
-            The main artist credited for the album, or `None` if missing.
+            Artist of the track, or None if not available.
 
         """
 
-        return self.getMetadata().get("albumartist") if self.getMetadata() else None
-
-
-    @property
-    def artistSortOrder(self) -> str | None:
-        """
-        Retrieves the artist sort order key.
-
-        Returns
-        -------
-        str | None
-            Sorting key for the artist name, or `None`.
-
-        """
-
-        return self.getMetadata().get("artistsortorder") if self.getMetadata() else None
-
-
-    @property
-    def discTotal(self) -> int | None:
-        """
-        Returns the total number of discs.
-
-        Returns
-        -------
-        str | None
-            The total number of discs in a multi-disc release, or `None`.
-
-        """
-
-        value = self.getMetadata().get("disctotal") if self.getMetadata() else None
-        return int(value) if value else None
-
+        return self.getMetadata().get("artist")
 
     @property
     def album(self) -> str | None:
         """
-        Retrieves the album title.
+        Return the album of the audio track.
 
         Returns
         -------
         str | None
-            The name of the album this track belongs to, or `None`.
+            Album of the track, or None if not available.
 
         """
 
-        return self.getMetadata().get("album") if self.getMetadata() else None
+        return self.getMetadata().get("album")
 
+    @property
+    def albumArtist(self) -> str | None:
+        """
+        Return the album artist of the audio track.
+        
+        Returns
+        -------
+        str | None
+            Album artist of the track, or None if not available.
 
+        """
+
+        return self.getMetadata().get("albumartist")
+
+    @property
+    def duration(self) -> str | None:
+        """
+        Return the duration of the audio track in HH:MM:SS format.
+        Returns
+        -------
+        str | None
+            Duration of the track as a string, or None if not available.
+
+        """
+
+        return str(timedelta(seconds=floor(self.getMetadata().get("duration")))) if self.getMetadata().get("duration") else None
+
+    @property
+    def genre(self) -> str | None:
+        """
+        Return the genre of the audio track.
+
+        Returns
+        -------
+        str | None
+            Genre of the track, or None if not available.
+
+        """
+
+        return self.getMetadata().get("genre")
+
+    @property
+    def releaseDate(self) -> str | None:
+        """
+        Return the release date of the audio track.
+
+        Returns
+        -------
+        str | None
+            Release date of the track, or None if not available.
+
+        """
+
+        return (self.getMetadata().get("releasetime")[0] if self.getMetadata().get("releasetime") else None) or self.getMetadata().get("year")
+
+    @property
+    def year(self) -> int | None:
+        """
+        Return the release year of the audio track.
+
+        Returns
+        -------
+        int | None
+            Release year of the track, or None if not available.
+
+        """
+
+        return (self.getMetadata().get("_year")[0] if self.getMetadata().get("_year") else None) or (str(self.getMetadata().get("year")).split('-')[0] if self.getMetadata().get("year") else None)
+
+    @property
+    def samplingRate(self) -> int | None:
+        """
+        Return the sampling rate of the audio track in Hz.
+
+        Returns
+        -------
+        int | None
+            Sampling rate in Hz, or None if not available.
+
+        """
+
+        return self.getMetadata().get("samplerate")
+
+    @property
+    def bitRate(self) -> float | None:
+        """
+        Return the bit rate of the audio track in kbps.
+
+        Returns
+        -------
+        float | None
+            Bit rate in kbps, or None if not available.
+
+        """
+
+        return round(float(self.getMetadata().get("bitrate")), 3) if self.getMetadata().get("bitrate") else None
+    
+    @property
+    def bitDepth(self) -> int | None:
+        """
+        Return the bit depth of the audio track.
+        
+        Returns
+        -------
+        int | None
+            Bit depth, or None if not available.
+
+        """
+
+        return self.getMetadata().get("bitdepth")
+
+    @property
+    def channels(self) -> int | None:
+        """
+        Return the number of channels in the audio track.
+
+        Returns
+        -------
+        int | None
+            Number of channels, or None if not available.
+
+        """
+
+        return self.getMetadata().get("channels")
+    
+    @property
+    def trackNumber(self) -> int | None:
+        """
+        Return the track number of the audio track.
+
+        Returns
+        -------
+        int | None
+            Track number, or None if not available.
+
+        """
+
+        return self.getMetadata().get("track")
+    
     @property
     def trackTotal(self) -> int | None:
         """
-        Returns the total number of tracks.
+        Return the total number of tracks in the audio album.
+
+        Returns
+        -------
+        int | None
+            Total number of tracks, or None if not available.
+
+        """
+
+        return self.getMetadata().get("track_total")
+    
+    @property
+    def discNumber(self) -> int | None:
+        """
+        Return the disc number of the audio track.
+
+        Returns
+        -------
+        int | None
+            Disc number, or None if not available.
+
+        """
+
+        return self.getMetadata().get("disc")
+
+    @property
+    def discTotal(self) -> int | None:
+        """
+        Return the total number of discs for the audio track.
+
+        Returns
+        -------
+        int | None
+            Total number of discs, or None if not available.
+
+        """
+
+        return self.getMetadata().get("discs")
+
+    @property
+    def label(self) -> str | None:
+        """
+        Return the record label of the audio track.
 
         Returns
         -------
         str | None
-            Total track count for the album or disc, or `None`.
+            Record label, or None if not available.
 
         """
 
-        value = self.getMetadata().get("tracktotal") if self.getMetadata() else None
-        return int(value) if value else None
+        return self.getMetadata().get("label")[0] if self.getMetadata().get("label") else None
     
-
     @property
-    def coverArt(self) -> dict | None:
+    def copyright(self) -> str | None:
         """
-        Returns the embedded cover image, if available.
+        Return the copyright information of the audio track.
 
         Returns
         -------
-        dict | None
-            Dictionary with keys: mime (str), width (int), height (int), desc (str), data (bytes), or `None` if no cover image is found.
+        str | None
+            Copyright information, or None if not available.
 
         """
 
+        return (self.getMetadata().get("copyright")[0] if self.getMetadata().get("copyright") else None) or self.getMetadata().get("license")
+    
+    @property
+    def lyrics(self) -> str | None:
+        """
+        Return the lyrics of the audio track.
+        
+        Returns
+        -------
+        str | None
+            Lyrics of the track, or None if not available.
+
+        """
+
+        return (self.getMetadata().get("lyrics")[0] if self.getMetadata().get("lyrics") else None)
+
+    @property
+    def comment(self) -> str | None:
+        """
+        Return the comment of the audio track.
+
+        Returns
+        -------
+        str | None
+            Comment of the track, or None if not available.
+
+        """
+
+        return (self.getMetadata().get("comment")[0] if self.getMetadata().get("comment") else None)
+
+    @property
+    def composer(self) -> str | None:
+        """
+        Return the composer of the audio track.
+
+        Returns
+        -------
+        str | None
+            Composer of the track, or None if not available.
+
+        """
+
+        return (self.getMetadata().get("composer")[0] if self.getMetadata().get("composer") else None)
+
+    @property
+    def publisher(self) -> str | None:
+        """
+        Return the publisher of the audio track.
+
+        Returns
+        -------
+        str | None
+            Publisher of the track, or None if not available.
+
+        """
+        
+        return (self.getMetadata().get("publisher")[0] if self.getMetadata().get("publisher") else None)
+    
+    @property
+    def coverArt(self) -> dict | None:
+        """
+        Return the embedded cover art of the audio track.
+        
+        Returns
+        -------
+        dict | None
+            Dictionary with keys: mime, width, height, desc, data.
+            Returns None if no artwork is found.
+
+        """
 
         return self.getCoverArt()
-    
 
-# Utility function converting artwork to a discord.File()
-def toDiscordFile(artwork: dict, filename: str = "artwork.png") -> 'discord.File | None':
+    @property
+    def others(self, tag: str) -> str | None:
+        """
+        Return other metadata fields by tag name.
+
+        Parameters
+        ----------
+        tag : str
+            The metadata tag name to retrieve.
+        
+        Returns
+        -------
+        str | None
+            Value of the specified tag, or None if not available.
+
+        """
+
+        return (self.getMetadata().get(tag)[0] if self.getMetadata().get(tag) else None) or self.getMetadata().get(tag)
+
+
+# ---------------------------------------------------------------
+# Utility: Convert artwork dict → Discord File
+# ---------------------------------------------------------------
+
+def toDiscordFile(artwork: dict, filename: str = "artwork.png") -> "discord.File | None":
     """
     Convert embedded artwork to a Discord attachment.
 
@@ -697,32 +504,30 @@ def toDiscordFile(artwork: dict, filename: str = "artwork.png") -> 'discord.File
     -------
     discord.File | None
         A discord.File object if artwork is present, otherwise None.
+    
     """
-
-    if not artwork:
-        return None
     
-    if artwork.get("data") is None:
+    if not artwork or not artwork.get("data"):
         return None
-    
-    # Raw data
-    artworkData: bytes = artwork.get("data")
 
     try:
-        artworkFile = Image.open(BytesIO(artworkData))
-        
-        # Resize artwork if dimensions are too large
-        max_dimensions = (500, 500) 
-        if artworkFile.size[0] > max_dimensions[0] or artworkFile.size[1] > max_dimensions[1]:
-            artworkFile.thumbnail(max_dimensions)
+        artworkData: bytes = artwork["data"]
+        img = Image.open(BytesIO(artworkData))
 
+        # Resize, and convert to PNG for Discord preview friendliness
         # Same logic as before
-        artworkBuffer = BytesIO()
-        artworkFile.save(artworkBuffer, format="PNG")
-        artworkFile.close()
-        artworkBuffer.seek(0)
-        return discord.File(artworkBuffer, filename=filename)
+        maxSize = (500, 500)
+        if any(s > m for s, m in zip(img.size, maxSize)):
+            img.thumbnail(maxSize)
 
+        buffer = BytesIO()
+        img.save(buffer, format="PNG")
+        buffer.seek(0)
+        img.close()
+
+        return discord.File(buffer, filename=filename)
+    
     except Exception as e:
-        print(f"An unexpected error occurred while processing artwork: {e}")
+        print(f"Error converting artwork to Discord file: {e}")
         return None
+
