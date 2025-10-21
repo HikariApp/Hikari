@@ -12,10 +12,6 @@ class GetBannedList(commands.Cog):
 
     banned = app_commands.Group(name="banned", description="Action for banned people")
 
-
-    # ----------<List banned members>----------
-
-
     @banned.command(name="list", description="Returns a list of banned members")
     @app_commands.checks.has_permissions(ban_members=True)
     async def banned_list(self, interaction: Interaction):
@@ -44,15 +40,12 @@ class GetBannedList(commands.Cog):
         banned_list_error_embed = Embed(title="", color=discord.Colour.red())
 
         if isinstance(error, MissingPermissions):
-            banned_list_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> This command **requires** `ban members` permission, and you probably **don't have** it, {interaction.user.mention}.")
+            banned_list_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `ban members` permission, and you probably **don't have** it, {interaction.user.mention}.")
             await interaction.response.send_message(embed=banned_list_error_embed)
         
         elif isinstance(error, BotMissingPermissions):
-            banned_list_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> I couldn't **list all banned users**. Please **double-check** my **permissions** and **role position**.")
+            banned_list_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **list all banned users**. Please **double-check** my **permissions** and **role position**.")
             await interaction.response.send_message(embed=banned_list_error_embed)
-
-
-    # ----------</List banned members>----------
 
 
 async def setup(bot):

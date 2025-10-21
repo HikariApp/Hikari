@@ -140,5 +140,3 @@ class GetDetailIPv4Info:
         if "bogon" in self.all_data:
             return self.all_data["bogon"]
         return None
-
-

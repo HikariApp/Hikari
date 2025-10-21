@@ -36,12 +36,7 @@ class Vote(commands.Cog):
         self.reset_confirm_message = {}
         self.reset_confirm_option = {}
 
-
     vote = app_commands.Group(name="vote", description="Poll commands")
-
-
-    # ----------<Vote>----------
-
 
     # Startup
     @commands.Cog.listener()
@@ -401,9 +396,6 @@ class Vote(commands.Cog):
         else:
             # No vote was going on in this server
             await interaction.response.send_message("No vote was going on in this server.")
-      
-
-# ----------</Vote>----------
 
 
 async def setup(bot):

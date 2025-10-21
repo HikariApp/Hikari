@@ -7,171 +7,69 @@
 *** https://www.markdownguide.org/basic-syntax/#reference-style-links
 -->
 
-
-
-# Discord Bot template in Python
-
-A simple Discord application template in Python (using [discord.py][discord.py_GitHub])
-
-The application contains some core functions already but can be extended as needed. This guide assumes you have Python installed and a basic understanding of Python programming.
-
----
-
-## What this bot can do right now?
-
-The bot has already been equipped with these functions:
-- ChatGPT AI chatbot
-- Music player
-- Getting a discord user information or avatar
-- Banning users
-- Muting users
-- Timeout users
-- Writing an embed for you (Only works in server installation)
-
-and so much more...
-
----
-
-## How can I use the bot?
-
-If you want to self-host your own instance:
-
-**Prerequisites**
-
-   - **[Python][Python] 3.10 or later**
-   -  **[discord.py][discord.py_GitHub] v2.4.0 or later**
-   -  **[Docker][Docker]** for hosting the bot.
-   -  **[MongoDB][MongoDB]** for storing custom configuration.
-   -  **[Wavelink][Wavelink_GitHub] v3.4.1 or later** for the bot to play music in voice channels.
+<div align="center">
+  <img height="180" width="180" src="https://raw.githubusercontent.com/HikariApp/assets/main/img/avatar_round.png" alt="Hikari's avatar <3" />
+  <h1>Hikari</h1>
+  <h3>Discord bot's application. Reimagined.</h3>
+</div>
 
 <br>
 
-1. **Initialization**
+Powered by [discord.py][discord.py_GitHub] with some extensions.
 
-   You can simply run the following command in your terminal (given that **[Docker][Docker]** and **[Python][Python]** have already been installed):
-   ```bash
-   pip install -r requirements.txt
-   ```
-   which will automatically install all required dependencies to your environment
+Inherited from **Skylar <3**, which is also a discord bot that **never been published before**. I planned to release on a later stage after almost 2 yrs of development originally but with total failure unfortuneately due to the *unexpected termination*
 
-2. **Create a Discord Bot**:
-   1. Go to the [Discord Developer Portal](https://discord.com/developers/applications).
-   2. Create a new **application**.
-   3. Inside your application, go to the **"Bot"** tab and click **"Add Bot"**.
-   4. Copy the **bot token** (you will need this later).
+A much detailed documenatation will be provided on a later stage.
 
-   After that, you can install the bot as an **user-installed application**, or **inviting it to your server**:
-     - In the same Developer Portal, go to the **"OAuth2"** tab, generate an **OAuth2 URL** with the **`bot`** scope, and give your bot necessary permissions (such as `Send Messages` and `Read Messages`).
-     - Visit the generated URL and follow the instructions from the website.
-
-3. **Configure MongoDB Atlas for data stroage**:
-
-   1. **Create a MongoDB Atlas Account**
-      1. Go to the [MongoDB Atlas website](https://www.mongodb.com/docs/atlas/getting-started/) and sign up for an account if you haven't.
-      2. Follow the prompts to create a new account.
-   
-   2. **Create a Cluster**
-      1. Once you're logged in, click on **"Create Cluster"**.
-      2. Choose a name for your cluster and select a region closest to you.
-      3. Select the **"Free Tier"** to start with a small-scale development environment.
-      4. Click **"Create Cluster"**.
-   
-   3. **Configure Cluster Security**
-      1. Go to the **"Security"** tab and click on **"IP Access List"**.
-      2. Add your IP address to the list to ensure only your IP can access the cluster.
-      3. Alternatively, you can set up user authentication for login.
-   
-   4. **Connect to Your Cluster**
-      1. Go to the **"Connect"** tab and select **"Connect your application"**.
-      2. Choose the appropriate driver and connection string for your application.
-      3. Copy the connection string (URI) for later use and proceed to the next step.
-
-4. **Create a .env file and store your bot token**:
-   - Rename the `example.env` file as `.env`. Then, replace the empty string of `DISCORD_BOT_TOKEN` and `MONGO_DATABASE_URI` with your bot token and URI from MongoDB Atlas respectively.
-
-5. Great! Now move on to <a href="#how-to-start-up-and-host-your-bot">How to start up and host your bot</a> for more instructions.
-
-<br>
-
-<details>
-   <summary>
-      Or, if you just want to try our features...
-   </summary>
-   &emsp;Head over to <a href="https://discord.com/oauth2/authorize?client_id=1158632119552196628">here</a> and <b>invite the bot to your server</b>, or install it as a <b>user-installed application</b> as you prefer.
-</details>
-<br>
-
----
-
-
-## How to start up and host your bot
-
-To start the bot, open a terminal in the `discord-bot` directory and run:
-
-```bash
-python startup.py
-```
-
-If everything is set up correctly, you should see something like:
-
-```
-----------------------------------
-Welcome to use the bot.
-Bot Username: `BOT_NAME` #`BOT_DISCRIMINATOR`
-Bot ID: {bot.application_id}
-----------------------------------
-The bot is now initiated and ready for use!
-----------------------------------
-```
-
-which can be customized later on
-
-Now, your bot is alive and should respond to commands in your Discord server. :D
-
-Once you have checked that the bot can be hosted normally on your local machine, you can now try to host the bot 24/7 online.
-
-There are plenty of ways to achieve this and I'm not gonna tell you all of them in there. This project is designed to host with docker and you can find more relevant information about it by googling.
-
-- Docker Compose
-
-> [!NOTE]
-> Make sure that Docker is already installed on your computer or server.
-
-
-1. Clone this Repository
-```
-git clone [somthing]
-```
-
-2. Navigate to project directory by `cd`
-```
-cd [somthing]
-```
-
-3. Pass your `.env` file to the project directory
 > [!WARNING]
-> NEVER push your `.env` file directly to this repo as this will cause data compromisation and triggers Discord security action, and worst case could get your account terminated!
-
-4. Launch the bot with your `.env` file created earlier
-```
-docker compose up
-```
-
-5. If nothing goes wrong, congratulations :tada:! You're now all set up!
+> Being incredibly a work in progress and time constrain under poor code mangaement, Hikari should be used, for now, with caution.
 
 > [!NOTE]
-> Support of using docker run has been removed since version 2.0
+> A full code refactor is scheduled to increase readability once I have enough spare time to do so. In addtion, I know that both discord.py and Python itself has relatively slow performance. Since this project was inherited from one of my earliest projects as I mentioned above, I may consider a **complete rewrite** using **discord.js** or other frameworks in the future, if feasible.
 
----
+## What can Hikari do for now?
+
+Hikari has now been equipped with these functions:
+- Server moderation
+   - Banning users
+   - Muting users
+   - Timeout users
+- AI chatbot (powered by ChatGPT)
+- Music player (streaming online or play files uploaded from your client)
+- Getting an vaild discord user information or avatar
+- Writing an embed for you (Only works with server invitation)
+
+and so much more... (waiting for your discovery 😉)
+
+## Getting Started
+
+The simplest way to use Hikari is to use the publicly hosted instance of it, and we already have one over **[here][Bot_outh_link]**.
+
+<p align="center">
+  <a href="https://discord.com/oauth2/authorize?client_id=1356195507751358500"><img width="475" src="https://api.lolicon.wtf/discord-api/user/1356195507751358500" alt="Hikari's profile :)"></img></a>
+</p>
+
+You can either invite the bot to your server, or install it as a **user-installed application** as you prefer.
 
 ## Future implemtations
 
-The bot is still working in progress. More functionality will be added in the future such as:
+The meaning of Hikari stands for light, and of course we'll have to keep her bright! :D
+
+Here're some implemtations we've already planned and will likely be deployed later on
 
 - **Role Management**: Allow the bot to assign or remove roles from users.
-- **Third-party database integration**: Store user data or server configurations using a simple file system, SQLite, or an external database besides [MongoDB][MongoDB].
+- **Mutiligual-support**: Allow user to change the language of the bot by modifing server settings or regional settings
 
----
+<br>
+
+Having some good ideas but never being listed above? Feel free to head over our [Discussion Forum](https://github.com/Hikari-Discord/Hikari-Internal/discussions) and leave a suggestion :)
+
+## License
+[![License](https://img.shields.io/github/license/HikariApp/Hikari?logo=github&style=for-the-badge)](LICENSE)
+
+Hikari is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+
 
 
 
@@ -179,14 +77,7 @@ The bot is still working in progress. More functionality will be added in the fu
 
 [discord.py_GitHub]: https://github.com/Rapptz/discord.py
 
-[Discord-DeveloperPortal]: https://discord.com/developers/applications
-
-[MongoDB]: https://www.mongodb.com/
+[Bot_outh_link]: https://discord.com/oauth2/authorize?client_id=1356195507751358500
 
 [Python]: https://www.python.org/downloads/
 
-[Docker]: https://www.docker.com/
-
-[MongoDB]: https://www.mongodb.com/
-
-[Wavelink_GitHub]: https://github.com/PythonistaGuild/Wavelink
