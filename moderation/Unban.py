@@ -9,10 +9,6 @@ class Unban(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-
-    # ----------<Unban users>----------
-
-
     # Banned list lookup
     async def is_banned(self, interaction: Interaction, user: discord.User) -> bool:
         is_banned = False
@@ -39,7 +35,7 @@ class Unban(commands.Cog):
         try:
             
             if not await self.is_banned(interaction, user):
-                unban_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> {user.mention} is **not banned** currently.")
+                unban_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {user.mention} is **not banned** currently.")
                 return await interaction.response.send_message(embed=unban_error_embed)
             
             if reason is None:
@@ -55,7 +51,7 @@ class Unban(commands.Cog):
         except Forbidden as e:
             if e.status == 403 and e.code == 50013:
                 # Handling rare forbidden case
-                unban_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> I couldn't **unban** that user. Please **double-check** my **permissions** and **role position**.")
+                unban_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **unban** that user. Please **double-check** my **permissions** and **role position**.")
                 await interaction.response.send_message(embed=unban_error_embed)
             
             else:
@@ -68,13 +64,11 @@ class Unban(commands.Cog):
         unban_error_embed = Embed(title="", color=discord.Colour.red())
         
         if isinstance(error, MissingPermissions):
-            unban_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> This command **requires** `ban_members` permission, and you probably **don't have** it, {interaction.user.mention}.")
+            unban_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `ban_members` permission, and you probably **don't have** it, {interaction.user.mention}.")
             await interaction.response.send_message(embed=unban_error_embed)
         
         else:
             raise error
-
-    # ----------</Unban users>----------
 
 
 async def setup(bot):

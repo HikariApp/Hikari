@@ -1,13 +1,9 @@
 services:
   discord_bot:
-    image: ghcr.io/chocolamilk92/skylar3-internal/stable:latest
-    container_name: skylar3-application
-    build: .
+    image: ghcr.io/hikariapp/hikari/stable:latest
+    container_name: hikari-application
     ports:
-      - "3000:3000"
-    expose:
-      # Check status on web
-      - 3000
+      - "9000:9000"
     env_file:
       - .env
     volumes:
@@ -16,16 +12,16 @@ services:
     stop_signal: SIGTERM
     init: true  # This enables proper signal handling
 
-
   lavalink:
     # Pin the image version to Lavalink v4
     image: ghcr.io/lavalink-devs/lavalink:4
     container_name: lavalink
-    ports:
-      - "2333:2333"
     volumes:
       # Mount application.yml from the same directory or use environment variables
       - "./configs/Lavalink/application.yml:/opt/Lavalink/application.yml"
       # Persist plugins between restarts, make sure to set the correct permissions (user: 322, group: 322)
       - "./plugins/:/opt/Lavalink/plugins/"
     restart: no
+    ports:
+      - "2333:2333"
+

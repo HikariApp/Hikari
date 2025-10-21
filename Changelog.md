@@ -1097,3 +1097,83 @@ A blank line will now shown and deletes immediately when the command are all fin
 
 (-/+) Fix some minior issues in **"./general/ChatGPT.py"**
 
+#
+
+# 20241224 v2.1.0
+
+(+) Fix Overflow error when a livestream is playing
+
+#
+
+# 20250211 v2.1.4
+
+(+) Fix OpenAI issues after switching server
+
+#
+
+# 20250330 (night) v2.1.5 (*)
+
+# IMPORTANT UPDATE
+
+(-/+) Rebranded the bot as another name due to the original bot somehow **got deleted**, and resumed development process
+
+(-) Removed most of the redundant codes and comments
+
+(-/+) Refactor *"root/startup.py"** for another server migration
+
+(+) Updated all env varibles for the new bot
+
+(-/+) Moved the entire application ownership from person to a newly created organization (this repo)
+
+(-/+) Replaced OpenAI serivce token
+
+(+) Minior code improvement
+
+(+) Created multiple backup just in case
+
+#
+
+# 20250401 (afternoon) v2.1.7 (*)
+
+(-/+) Completely rewrited **"root/general/SendFromInput.py"** and renamed it to **"root/general/SendAsBot.py"**, and fixed most of the error handling for this cog
+
+(+) Admin permission is now required for **"root/general/SendAsBot.py"** to work
+
+(+) Minior code improvement
+
+(-/+) Refactor progress will begin soon
+
+#
+
+# 20250406 (midnight) v2.1.8 (*)
+
+(-/+) Completely rewrited **"root/general/ChatGPT.py"** for new thread structure and renamed it to **"root/general/ChatBot.py"**
+
+(+) Fixed Heatbeat failure by implementing AsyncOpenAI
+
+(+) Admin permission is now required for reset to work
+
+(+) Updated model from gpt4/gpt4o to gpt4o/gpt4.5
+
+(+) Minior code improvement
+
+(-/+) Refactor progress will begin soon
+
+
+#
+
+# 20250407 (afternoon) v2.2.0
+
+(-/+) Replaced some outdated icons (emoji)
+
+(+) Add proper error handling for user attempting to start a new conversation in a existing thread in **"/root/general/ChatBot.py"**.
+
+(+) Minior code improvement
+
+-----------------------------------------------------------------------------------------------------------------------------
+
+#
+
+# 20251016 (*)
+
+# Rewrited the entire Music Player system

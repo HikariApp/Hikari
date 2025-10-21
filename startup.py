@@ -1,36 +1,32 @@
 import discord
 import asyncio
 import nest_asyncio
-import psutil
-import netifaces
 import os
 import sys
 import logging
-import socket
 import subprocess
 import motor.motor_asyncio as motor
 from asyncio import sleep, Queue
 from discord.ext import commands
-from discord.ext.commands import ExtensionAlreadyLoaded, ExtensionNotLoaded, NoEntryPointError, ExtensionFailed
+from discord.ext.commands import HelpCommand
 from dotenv import load_dotenv
-from datetime import datetime
 from hypercorn.asyncio import serve
 from hypercorn.config import Config
 from quart import Quart
-from configs.Logging import setup_logger
-from errorhandling.ErrorHandling import *
-from GetDetailIPv4Info import *
+from configs.Bot._logging import setup_logger
+from configs.Bot._customHelpCommand import BetterHelpCommand
+from errorhandling._errorHandling import *
+from typing import Optional
 
 load_dotenv()
 nest_asyncio.apply()
 app = Quart("DiscordBot")
 extensions = []
-extensions_folders = ['general', 'moderation', 'errorhandling', 'configs']
-logger = setup_logger('discord_bot', 'bot.log', logging.INFO)
+extensions_folders = ['general', 'moderation', 'ownerOnly', 'extensions', 'errorhandling', 'configs']
+logger = setup_logger(name='app', log_file='bot.log', level=logging.INFO)
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
-instruction_queue = None    # IMPORTANT 
 
 
 class Bot(commands.Bot):
@@ -45,6 +41,7 @@ class Bot(commands.Bot):
             strip_after_prefix=True
         )
         self.mongo_client = None  # Initialize later in setup_hook
+        self.queue = Queue()
 
 
     async def setup_hook(self):
@@ -53,7 +50,7 @@ class Bot(commands.Bot):
         try:
             # Self MongoDB connedction test
             await self.mongo_client.admin.command('ping')
-            print("Pinged your deployment. You successfully connected to MongoDB!")
+            logger.info("Pinged your deployment. The connection from your application to MongoDB cluster has been established.")
 
         except Exception as e:
             raise ConnectionError(f"Fatal: An error occurred while trying to connect to MongoDB cluster: {e}")
@@ -67,6 +64,13 @@ class Bot(commands.Bot):
         Retrive mongo database for all cogs
         """
         return self.mongo_client
+    
+
+    def get_queue(self):
+        """
+        Retrive the instruction queue for web server control
+        """
+        return self.queue
 
 
     async def close_db(self):
@@ -80,19 +84,111 @@ class Bot(commands.Bot):
         await super().close()
 
 
-class MyNewHelp(commands.MinimalHelpCommand):
-    """
-    Custom Help UI (Pending to rewrite)
-    """
-    async def send_pages(self):
-        destination = self.get_destination()
-        for page in self.paginator.pages:
-            embed = discord.Embed(description=page)
-            await destination.send(embed=embed)
+class BetterHelpCommand(HelpCommand):
+
+    # Get all command signature
+    def get_command_signature(self, command):
+        return '%s%s %s' % (self.context.clean_prefix, command.qualified_name, command.signature)
+
+    # Send Application help message
+    async def send_bot_help(self, mapping):
+        embed = discord.Embed(title="", description=f"Use `{self.context.clean_prefix}help [command]` for more info on a command.\nYou can also use `{self.context.clean_prefix}help [category]` for more info on a category.", color=discord.Color.pink())
+        embed.set_author(name="Help Menu", icon_url=self.context.bot.user.display_avatar.url if self.context.bot.user.display_avatar else None)
+
+        for cog, commands in mapping.items():
+            filtered = await self.filter_commands(commands, sort=True)
+
+            # Collect command names rather than full signatures
+            if command_names := [c.qualified_name for c in filtered]:
+                cog_name = getattr(cog, "qualified_name", "No Category")
+                embed.add_field(name=cog_name, value="\n".join(f"`{self.context.clean_prefix}{name}`" for name in command_names), inline=False)
+
+        channel = self.get_destination()
+        await channel.send(embed=embed)
+
+    # Command help message
+    async def send_command_help(self, command):
+        embed = discord.Embed(title="" , color=discord.Color.pink())
+        embed.set_author(name=f"Command {command}", icon_url=self.context.bot.user.display_avatar.url)
+
+        if command.help:
+            embed.description = command.help
+            embed.add_field(name="Usage", value=f"`{self.get_command_signature(command)}`", inline=False)
+
+        if alias := command.aliases:
+            embed.add_field(name="Aliases", value=", ".join(alias), inline=False)
+
+        channel = self.get_destination()
+        await channel.send(embed=embed)
+
+    # Group help message
+    async def send_group_help(self, group):
+        author = f"Group {group}"
+        embed = discord.Embed(title="", description=group.help)
+        embed.set_author(name=author, icon_url=self.context.bot.user.display_avatar.url)
+
+        if filtered_commands := await self.filter_commands(group.commands):
+            for command in filtered_commands:
+                embed.add_field(name=f"{self.context.clean_prefix}{command.qualified_name}", value=command.help or "No help found...", inline=False)
+                embed.add_field(name="Usage", value=f"`{self.get_command_signature(command)}`" or "No help found...", inline=False)
+
+        embed.add_field(name="", value="\u202a")    # Invisible field for spacing
+        embed.set_footer(text=f"Looking for help on a specific command? Use {self.context.clean_prefix}help [command] for more that.")
+        await self.get_destination().send(embed=embed)
+
+    # Category help message
+    async def send_cog_help(self, cog):
+        title = cog.qualified_name or "No"
+        embed = discord.Embed(title="", description=cog.description)
+        embed.set_author(name=f'{title} Category', icon_url=self.context.bot.user.display_avatar.url)
+
+        if filtered_commands := await self.filter_commands(cog.get_commands()):
+            for command in filtered_commands:
+                embed.add_field(name=f"{self.context.clean_prefix}{command.qualified_name}", value=command.help or "No help found...", inline=False)
+
+        embed.add_field(name="", value="\u202a")    # Invisible field for spacing
+        embed.set_footer(text=f"Looking for help on a specific command? Use {self.context.clean_prefix}help [command] for that.")
+        await self.get_destination().send(embed=embed)
+
+    # Error message
+    async def send_error_message(self, error):
+        embed = discord.Embed(title="Error", description=f"<a:crossred:1356353067024515266> {error}", color=discord.Color.red())
+        channel = self.get_destination()
+        await channel.send(embed=embed)
 
 
 bot = Bot()
-bot.help_command = MyNewHelp()
+bot.help_command = BetterHelpCommand()
+
+
+# Help command
+# We have to remove the default help command first to avoid conflicts.
+# Then we can add our custom help command with the same functionality. plus hybrid support.
+bot.remove_command("help")
+
+
+# Same as default help command, but with hybrid command support
+@bot.hybrid_command(name="help")
+async def help(ctx, command_or_group: Optional[str]):
+    """
+    Feeling lost? No worry, the help command is here to assist you!
+
+    Parameters
+    ----------
+    command_or_group : `Optional[str]`
+        The command or group to get help for.
+
+    Returns
+    ----------
+    None
+
+    """
+    if ctx.interaction:
+        embed = discord.Embed(title="", description="Here's some help coming your way...", color=ctx.author.color)
+        await ctx.send(embed=embed, ephemeral=True)
+
+    entity = command_or_group and (command_or_group,) or ()
+    await ctx.send_help(*entity)
 
 
 async def load_extensions():
@@ -110,11 +206,24 @@ async def load_extensions():
         logger.info(extension)
 
 
+# Getting all extensions from the extensions folders
+# UPDATE 17-10-2025: Rewrited with asyncio.to_thread and os.walk to support subdirectories, and you can name a file starts with `_` to prevent loading
 async def get_extensions():
     """
     This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
-    Getting all extensions
+    Getting all extensions from the extensions folders ends with `.py` and not starts with `_`, see Note below for more details.
+
+    Note
+    ----------
+    This function has been rewrited, and now uses `asyncio.to_thread` to run blocking I/O operations in a separate thread, preventing the main event loop from being blocked.
+
+    Since the latest rewrite, this function is now fully asynchronous and non-blocking.
+
+    And you can now add subdirectories in the extensions folders, and the function will find them all.
+
+    Also, you can named your files starts with `_` to prevent them from being loaded as extensions, which is useful for utility modules.
+
     """
     global extensions_folders
     extensions = []
@@ -125,19 +234,24 @@ async def get_extensions():
         if not os.path.exists(folder_path):
             continue
 
-        filenames = await asyncio.to_thread(os.listdir, folder_path)
+        # Use os.walk to recursively traverse directories
+        walk_result = await asyncio.to_thread(list, os.walk(folder_path))
+        
+        for root, _, files in walk_result:
+            for filename in files:
+                if filename.endswith('.py') and not filename.startswith('_'):
+                    # Convert file path to discord.py Cog format
+                    relative_path = os.path.relpath(os.path.join(root, filename), ".").replace(os.sep, ".")
+                    extension = relative_path[:-3]  # Remove .py extension
+                    print(f"Found extension: {extension}")
 
-        for filename in filenames:
-            if filename.endswith('.py'):
-                extension = f'{folder}.{filename[:-3]}'
+                    if extension == "general.ChatGPT" and os.getenv("ENABLE_AI") == "False":
+                        continue
 
-                if extension == "general.ChatGPT" and os.getenv("ENABLE_AI") == "False":
-                    continue
+                    if extension == "extensions.MusicPlayer.Music" and os.getenv("ENABLE_MUSIC") == "False":
+                        continue
 
-                if extension == "general.MusicPlayer" and os.getenv("ENABLE_MUSIC") == "False":
-                    continue
-
-                extensions.append(extension)
+                    extensions.append(extension)
 
     return extensions
 
@@ -165,245 +279,6 @@ The application is now initialized and waiting on your demands!
 
 '''
         )
-
-
-@bot.command()
-async def sync(ctx):
-    """
-    This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
-
-    Sync all cogs for latest changes
-    """
-    if not await bot.is_owner(ctx.author):
-        return await ctx.reply(NotBotOwnerError())
-    
-    synced = await bot.tree.sync()
-    msg = await ctx.reply(f"Synced {len(synced)} command(s).")
-
-    await asyncio.sleep(5)
-    await msg.delete()
-    await ctx.message.delete()
-
-
-@bot.command()
-async def load(ctx, cog_name):
-    """
-    This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
-
-    Load cogs manually
-
-    Parameters
-    ----------
-    cog_name: str
-        The name to load.
-
-    """
-    if not await bot.is_owner(ctx.author):
-        return await ctx.reply(NotBotOwnerError())
-    
-    extensions = get_extensions()
-    if cog_name not in extensions:  # Front check if the cog was in the valid cog list or not
-        return await ctx.reply(ExtensionNotFoundError(cog=cog_name))
-    
-    try:
-        await bot.load_extension(cog_name)
-        await bot.tree.sync()
-        msg = await ctx.reply(f"Cog `{cog_name}` has been loaded.")
-        await asyncio.sleep(1)
-        await msg.delete()
-        await ctx.message.delete()
-        
-    except ExtensionAlreadyLoaded:
-        return await ctx.reply(f"Cog `{cog_name}` has been already loaded!")
-    
-    except NoEntryPointError:
-        return await ctx.reply(ReturnNoEntryPointError(cog=cog_name))
-    
-    except ExtensionFailed:
-        return await ctx.reply(ExtensionFailedError(cog=cog_name))
-    
-
-@bot.command()
-async def unload(ctx, cog_name):
-    """
-    This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
-    
-    Unload cogs manually
-
-    Parameters
-    ----------
-    cog_name: str
-        The name to unload.
-    
-    """
-    if not await bot.is_owner(ctx.author):
-        return await ctx.reply(NotBotOwnerError())
-    
-    extensions = get_extensions()
-
-    if cog_name not in extensions:  # Front check if the cog was in the valid cog list or not
-        return await ctx.reply(ExtensionNotFoundError(cog=cog_name))
-    
-    try:
-        await bot.unload_extension(cog_name)
-        await bot.tree.sync()
-        msg = await ctx.reply(f"Cog `{cog_name}` has been unloaded.")
-        await asyncio.sleep(2)
-        await msg.delete()
-        await ctx.message.delete()
-
-    except ExtensionNotLoaded:
-        return await ctx.reply(f"Cog `{cog_name}` has been already unloaded!")
-    
-    except NoEntryPointError:
-        return await ctx.reply(ReturnNoEntryPointError(cog=cog_name))
-    
-    except ExtensionFailed:
-        return await ctx.reply(ExtensionFailedError(cog=cog_name))
-    
-
-@bot.command()
-async def reload(ctx, cog_name):
-    """
-    This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
-
-    Reload cogs manually
-
-    Parameters
-    ----------
-    cog_name: str
-        The name to reload.
-    
-    """
-    if not await bot.is_owner(ctx.author):
-        return await ctx.reply(NotBotOwnerError())
-    
-    extensions = get_extensions()
-
-    if cog_name not in extensions:
-        return await ctx.reply(ExtensionNotFoundError(cog=cog_name))
-    
-    try:
-        await bot.reload_extension(cog_name)
-        await bot.tree.sync()
-        msg = await ctx.reply(f"Cog `{cog_name}` has been reloaded.")
-        await asyncio.sleep(2)
-        await msg.delete()
-        await ctx.message.delete()
-
-    except ExtensionNotLoaded:
-        return await ctx.send(f"Cog `{cog_name}` has not been loaded.")
-    
-    except NoEntryPointError:
-        return await ctx.reply(ReturnNoEntryPointError(cog=cog_name))
-    
-    except ExtensionFailed:
-        return await ctx.reply(ExtensionFailedError(cog=cog_name))
-
-
-@bot.command()
-async def systeminfo(ctx):
-    """
-    This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
-
-    Retrieving system info from the bot
-    """
-    if not await bot.is_owner(ctx.author):
-        return await ctx.reply(NotBotOwnerError())
-    
-    def convert_to_GB(raw):
-        return round(raw / 1024 ** 3, 2)
-    # CPU
-    cpuPercentage = psutil.cpu_percent()
-    numberOfSystemCores = psutil.cpu_count(logical=False)
-    numberOfLogicalCores = psutil.cpu_count(logical=True)
-
-    # Memory
-    ram = psutil.virtual_memory()
-    usedRamInGB = convert_to_GB(ram.used)
-    availableRamInGB = convert_to_GB(ram.available)
-    totalRamInGB = convert_to_GB(ram.total)
-    ramPercentage = ram.percent
-    
-    # Storage
-    disk = psutil.disk_usage('/')
-    usedVolumeInGB = convert_to_GB(disk.used)
-    freeVolumeInGB = convert_to_GB(disk.free)
-    totalVolumeInGB = convert_to_GB(disk.total)
-    diskPercentage = disk.percent
-
-    # Network
-    hostname = socket.gethostname()
-    ipInfo = GetDetailIPv4Info()
-    network = psutil.net_io_counters()
-
-    # Returning system info as embed
-    hardware_info_embed = discord.Embed(title="Resource Usage (For reference only):", description='\u200b', timestamp=datetime.now(), color=ctx.author.colour)
-
-    # CPU
-    hardware_info_embed.add_field(name="CPU", value=f"CPU utilization: {cpuPercentage}%\nNumber of system cores: {numberOfSystemCores}\nNumber of logical cores: {numberOfLogicalCores}", inline=True)
-    
-    # Memory
-    hardware_info_embed.add_field(name="RAM", value=f"Memory in use: {usedRamInGB} / {totalRamInGB} GB ({ramPercentage}%)\nAvailible memory: {availableRamInGB} GB", inline=True)
-    hardware_info_embed.add_field(name="Storage", value=f"Space used: {usedVolumeInGB} / {totalVolumeInGB} GB ({diskPercentage}%)\nAvailible space: {freeVolumeInGB} GB", inline=True)
-    hardware_info_embed.add_field(name="\u200b", value="", inline=False)
-    
-    # Basic Network
-    ip_addresses = [netifaces.ifaddresses(iface)[netifaces.AF_INET][0]['addr'] for iface in netifaces.interfaces() if netifaces.AF_INET in netifaces.ifaddresses(iface)]
-    subnets = [netifaces.ifaddresses(iface)[netifaces.AF_INET][0]['netmask'] for iface in netifaces.interfaces() if netifaces.AF_INET in netifaces.ifaddresses(iface)]
-    gateways = [netifaces.gateways()['default'][netifaces.AF_INET][0] for gateways in netifaces.interfaces() if "default" in netifaces.gateways()]
-    
-    try:
-        hardware_info_embed.add_field(name="Network Information (Basic)", value=f"IPv4 Address(s): {ip_addresses}\nSubnet(s) Mask: {subnets}\nGateway(s): {gateways}", inline=True)
-    
-    except:
-        pass
-    
-    # Advanced Network
-    hardware_info_embed.add_field(name="Network Information (Advanced)", value=f"Hostname: {hostname}\nIPv4: {ipInfo.ip}\nIP Hostname: {ipInfo.hostname}\nCountry or district: {ipInfo.country}\nRegion: {ipInfo.region}\nCity: {ipInfo.city}\n Organization: {ipInfo.organization}\nPostal code: {ipInfo.postal}\nLocation: {ipInfo.location}", inline=True)
-    
-    # Packets transmission
-    hardware_info_embed.add_field(name="\u200b", value="", inline=False)
-    hardware_info_embed.add_field(name="Packets transmission:", value=f"Number of bytes sent: {network.bytes_sent}\nNumber of bytes received: {network.bytes_recv}\nNumber of packets sent: {network.packets_sent}\nNumber of packets received: {network.packets_recv}\nTotal number of errors while receiving: {network.errin}\nTotal number of errors while sending: {network.errout}\nTotal number of incoming packets dropped: {network.dropin}\nTotal number of outgoing packets dropped: {network.dropout}", inline=False)
-    hardware_info_embed.add_field(name="\u200b", value="", inline=False)
-    
-    await ctx.reply(embed=hardware_info_embed)
-
-
-@bot.command()
-async def restart(ctx):
-    """
-    This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
-
-    Restart the bot (Use it only as a LAST RESORT)
-    """
-    global is_restarting
-    is_restarting = True
-    
-    if not await bot.is_owner(ctx.author):
-        return await ctx.reply(NotBotOwnerError())
-    
-    bot.clear()
-    await bot.close()
-    await restart_()
-
-
-@bot.command()
-async def shutdown(ctx):
-    """
-    This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
-
-    Shut down the bot and the server (SELF DESTRUCT)
-    """
-    global is_shutdown
-    is_shutdown = True
-    
-    if not await bot.is_owner(ctx.author):
-        return await ctx.reply(NotBotOwnerError())
-    
-    bot.clear()
-    await bot.close()
-    await app.shutdown()
 
 
 """
@@ -436,11 +311,10 @@ async def start_bot():
 
     """
     try:
-        token = os.getenv("DISCORD_BOT_TOKEN") or ""
+        token = os.environ.get("DISCORD_BOT_TOKEN") or ""
         
         if token == "":
-            logger.error("No vaild tokens were found in the environment variable. Please add your token to the Secrets pane.")
-            exit(1)
+            raise SystemExit("No valid tokens were found in the environment variable. Please add your token to the Secrets pane.")
 
         await bot.start(token)
     
@@ -448,15 +322,14 @@ async def start_bot():
         if http_error.status == 429:
             logger.error("\nThe Discord servers denied the connection for making too many requests, restarting in 7 seconds...")
             logger.error("\nIf the restart fails, get help from 'https://stackoverflow.com/questions/66724687/in-discord-py-how-to-solve-the-error-for-toomanyrequests'")
-            
-            await instruction_queue.put("restart")    # Put "restart" to the queue to restart the web server
-        
+
+            await bot.queue.put("restart")    # Put "restart" to the queue to restart the web server
+
         else:
             raise http_error
     
     except discord.errors.LoginFailure as token_error:
-        logger.error(f"Cannot login to the bot at this point due to the following error: {token_error}\nPlease check your token and try again.")
-        exit(1)
+        raise SystemExit(f"Cannot login to the bot at this point due to the following error: {token_error}\nPlease check your token and try again.")
 
 
 @app.before_serving
@@ -520,9 +393,10 @@ async def restart_():
         The restart message to client devices.
     
     """
+
     await bot.close()
     await bot.close_db()
-    await instruction_queue.put("restart")    # Put "restart" to the queue to restart the web server
+    await bot.queue.put("restart")    # Put "restart" to the queue to restart the web server
     return "Please Wait. Your server is now restarting..."
 
 
@@ -540,7 +414,7 @@ async def shutdown_():
     """
     await bot.close()
     await bot.close_db()
-    await instruction_queue.put("shutdown")   # Put "shutdown" to the queue to terminate the web server
+    await bot.queue.put("shutdown")   # Put "shutdown" to the queue to terminate the web server
 
 
 async def run_server():
@@ -555,7 +429,8 @@ async def run_server():
 
     """
     config = Config()
-    config.bind = ["0.0.0.0:3000"]  # Custom PORT: 3000 for Azure and Docker
+    config.bind = [f"0.0.0.0:{os.environ.get("PORT") or 9000}"]  # Custom PORT
+    config.loglevel = "error"
     config.debug = False
 
     try:
@@ -589,8 +464,7 @@ async def startup(queue):
         The server task.
 
     """
-    global instruction_queue
-    instruction_queue = queue
+    bot.queue = queue    # Assign the queue to the bot instance
     server_task = asyncio.create_task(run_server())
     logger.info("Hypercorn server started.")
     return server_task
@@ -655,7 +529,7 @@ async def monitor_queue(queue, server_task):
                 os._exit(0)  # Ensure exit the current subprocess after restart
 
             case _:
-                raise ValueError(f"Unknown instruction for asyncio.Queue: {instruction}, must be either 'shutdown', 'reboot', or 'restart'.")
+                raise ValueError(f"Unknown instruction for asyncio.Queue: must be either 'shutdown', 'reboot', or 'restart', got '{instruction}'.")
             
         await sleep(0.001)  # Minimal time delay to avoid busy-checking
 
@@ -671,16 +545,13 @@ async def main():
     None
 
     """
-    queue = Queue()
+    queue = bot.queue    # Get the instruction queue
 
     # Start the Quart server as an asyncio task
     server_task = await startup(queue)
 
     try:
         await monitor_queue(queue, server_task)    # Start monitoring the queue
-
-    except asyncio.CancelledError:
-        logger.info("Main task cancelled. Cleaning up...")
 
     finally:
         logger.info("Terminating server task...")
@@ -700,5 +571,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
 

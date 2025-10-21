@@ -23,10 +23,6 @@ def image_url_check(url_list):
 custom_embed = None
 user_metion_pattern = r'<@(\d+)>'
 
-
-# ----------<Custom Embed>----------
-
-
 class CustomEmbedModal(Modal, title = "Customize your embed"):
     global custom_embed
     # TextInput Item
@@ -171,9 +167,6 @@ class CustomEmbed(commands.Cog):
         custom_embed.set_footer(text=footer or None, icon_url=footer_image_url or None)
         
         await interaction.response.send_modal(CustomEmbedModal())
-
-
-# ----------</Custom Embed>----------
 
 
 async def setup(bot):
