@@ -2,7 +2,8 @@ import discord
 import asyncio
 import re
 import logging
-import wavelink
+import pomice
+from extensions.MusicPlayer._player import BetterPlayer
 from discord import app_commands, Embed, Interaction, Forbidden, Member, VoiceChannel
 from discord.ext import commands, tasks
 from discord.app_commands import BotMissingPermissions
@@ -10,8 +11,8 @@ from discord.app_commands.errors import MissingPermissions
 from datetime import datetime, timezone, timedelta
 from typing import cast, Optional, Union
 from general.VoiceChannelFallbackConfig import *
-from configs.Logging import setup_logger
-from errorhandling.ErrorHandling import *
+from configs.Bot._logging import setup_logger
+from errorhandling._errorHandling import *
 
 recording_vc = {}
 logger = setup_logger('discord_bot', 'bot.log', logging.INFO)
@@ -68,8 +69,8 @@ class VoiceChannel(commands.Cog):
     @app_commands.command(description="Invokes me to a voice channel")
     @app_commands.describe(channel="Channel to join. Leave this blank if you want the bot to join where you are.")
     async def join(self, interaction: Interaction, channel: Optional[discord.VoiceChannel] = None):
-        player: wavelink.Player
-        player = cast(wavelink.Player, interaction.guild.voice_client)
+        player: BetterPlayer
+        player = cast(BetterPlayer, interaction.guild.voice_client)
         join_embed = discord.Embed(title="", color=interaction.user.colour)
         voice_channel = channel
 
@@ -83,7 +84,7 @@ class VoiceChannel(commands.Cog):
         if not player:
             try:
                 # Join voice channel
-                player = await voice_channel.connect(cls=wavelink.Player)
+                player = await voice_channel.connect(cls=pomice.Player)
                 set_fallback_text_channel(interaction, interaction.channel)
                 join_embed.add_field(name="", value=f"I've joined the voice channel {voice_channel.mention}")
                 return await interaction.response.send_message(embed=join_embed)
@@ -112,8 +113,8 @@ class VoiceChannel(commands.Cog):
     # Leaving voice channel
     @app_commands.command(description="Leaving a voice channel")
     async def leave(self, interaction: Interaction):
-        player: wavelink.Player
-        player = cast(wavelink.Player, interaction.guild.voice_client)
+        player: pomice.Player
+        player = cast(pomice.Player, interaction.guild.voice_client)
         leaving_vc = discord.Embed(title="", description="", color=self.bot.user.color)
         leaving_vc_error_embed = discord.Embed(title="", color=discord.Colour.red())
 
@@ -124,7 +125,7 @@ class VoiceChannel(commands.Cog):
             await interaction.response.send_message(embed=leaving_vc, ephemeral=True, delete_after=0)
 
         else:
-            leaving_vc_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> I'm **not** in a voice channel :(", inline=False)
+            leaving_vc_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm **not** in a voice channel :(", inline=False)
             # The bot is currently not in a voice channel
             await interaction.response.send_message(embed=leaving_vc_error_embed)
 
@@ -187,7 +188,7 @@ class VoiceChannel(commands.Cog):
         end_result = await self.move_all_members(interaction, None, reason)
 
         if end_result["success_count"] != end_result["all_members_vc_count"] and end_result["failure_count"] > 0:
-            end_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> Something went wrong while ending the call for all channel(s) :thinking:")
+            end_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Something went wrong while ending the call for all channel(s) :thinking:")
             return await interaction.edit_original_response(embed=end_error_embed)
         
         reason_message = f"\nReason: **{end_result["reason"]}" if reason is not None else ""
@@ -201,7 +202,7 @@ class VoiceChannel(commands.Cog):
         end_error_embed = discord.Embed(title="", color=discord.Colour.red())
 
         if isinstance(error, MissingPermissions):
-            end_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> This command **requires** `move members` permission, and you probably **don't have** it, {interaction.user.mention}.", inline=False)
+            end_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `move members` permission, and you probably **don't have** it, {interaction.user.mention}.", inline=False)
             await interaction.response.send_message(embed=end_error_embed)
             
         else:
@@ -250,7 +251,7 @@ class VoiceChannel(commands.Cog):
         move_all_error_embed = discord.Embed(title="", color=discord.Colour.red())
 
         if isinstance(error, MissingPermissions):
-            move_all_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> This command **requires** `move members` permission, and you probably **don't have** it, {interaction.user.mention}.", inline=False)
+            move_all_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `move members` permission, and you probably **don't have** it, {interaction.user.mention}.", inline=False)
             await interaction.response.send_message(embed=move_all_error_embed)
 
         else:
@@ -269,15 +270,15 @@ class VoiceChannel(commands.Cog):
 
         # Check the target user was in the vc or not
         if member.voice is None and interaction.user.id == self.bot.application_id:
-            move_user_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> I'm currently not in a voice channel.", inline=False)
+            move_user_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm currently not in a voice channel.", inline=False)
             return await interaction.response.send_message(embed=move_user_error_embed)
         
         elif interaction.user.voice is None:
-            move_user_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> You're currently not in a voice channel!", inline=False)
+            move_user_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> You're currently not in a voice channel!", inline=False)
             return await interaction.response.send_message(embed=move_user_error_embed)
         
         elif member.voice is None:
-            move_user_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> {member.mention} currently not in a voice channel.", inline=False)
+            move_user_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {member.mention} currently not in a voice channel.", inline=False)
             return await interaction.response.send_message(embed=move_user_error_embed)
         
         # Check the target vc
@@ -288,7 +289,7 @@ class VoiceChannel(commands.Cog):
 
             else:
                 # The author has not joined the voice channel yet
-                move_user_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> Looks like you're currently not in a voice channel, but trying to move someone into the voice channel that you're connected :thinking: ...\nJust curious to know, where should I move {member.mention} into right now, {interaction.user.mention}?", inline=False)
+                move_user_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Looks like you're currently not in a voice channel, but trying to move someone into the voice channel that you're connected :thinking: ...\nJust curious to know, where should I move {member.mention} into right now, {interaction.user.mention}?", inline=False)
                 return await interaction.response.send_message(embed=move_user_error_embed)
             
         else:
@@ -320,7 +321,7 @@ class VoiceChannel(commands.Cog):
         move_user_error_embed = discord.Embed(title="", color=discord.Colour.red())
 
         if isinstance(error, MissingPermissions):
-            move_user_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> This command **requires** `move members` permission, and you probably **don't have** it, {interaction.user.mention}.", inline=False)
+            move_user_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `move members` permission, and you probably **don't have** it, {interaction.user.mention}.", inline=False)
             await interaction.response.send_message(embed=move_user_error_embed)
 
         else:
@@ -338,7 +339,7 @@ class VoiceChannel(commands.Cog):
 
         # Check the target user was in the vc or not
         if interaction.user.voice is None:
-            move_me_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> You're currently not in a voice channel!", inline=False)
+            move_me_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> You're currently not in a voice channel!", inline=False)
             return await interaction.response.send_message(embed=move_me_error_embed)
         
         if reason is None:
@@ -357,7 +358,7 @@ class VoiceChannel(commands.Cog):
         move_me_error_embed = discord.Embed(title="", color=discord.Colour.red())
 
         if isinstance(error, MissingPermissions):
-            move_me_error_embed.add_field(name=f"<a:CrossRed:1274034371724312646> This command **requires** `move members` permission, and you probably **don't have** it, {interaction.user.mention}.", value="", inline=False)
+            move_me_error_embed.add_field(name=f"<a:crossred:1356353067024515266> This command **requires** `move members` permission, and you probably **don't have** it, {interaction.user.mention}.", value="", inline=False)
             return await interaction.response.send_message(embed=move_me_error_embed)
         
         else:
@@ -370,14 +371,14 @@ class VoiceChannel(commands.Cog):
     @app_commands.describe(channel="Channel to move me to. Leave this blank if you want to move me into where you are.")
     @app_commands.describe(reason="Reason for move")
     async def move_bot(self, interaction: Interaction, channel: Optional[discord.VoiceChannel] = None, reason: Optional[str] = None):
-        player: wavelink.Player
-        player = cast(wavelink.Player, interaction.guild.voice_client)
+        player: BetterPlayer
+        player = cast(BetterPlayer, interaction.guild.voice_client)
         move_bot_embed = discord.Embed(title="", color=interaction.user.color)
         move_bot_error_embed = discord.Embed(title="", color=discord.Colour.red())
 
         # Check the bot was in the vc or not
         if player is None:
-            move_bot_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> I'm currently not in a voice channel.", inline=False)
+            move_bot_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm currently not in a voice channel.", inline=False)
             return await interaction.response.send_message(embed=move_bot_error_embed)
         
         if channel is None:
@@ -387,7 +388,7 @@ class VoiceChannel(commands.Cog):
 
             else:
                 # The author has not joined the voice channel yet
-                move_bot_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> Looks like you're currently not in a voice channel, but trying to move me into the voice channel that you're connected :thinking: ...\nJust curious to know, where should I move into right now, {interaction.user.mention}?", inline=False)
+                move_bot_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Looks like you're currently not in a voice channel, but trying to move me into the voice channel that you're connected :thinking: ...\nJust curious to know, where should I move into right now, {interaction.user.mention}?", inline=False)
                 return await interaction.response.send_message(embed=move_bot_error_embed)
             
         else:
@@ -409,7 +410,7 @@ class VoiceChannel(commands.Cog):
         move_bot_error_embed = discord.Embed(title="", color=discord.Colour.red())
 
         if isinstance(error, MissingPermissions):
-            move_bot_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> This command **requires** `move members` and `moderate members` permission, and you probably **don't have** it, {interaction.user.mention}.", inline=False)
+            move_bot_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `move members` and `moderate members` permission, and you probably **don't have** it, {interaction.user.mention}.", inline=False)
             return await interaction.response.send_message(embed=move_bot_error_embed)
         
         else:
@@ -471,12 +472,12 @@ class VoiceChannel(commands.Cog):
                 total_duration = self.parse_duration(duration_str)
                 
                 if total_duration == "error_improper_format":
-                    vmute_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> Looks like the time fomrmat you entered it's not vaild :thinking: ... Perhaps enter again and gave me a chance to handle it, {interaction.user.mention} :pleading_face:?", inline=False)
+                    vmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Looks like the time fomrmat you entered it's not vaild :thinking: ... Perhaps enter again and gave me a chance to handle it, {interaction.user.mention} :pleading_face:?", inline=False)
                     vmute_error_embed.add_field(name="Supported time format:", value=f"**1**s = **1** second | **2**m = **2** minutes | **5**h = **5** hours | **10**d = **10** days | **3**w = **3** weeks | **6**y = **6** years.", inline=False)
                     return await interaction.response.send_message(embed=vmute_error_embed)
             
             if member.voice.mute:
-                vmute_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> {member.mention} is **already muted from voice**!")
+                vmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {member.mention} is **already muted from voice**!")
                 return await interaction.response.send_message(embed=vmute_error_embed)
             
             duration_message = "for " + " and ".join(", ".join([f"**{value}** {unit[:-1]}" + ("s" if value > 1 else "") for unit, value in total_duration.items() if unit != "total_seconds" and value != 0]).rsplit(", ", 1)) + " " if duration_str is not None else ""
@@ -507,7 +508,7 @@ class VoiceChannel(commands.Cog):
         except Forbidden as e:
             if e.status == 403 and e.code == 50013:
                 # Handling rare forbidden case
-                vmute_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> I couldn't **mute that user from voice**. Please **double-check** my **permissions** and **role position**.")
+                vmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **mute that user from voice**. Please **double-check** my **permissions** and **role position**.")
                 await interaction.response.send_message(embed=vmute_error_embed)
 
             else:
@@ -570,21 +571,21 @@ class VoiceChannel(commands.Cog):
         vmute_error_embed = Embed(title="", color=discord.Colour.red())
 
         if member == interaction.user:
-            vmute_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> {interaction.user.mention}, You can't **mute yourself from voice**!")
+            vmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {interaction.user.mention}, You can't **mute yourself from voice**!")
             return await interaction.response.send_message(embed=vmute_error_embed)
         
         if member.guild_permissions.administrator and interaction.user != interaction.guild.owner:
 
             if not await self.bot.is_owner(interaction.user):
-                vmute_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> Stop trying to **mute an admin from voice**! :rolling_eyes:")
+                vmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Stop trying to **mute an admin from voice**! :rolling_eyes:")
                 return await interaction.response.send_message(embed=vmute_error_embed)
             
         if member == self.bot.user:
-            vmute_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> {interaction.user.mention}, I can't **mute myself from voice**!")
+            vmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {interaction.user.mention}, I can't **mute myself from voice**!")
             return await interaction.response.send_message(embed=vmute_error_embed)
         
         if member.voice is None:
-            vmute_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> {member.mention} is **not connected to voice** currently.")
+            vmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {member.mention} is **not connected to voice** currently.")
             return await interaction.response.send_message(embed=vmute_error_embed)
         
         await self.mute_member_voice(interaction, member, duration, reason)
@@ -594,11 +595,11 @@ class VoiceChannel(commands.Cog):
         vmute_error_embed = Embed(title="", color=discord.Colour.red())
         
         if isinstance(error, MissingPermissions):
-            vmute_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> This command **requires** `moderate members` permission, and you probably **don't have** it, {interaction.user.mention}.")
+            vmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `moderate members` permission, and you probably **don't have** it, {interaction.user.mention}.")
             await interaction.response.send_message(embed=vmute_error_embed)
 
         elif isinstance(error, BotMissingPermissions):
-            vmute_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> I couldn't **mute that user from voice**. Please **double-check** my **permissions** and **role position**.")
+            vmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **mute that user from voice**. Please **double-check** my **permissions** and **role position**.")
             await interaction.response.send_message(embed=vmute_error_embed)
 
         else:
@@ -621,17 +622,17 @@ class VoiceChannel(commands.Cog):
         mute_record = await mute_voice_collection.find_one({"guild_id": interaction.guild.id, "user_id": member.id})
 
         if member.voice is None:
-            vunmute_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> {member.mention} is **not connected to voice** currently.")
+            vunmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {member.mention} is **not connected to voice** currently.")
             return await interaction.response.send_message(embed=vunmute_error_embed)
 
         if not mute_record:
             # If no mute record is found in the database, the user is not muted
-            vunmute_error_embed.add_field(name="" ,value=f"<a:CrossRed:1274034371724312646> {member.mention} is **not currently muted from voice** in the database.", inline=False)
+            vunmute_error_embed.add_field(name="" ,value=f"<a:crossred:1356353067024515266> {member.mention} is **not currently muted from voice** in the database.", inline=False)
             return await interaction.response.send_message(embed=vunmute_error_embed, ephemeral=True)
 
         # Check if the user actually muted from voice
         if not member.voice.mute:
-            vunmute_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> {member.mention} does **not muted from voice**, but they are recorded as muted in the database.", inline=False)
+            vunmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {member.mention} does **not muted from voice**, but they are recorded as muted in the database.", inline=False)
             return await interaction.response.send_message(embed=vunmute_error_embed, ephemeral=True)
 
         # Remove the Muted role
@@ -645,7 +646,7 @@ class VoiceChannel(commands.Cog):
                     await member.edit(mute=False, reason=reason)
                     vunmute_embed.add_field(name="", value=f"{member.mention} has been **unmuted**.\nReason: **{reason}**.")
         except discord.Forbidden:
-            vunmute_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> I couldn't **unmute** {member.mention} **from voice**. Please check my **permissions** and **role position**.", inline=False)
+            vunmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **unmute** {member.mention} **from voice**. Please check my **permissions** and **role position**.", inline=False)
             return await interaction.response.send_message(embed=vunmute_error_embed, ephemeral=True)
 
         # Remove the mute record from the database
@@ -660,11 +661,11 @@ class VoiceChannel(commands.Cog):
         vunmute_error_embed = Embed(title="", color=discord.Colour.red())
 
         if isinstance(error, MissingPermissions):
-            vunmute_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> This command **requires** `moderate members` permission, and you probably **don't have** it, {interaction.user.mention}.")
+            vunmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `moderate members` permission, and you probably **don't have** it, {interaction.user.mention}.")
             await interaction.response.send_message(embed=vunmute_error_embed)
 
         elif isinstance(error, BotMissingPermissions):
-            vunmute_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> I couldn't **unmute that user from voice**. Please **double-check** my **permissions** and **role position**.")
+            vunmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **unmute that user from voice**. Please **double-check** my **permissions** and **role position**.")
             await interaction.response.send_message(embed=vunmute_error_embed)
 
         else:
@@ -683,21 +684,21 @@ class VoiceChannel(commands.Cog):
         vkick_error_embed = Embed(title="", color=discord.Colour.red())
         try:
             if member.voice is None:
-                vkick_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> {member.mention} is **not in voice** currently.")
+                vkick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {member.mention} is **not in voice** currently.")
                 return await interaction.response.send_message(embed=vkick_error_embed)
             
             if member == interaction.user:
-                vkick_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> {interaction.user.mention}, You can't **kick yourself from voice**!")
+                vkick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {interaction.user.mention}, You can't **kick yourself from voice**!")
                 return await interaction.response.send_message(embed=vkick_error_embed)
             
             if member == self.bot.user:
-                vkick_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> {interaction.user.mention}, I can't **kick myself from voice**!")
+                vkick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {interaction.user.mention}, I can't **kick myself from voice**!")
                 return await interaction.response.send_message(embed=vkick_error_embed)
             
             if member.guild_permissions.administrator and interaction.user != interaction.guild.owner:
 
                 if not await self.bot.is_owner(interaction.user):
-                    vkick_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> Stop trying to **kick an admin from voice**! :rolling_eyes:")
+                    vkick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Stop trying to **kick an admin from voice**! :rolling_eyes:")
                     return await interaction.response.send_message(embed=vkick_error_embed)
                 
             if reason is not None:
@@ -713,7 +714,7 @@ class VoiceChannel(commands.Cog):
         except Forbidden as e:
             if e.status == 403 and e.code == 50013:
                 # Handling rare forbidden case
-                vkick_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> I couldn't **kick that user from voice**. Please **double-check** my **permissions** and **role position**.")
+                vkick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **kick that user from voice**. Please **double-check** my **permissions** and **role position**.")
                 await interaction.response.send_message(embed=vkick_error_embed)
                 
             else:
@@ -724,11 +725,11 @@ class VoiceChannel(commands.Cog):
         vkick_error_embed = Embed(title="", color=discord.Colour.red())
 
         if isinstance(error, MissingPermissions):
-            vkick_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> This command **requires** `moderate members` permission, and you probably **don't have** it, {interaction.user.mention}.")
+            vkick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `moderate members` permission, and you probably **don't have** it, {interaction.user.mention}.")
             await interaction.response.send_message(embed=vkick_error_embed)
 
         elif isinstance(error, BotMissingPermissions):
-            vkick_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> I couldn't **kick that user from voice**. Please **double-check** my **permissions** and **role position**.")
+            vkick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **kick that user from voice**. Please **double-check** my **permissions** and **role position**.")
             await interaction.response.send_message(embed=vkick_error_embed)
 
         else:

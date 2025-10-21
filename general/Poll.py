@@ -6,7 +6,7 @@ from discord.ext import commands
 from discord.utils import get
 from datetime import datetime, timedelta
 from typing import Optional
-from errorhandling.ErrorHandling import *
+from errorhandling._errorHandling import *
 
 most_recent_poll_message = {}
 
@@ -14,7 +14,6 @@ most_recent_poll_message = {}
 class PollNew(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
-
 
     # Getting required message ID from user input
     async def get_message_id(self, message: str):

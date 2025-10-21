@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands, Interaction
 from discord.ext import commands
-from errorhandling.ErrorHandling import *
+from errorhandling._errorHandling import *
 
 # Main cog
 class ReactingMessages(commands.Cog):
@@ -9,10 +9,6 @@ class ReactingMessages(commands.Cog):
         self.bot = bot
 
     reaction = app_commands.Group(name="reaction", description="Reacting to messages")
-
-
-    # ----------<Reacting to messages>----------
-
 
     # Function of reacting to messages
     async def add_reaction(self, interaction, message, emoji):
@@ -155,8 +151,6 @@ class ReactingMessages(commands.Cog):
             
         else:
             raise error  # Raise other errors to ensure they aren't ignored
-    # ----------</Reacting to messages>----------
-    
 
 async def setup(bot):
     await bot.add_cog(ReactingMessages(bot))
