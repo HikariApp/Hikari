@@ -152,5 +152,6 @@ class ReactingMessages(commands.Cog):
         else:
             raise error  # Raise other errors to ensure they aren't ignored
 
+
 async def setup(bot):
     await bot.add_cog(ReactingMessages(bot))
