@@ -1,6 +1,5 @@
 import discord
 from discord import Interaction
-from discord.ext import commands
 
 # Custom errors
 class NotBotOwnerError:
