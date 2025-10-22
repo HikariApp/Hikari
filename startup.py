@@ -42,6 +42,7 @@ class Bot(commands.Bot):
         )
         self.mongo_client = None  # Initialize later in setup_hook
         self.queue = Queue()
+        self.logger = logger
 
 
     async def setup_hook(self):
@@ -71,6 +72,12 @@ class Bot(commands.Bot):
         Retrive the instruction queue for web server control
         """
         return self.queue
+
+    def get_logger(self):
+        """
+        Retrieve the logger instance for the bot.
+        """
+        return self.logger
 
 
     async def close_db(self):
@@ -243,8 +250,8 @@ async def get_extensions():
                     # Convert file path to discord.py Cog format
                     relative_path = os.path.relpath(os.path.join(root, filename), ".").replace(os.sep, ".")
                     extension = relative_path[:-3]  # Remove .py extension
-                    print(f"Found extension: {extension}")
-
+                    
+                    # Conditional loading based on environment variables
                     if extension == "general.ChatGPT" and os.getenv("ENABLE_AI") == "False":
                         continue
 
