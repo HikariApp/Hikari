@@ -798,7 +798,7 @@ class ChatBot(Cog):
     
     def __init__(self, bot: Bot):
         self.bot = bot
-        self.db_cluster = self.bot.get_cluster()
+        self.db_cluster = self.bot.getMongoClusterDB()
         self.ai_repository = AIMongoDB(self.db_cluster)
         self.ai_openai = AIServiceAPI(self.ai_repository)
 

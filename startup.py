@@ -12,16 +12,15 @@ from dotenv import load_dotenv
 from hypercorn.asyncio import serve
 from hypercorn.config import Config
 from quart import Quart
-from configs.Bot._logging import setup_logger
+from extensionsHandler import getAllExtensions
+from configs.Bot._logging import setupLogger
 from errorhandling._errorHandling import *
 
 
 load_dotenv()
 nest_asyncio.apply()
-app = Quart("DiscordBot")
-extensions = []
-extensions_folders = ['general', 'moderation', 'ownerOnly', 'extensions', 'errorhandling', 'configs']
-logger = setup_logger(name='app', log_file='bot.log', level=logging.INFO)
+app = Quart("DiscordApplication")
+logger = setupLogger(name='app', log_file='app.log', level=logging.INFO)
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
@@ -53,7 +52,7 @@ class Bot(Bot):
             self_bot=False,  # IMPORTANT!
             strip_after_prefix=True
         )
-        self.mongo_client = None  # Initialize later in setup_hook
+        self.mongoClient = None  # Initialize later in setup_hook
         self.queue = Queue()
         self.logger = logger
 
@@ -61,20 +60,20 @@ class Bot(Bot):
     async def setup_hook(self):
         try:
             # Initialize the motor client here to ensure it's tied to the correct event loop
-            self.mongo_client = motor.AsyncIOMotorClient(os.getenv("MONGO_DATABASE_URI"))
+            self.mongoClient = motor.AsyncIOMotorClient(os.getenv("MONGO_DATABASE_URI"))
             
             # Self MongoDB connedction test
-            await self.mongo_client.admin.command('ping')
+            await self.mongoClient.admin.command('ping')
             logger.info("Pinged your deployment. The connection from your application to MongoDB cluster has been established.")
 
         except Exception as e:
             raise ConnectionError(f"Fatal: An error occurred while trying to connect to MongoDB cluster: {e}")
 
-        # Load extensions
-        await load_extensions()
+        # Load extensions upon startup, if any
+        await loadInitialExtensions()
 
 
-    def get_cluster(self):
+    def getMongoClusterDB(self):
         """
         Retrive mongo database for all cogs
 
@@ -84,10 +83,11 @@ class Bot(Bot):
             The motor client instance for MongoDB operations.
 
         """
-        return self.mongo_client
+
+        return self.mongoClient
     
 
-    def get_queue(self):
+    def getQueue(self):
         """
         Retrieve the instruction queue for web server control
 
@@ -97,10 +97,11 @@ class Bot(Bot):
             The instruction queue for web server control.
 
         """
+
         return self.queue
 
 
-    def get_logger(self):
+    def getLogger(self):
         """
         Retrieve the logger instance for the bot.
         
@@ -110,10 +111,11 @@ class Bot(Bot):
             The logger instance for logging bot activities.
 
         """
+
         return self.logger
 
 
-    async def close_db(self):
+    async def closeMongoDB(self):
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
@@ -124,77 +126,28 @@ class Bot(Bot):
         None
 
         """
-        if self.mongo_client:
-            self.mongo_client.close()
+        
+        if self.mongoClient:
+            self.mongoClient.close()
         await super().close()
 
 
 bot = Bot()
 
 
-async def load_extensions():
+async def loadInitialExtensions():
     """
     This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
     
     Load extensions upon startup
     """
     logger.info("\nGetting extensions...\n")
-    initial_extensions = await get_extensions()
+    initialExtensions = await getAllExtensions()
     logger.info("\nLoading extensions...\n")
-    
-    for extension in initial_extensions:
+
+    for extension in initialExtensions:
         await bot.load_extension(extension)
         logger.info(extension)
-
-
-# Getting all extensions from the extensions folders
-# UPDATE 17-10-2025: Rewrited with asyncio.to_thread and os.walk to support subdirectories, and you can name a file starts with `_` to prevent loading
-async def get_extensions():
-    """
-    This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
-
-    Getting all extensions from the extensions folders ends with `.py` and not starts with `_`, see Note below for more details.
-
-    Note
-    ----------
-    This function has been rewrited, and now uses `asyncio.to_thread` to run blocking I/O operations in a separate thread, preventing the main event loop from being blocked.
-
-    Since the latest rewrite, this function is now fully asynchronous and non-blocking.
-
-    And you can now add subdirectories in the extensions folders, and the function will find them all.
-
-    Also, you can named your files starts with `_` to prevent them from being loaded as extensions, which is useful for utility modules.
-
-    """
-    global extensions_folders
-    extensions = []
-
-    # Use asyncio.to_thread to perform blocking I/O in a separate thread
-    for folder in extensions_folders:
-        folder_path = f"./{folder}"
-        if not os.path.exists(folder_path):
-            continue
-
-        # Use os.walk to recursively traverse directories
-        walk_result = await asyncio.to_thread(list, os.walk(folder_path))
-        
-        for root, _, files in walk_result:
-            for filename in files:
-                if filename.endswith('.py') and not filename.startswith('_'):
-                    # Convert file path to discord.py Cog format
-                    relative_path = os.path.relpath(os.path.join(root, filename), ".").replace(os.sep, ".")
-                    extension = relative_path[:-3]  # Remove .py extension
-                    
-                    # Conditional loading based on environment variables
-                    if extension == "general.ChatGPT" and os.getenv("ENABLE_AI") == "False":
-                        continue
-
-                    if extension == "extensions.MusicPlayer.Music" and os.getenv("ENABLE_MUSIC") == "False":
-                        continue
-
-                    extensions.append(extension)
-
-    return extensions
 
 
 @bot.event
@@ -229,7 +182,7 @@ However, as a trade-off, the shutdown process may take slightly longer due to th
 """
 
 
-async def start_bot():
+async def startBot():
     """
     This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
@@ -277,7 +230,7 @@ async def start_bot():
         raise LoginFailure(f"Cannot login to the application at this point due to the following error: {e}\nPlease check your token and try again.")
 
 @app.before_serving
-async def before_serving():
+async def beforeServing():
     """
     This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
@@ -290,11 +243,11 @@ async def before_serving():
     None
 
     """
-    app.add_background_task(start_bot)
+    app.add_background_task(startBot)
 
 
 @app.route("/")
-def hello_world():
+def helloWorld():
     """
     Returning the home page of the Quart app
 
@@ -339,13 +292,13 @@ async def restart_():
     """
 
     await bot.close()
-    await bot.close_db()
+    await bot.closeMongoDB()
     await bot.queue.put("restart")    # Put "restart" to the queue to restart the web server
     return "Please Wait. Your server is now restarting..."
 
 
 @app.after_serving
-async def shutdown_():
+async def selfShutdown():
     """
     This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
@@ -357,11 +310,11 @@ async def shutdown_():
 
     """
     await bot.close()
-    await bot.close_db()
+    await bot.closeMongoDB()
     await bot.queue.put("shutdown")   # Put "shutdown" to the queue to terminate the web server
 
 
-async def run_server():
+async def runServer():
     """
     This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
@@ -409,12 +362,12 @@ async def startup(queue):
 
     """
     bot.queue = queue    # Assign the queue to the bot instance
-    server_task = asyncio.create_task(run_server())
+    serverTask = asyncio.create_task(runServer())
     logger.info("Hypercorn server started.")
-    return server_task
+    return serverTask
 
 
-async def cancel_server_task(server_task):
+async def cancelServerTask(serverTask):
     """
     This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
@@ -422,7 +375,7 @@ async def cancel_server_task(server_task):
 
     Parameters
     ----------
-    server_task: `Task[None]`
+    serverTask: `Task[None]`
         The task from `startup()`
 
     Returns
@@ -430,16 +383,16 @@ async def cancel_server_task(server_task):
     None
 
     """
-    server_task.cancel()    # Cancel the server task
+    serverTask.cancel()    # Cancel the server task
 
     try:
-        await server_task    # Wait for the server task to finish
+        await serverTask    # Wait for the server task to finish
 
     except asyncio.CancelledError:
         logger.info("Server task cancelled successfully.")
 
 
-async def monitor_queue(queue, server_task):
+async def queueMonitoring(queue, serverTask):
     """
     This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
@@ -450,7 +403,7 @@ async def monitor_queue(queue, server_task):
     queue : `asyncio.Queue`
         The queue to monitor
 
-    server_task: `Task[None]`
+    serverTask: `Task[None]`
         The task returned from `startup()`
 
     Returns
@@ -462,10 +415,10 @@ async def monitor_queue(queue, server_task):
         instruction = await queue.get()
         match instruction:
             case "shutdown":
-                return await cancel_server_task(server_task)    # Exit the main process gracefully
+                return await cancelServerTask(serverTask)    # Exit the main process gracefully
 
             case "restart" | "reboot":
-                await cancel_server_task(server_task)
+                await cancelServerTask(serverTask)
                 print("Restarting application...")
                 await asyncio.sleep(7)    # Time delay before restarting
                 args = [sys.executable] + [sys.argv[0]]
@@ -492,17 +445,17 @@ async def main():
     queue = bot.queue    # Get the instruction queue
 
     # Start the Quart server as an asyncio task
-    server_task = await startup(queue)
+    serverTask = await startup(queue)
 
     try:
-        await monitor_queue(queue, server_task)    # Start monitoring the queue
+        await queueMonitoring(queue, serverTask)    # Start monitoring the queue
 
     finally:
         logger.info("Terminating server task...")
-        server_task.cancel()
+        serverTask.cancel()
 
         try:
-            await server_task
+            await serverTask
 
         except asyncio.CancelledError:
             logger.info("Server task terminated.")

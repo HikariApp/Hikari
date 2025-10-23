@@ -4,18 +4,18 @@ import psutil
 import netifaces
 import socket
 from discord.ext import commands
-from discord.ext.commands import ExtensionAlreadyLoaded, ExtensionNotLoaded, NoEntryPointError, ExtensionFailed
+from discord.ext.commands import Bot, Cog, ExtensionAlreadyLoaded, ExtensionNotLoaded, NoEntryPointError, ExtensionFailed
 from datetime import datetime
 from errorhandling._errorHandling import *
 from GetDetailIPv4Info import *
-from startup import get_extensions
+from extensionsHandler import getAllExtensions
 
 
-class OwnerOnly(commands.Cog):
-    def __init__(self, bot: commands.Bot):
-        self.db = bot.get_cluster()
+class OwnerOnly(Cog):
+    def __init__(self, bot: Bot):
         self.bot = bot
-        self.queue = bot.get_queue()
+        self.db = self.bot.getMongoClusterDB()
+        self.queue = self.bot.getQueue()
 
 
     # This is a migrated cog from startup.py for owner only commands
@@ -61,7 +61,7 @@ class OwnerOnly(commands.Cog):
         if not await self.bot.is_owner(ctx.author):
             return await ctx.reply(NotBotOwnerError())
         
-        extensions = get_extensions()
+        extensions = await getAllExtensions()
         if cog_name not in extensions:  # Front check if the cog was in the valid cog list or not
             return await ctx.reply(ExtensionNotFoundError(cog=cog_name))
         
@@ -99,10 +99,8 @@ class OwnerOnly(commands.Cog):
 
         if not await self.bot.is_owner(ctx.author):
             return await ctx.reply(NotBotOwnerError())
-        
-        extensions = get_extensions()
 
-        if cog_name not in extensions:  # Front check if the cog was in the valid cog list or not
+        if cog_name not in await getAllExtensions():  # Front check if the cog was in the valid cog list or not
             return await ctx.reply(ExtensionNotFoundError(cog=cog_name))
         
         try:
@@ -140,9 +138,7 @@ class OwnerOnly(commands.Cog):
         if not await self.bot.is_owner(ctx.author):
             return await ctx.reply(NotBotOwnerError())
         
-        extensions = get_extensions()
-
-        if cog_name not in extensions:
+        if cog_name not in await getAllExtensions():  # Front check if the cog was in the valid cog list or not
             return await ctx.reply(ExtensionNotFoundError(cog=cog_name))
         
         try:
@@ -202,7 +198,6 @@ class OwnerOnly(commands.Cog):
 
         # Network
         hostname = socket.gethostname()
-        ipInfo = GetDetailIPv4Info()
         network = psutil.net_io_counters()
 
         # Returning system info as embed
@@ -227,6 +222,7 @@ class OwnerOnly(commands.Cog):
         except:
             pass
         
+        ipInfo = GetDetailIPv4Info()
         # Advanced Network
         hardware_info_embed.add_field(name="Network Information (Advanced)", value=f"Hostname: {hostname}\nIPv4: {ipInfo.ip}\nIP Hostname: {ipInfo.hostname}\nCountry or district: {ipInfo.country}\nRegion: {ipInfo.region}\nCity: {ipInfo.city}\n Organization: {ipInfo.organization}\nPostal code: {ipInfo.postal}\nLocation: {ipInfo.location}", inline=True)
         
@@ -258,3 +254,7 @@ class OwnerOnly(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(OwnerOnly(bot))
+
+
+
+

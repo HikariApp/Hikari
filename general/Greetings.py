@@ -85,7 +85,7 @@ class Greetings(Cog):
     def __init__(self, bot: Bot):
         self.bot = bot
         self._last_member = None
-        self.db = self.bot.get_cluster()
+        self.db = self.bot.getMongoClusterDB()
 
     # Configure or update the welcome message for the server
     @app_commands.command(description="Configure or update the welcome message for the server")

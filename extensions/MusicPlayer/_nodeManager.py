@@ -1,15 +1,14 @@
-import logging
 import os
 from pomice import NodePool
-from discord.ext import commands
+from discord.ext.commands import Bot
 
-logger = logging.getLogger("music_v2")
 
 class NodeManager:
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: Bot):
         self.bot = bot
         self.nodePool = NodePool()
-        self.logger = self.bot.get_logger()
+        self.logger = self.bot.getLogger()
+
 
     async def start_nodes(self) -> None:
         """Initialize and start the Lavalink nodes."""
@@ -22,10 +21,14 @@ class NodeManager:
                 password=os.getenv("LAVALINK_PASSWORD"),
                 identifier="MAIN",
             )
-            self.logger.info("Pomice node created successfully.")
+            self.logger.info(f"Pomice node has been established to a Lavalink server at {self.nodePool.nodes if self.nodePool.nodes else '<unknown host>'}.")
+
         except Exception as exc:
             self.logger.exception("Failed to create pomice node: %s", exc)
+
 
     async def get_node_pool(self):
         """Get the node pool instance."""
         return self.nodePool
+
+
