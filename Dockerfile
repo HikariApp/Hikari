@@ -9,7 +9,7 @@ WORKDIR /app
 VOLUME [ "/opt" ]
 
 COPY requirements.txt requirements.txt
-RUN uv pip sync requirements.txt
+RUN uv venv && uv pip sync requirements.txt
 
 COPY . .
 
