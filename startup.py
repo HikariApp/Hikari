@@ -1,14 +1,13 @@
-import discord
-import asyncio
-import nest_asyncio
 import os
 import sys
 import logging
 import subprocess
+import asyncio
+import nest_asyncio
 import motor.motor_asyncio as motor
 from asyncio import sleep, Queue
 from discord.ext import commands
-from discord.ext.commands import HelpCommand
+from discord.errors import LoginFailure, HTTPException
 from dotenv import load_dotenv
 from hypercorn.asyncio import serve
 from hypercorn.config import Config
@@ -31,7 +30,22 @@ intents.members = True
 
 class Bot(commands.Bot):
     """
-    Default configuration
+    The main bot class for the Discord application.
+
+    Parameters
+    ----------
+    intents : `discord.Intents`
+        The intents for the bot.
+    
+    command_prefix : `str`
+        The command prefix for the bot.
+    
+    self_bot : `bool`
+        Whether the bot is a self bot or not. This should always be False in general.
+    
+    strip_after_prefix : `bool`
+        Whether to strip whitespace after the prefix.
+
     """
     def __init__(self):
         super().__init__(
@@ -46,9 +60,10 @@ class Bot(commands.Bot):
 
 
     async def setup_hook(self):
-        self.mongo_client = motor.AsyncIOMotorClient(os.getenv("MONGO_DATABASE_URI"))   # Initialize the motor client here to ensure it's tied to the correct event loop
-
         try:
+            # Initialize the motor client here to ensure it's tied to the correct event loop
+            self.mongo_client = motor.AsyncIOMotorClient(os.getenv("MONGO_DATABASE_URI"))
+            
             # Self MongoDB connedction test
             await self.mongo_client.admin.command('ping')
             logger.info("Pinged your deployment. The connection from your application to MongoDB cluster has been established.")
@@ -63,19 +78,38 @@ class Bot(commands.Bot):
     def get_cluster(self):
         """
         Retrive mongo database for all cogs
+
+        Returns
+        ----------
+        `motor.AsyncIOMotorClient`:
+            The motor client instance for MongoDB operations.
+
         """
         return self.mongo_client
     
 
     def get_queue(self):
         """
-        Retrive the instruction queue for web server control
+        Retrieve the instruction queue for web server control
+
+        Returns
+        ----------
+        `asyncio.Queue`:
+            The instruction queue for web server control.
+
         """
         return self.queue
+
 
     def get_logger(self):
         """
         Retrieve the logger instance for the bot.
+        
+        Returns
+        ----------
+        `logging.Logger`:
+            The logger instance for logging bot activities.
+
         """
         return self.logger
 
@@ -85,83 +119,15 @@ class Bot(commands.Bot):
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
         Ensure the motor client is properly closed
+
+        Returns
+        ----------
+        None
+
         """
         if self.mongo_client:
             self.mongo_client.close()
         await super().close()
-
-
-class BetterHelpCommand(HelpCommand):
-
-    # Get all command signature
-    def get_command_signature(self, command):
-        return '%s%s %s' % (self.context.clean_prefix, command.qualified_name, command.signature)
-
-    # Send Application help message
-    async def send_bot_help(self, mapping):
-        embed = discord.Embed(title="", description=f"Use `{self.context.clean_prefix}help [command]` for more info on a command.\nYou can also use `{self.context.clean_prefix}help [category]` for more info on a category.", color=discord.Color.pink())
-        embed.set_author(name="Help Menu", icon_url=self.context.bot.user.display_avatar.url if self.context.bot.user.display_avatar else None)
-
-        for cog, commands in mapping.items():
-            filtered = await self.filter_commands(commands, sort=True)
-
-            # Collect command names rather than full signatures
-            if command_names := [c.qualified_name for c in filtered]:
-                cog_name = getattr(cog, "qualified_name", "No Category")
-                embed.add_field(name=cog_name, value="\n".join(f"`{self.context.clean_prefix}{name}`" for name in command_names), inline=False)
-
-        channel = self.get_destination()
-        await channel.send(embed=embed)
-
-    # Command help message
-    async def send_command_help(self, command):
-        embed = discord.Embed(title="" , color=discord.Color.pink())
-        embed.set_author(name=f"Command {command}", icon_url=self.context.bot.user.display_avatar.url)
-
-        if command.help:
-            embed.description = command.help
-            embed.add_field(name="Usage", value=f"`{self.get_command_signature(command)}`", inline=False)
-
-        if alias := command.aliases:
-            embed.add_field(name="Aliases", value=", ".join(alias), inline=False)
-
-        channel = self.get_destination()
-        await channel.send(embed=embed)
-
-    # Group help message
-    async def send_group_help(self, group):
-        author = f"Group {group}"
-        embed = discord.Embed(title="", description=group.help)
-        embed.set_author(name=author, icon_url=self.context.bot.user.display_avatar.url)
-
-        if filtered_commands := await self.filter_commands(group.commands):
-            for command in filtered_commands:
-                embed.add_field(name=f"{self.context.clean_prefix}{command.qualified_name}", value=command.help or "No help found...", inline=False)
-                embed.add_field(name="Usage", value=f"`{self.get_command_signature(command)}`" or "No help found...", inline=False)
-
-        embed.add_field(name="", value="\u202a")    # Invisible field for spacing
-        embed.set_footer(text=f"Looking for help on a specific command? Use {self.context.clean_prefix}help [command] for more that.")
-        await self.get_destination().send(embed=embed)
-
-    # Category help message
-    async def send_cog_help(self, cog):
-        title = cog.qualified_name or "No"
-        embed = discord.Embed(title="", description=cog.description)
-        embed.set_author(name=f'{title} Category', icon_url=self.context.bot.user.display_avatar.url)
-
-        if filtered_commands := await self.filter_commands(cog.get_commands()):
-            for command in filtered_commands:
-                embed.add_field(name=f"{self.context.clean_prefix}{command.qualified_name}", value=command.help or "No help found...", inline=False)
-
-        embed.add_field(name="", value="\u202a")    # Invisible field for spacing
-        embed.set_footer(text=f"Looking for help on a specific command? Use {self.context.clean_prefix}help [command] for that.")
-        await self.get_destination().send(embed=embed)
-
-    # Error message
-    async def send_error_message(self, error):
-        embed = discord.Embed(title="Error", description=f"<a:crossred:1356353067024515266> {error}", color=discord.Color.red())
-        channel = self.get_destination()
-        await channel.send(embed=embed)
 
 
 bot = Bot()
@@ -178,7 +144,7 @@ bot.remove_command("help")
 @bot.hybrid_command(name="help")
 async def help(ctx, command_or_group: Optional[str]):
     """
-    Feeling lost? No worry, the help command is here to assist you!
+    Feeling lost? No worries, help is on the way!
 
     Parameters
     ----------
@@ -318,26 +284,29 @@ async def start_bot():
 
     """
     try:
-        token = os.environ.get("DISCORD_BOT_TOKEN") or ""
+        token = os.environ.get("DISCORD_BOT_TOKEN")
         
-        if token == "":
+        if token is None or token.strip() == "":
             raise SystemExit("No valid tokens were found in the environment variable. Please add your token to the Secrets pane.")
 
         await bot.start(token)
     
-    except discord.HTTPException as http_error:
-        if http_error.status == 429:
+    except HTTPException as e:
+        if e.status == 429:
+            # If this occurs this might due to a rate-limit from Discord API
+            # Log the error and restart the bot after a delay
             logger.error("\nThe Discord servers denied the connection for making too many requests, restarting in 7 seconds...")
             logger.error("\nIf the restart fails, get help from 'https://stackoverflow.com/questions/66724687/in-discord-py-how-to-solve-the-error-for-toomanyrequests'")
 
             await bot.queue.put("restart")    # Put "restart" to the queue to restart the web server
 
         else:
-            raise http_error
+            raise e
     
-    except discord.errors.LoginFailure as token_error:
-        raise SystemExit(f"Cannot login to the bot at this point due to the following error: {token_error}\nPlease check your token and try again.")
-
+    except LoginFailure as e:
+        # In this case, this might be due to an invalid token
+        # So we raise the LoginFailure with a more descriptive and user-friendly message
+        raise LoginFailure(f"Cannot login to the application at this point due to the following error: {e}\nPlease check your token and try again.")
 
 @app.before_serving
 async def before_serving():

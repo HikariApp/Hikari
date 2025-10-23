@@ -3,6 +3,28 @@ from discord.ext.commands import HelpCommand
 
 
 class BetterHelpCommand(HelpCommand):
+    """
+    A customized help command with enhanced features.
+    
+    Provides detailed help messages for commands, groups and categories.
+
+    Formatted using Discord embeds for better readability.
+
+    Example
+    ----------
+    >>> # Assuming `bot` is your instance of commands.Bot
+    >>> bot.help_command = BetterHelpCommand()
+    >>>
+    >>> # To use it in other cogs:
+    >>> from configs.Bot._customHelpCommand import BetterHelpCommand
+    >>>
+    >>> class MyCog(commands.Cog):
+    >>>     def __init__(self, bot):
+    >>>         self.bot = bot
+    >>>         self.bot.help_command = BetterHelpCommand()
+    >>> # ... rest of your code
+
+    """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -13,6 +35,7 @@ class BetterHelpCommand(HelpCommand):
     # Send Application help message
     async def send_bot_help(self, mapping):
         embed = Embed(title="", description=f"Use `{self.context.clean_prefix}help [command]` for more info on a command.\nYou can also use `{self.context.clean_prefix}help [category]` for more info on a category.", color=Color.pink())
+        embed.add_field(name="", value="\u202a")    # Invisible field for spacing
         embed.set_author(name="Help Menu", icon_url=self.context.bot.user.display_avatar.url if self.context.bot.user.display_avatar else None)
 
         for cog, commands in mapping.items():
@@ -21,7 +44,7 @@ class BetterHelpCommand(HelpCommand):
             # Collect command names rather than full signatures
             if command_names := [c.qualified_name for c in filtered]:
                 cog_name = getattr(cog, "qualified_name", "No Category")
-                embed.add_field(name=cog_name, value="\n".join(f"`{self.context.clean_prefix}{name}`" for name in command_names), inline=False)
+                embed.add_field(name=cog_name, value=" ".join(f"`{self.context.clean_prefix}{name}`" for name in command_names), inline=False)
 
         channel = self.get_destination()
         await channel.send(embed=embed)
