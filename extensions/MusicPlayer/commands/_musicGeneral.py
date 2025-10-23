@@ -1,24 +1,22 @@
-import asyncio
-import logging
-from typing import cast, Optional, List
-import pomice
-import discord
-from pomice import LoopMode, Timescale
 from discord import app_commands, Color, Embed
 from discord.ext import commands
+from discord.ext.commands import Bot, Cog, Context
+from discord.app_commands import Choice, Range
+from pomice import LoopMode, Playlist, QueueException, Timescale
+from pomice.pool import NodePool
+from typing import cast, Optional, List
 from extensions.MusicPlayer._player import BetterPlayer
 from errorhandling._errorHandling import *
 
-logger = logging.getLogger("music_v2")
 
 # Helper function to get the color of the user who invoked the command
-def userColor(ctx: commands.Context) -> Color:
+def userColor(ctx: Context) -> Color:
     """
     Get the color of the user who invoked the command.
 
     Parameters
     ----------
-    ctx : `commands.Context`
+    ctx : `Context`
         The context of the command invocation.
 
     Returns
@@ -29,8 +27,9 @@ def userColor(ctx: commands.Context) -> Color:
     """
     return ctx.interaction.user.color if ctx.interaction else ctx.author.color
 
-class MusicGeneral(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+
+class MusicGeneral(Cog):
+    def __init__(self, bot: Bot):
         self.bot = bot
 
     # The following are events from pomice.events
@@ -56,9 +55,11 @@ class MusicGeneral(commands.Cog):
             return
         await player.nextTrack()
 
+
     @commands.Cog.listener()
     async def on_pomice_track_stuck(self, player: BetterPlayer, track, _):
         await player.nextTrack()
+
 
     @commands.Cog.listener()
     async def on_pomice_track_exception(self, player: BetterPlayer, track, _):
@@ -66,7 +67,7 @@ class MusicGeneral(commands.Cog):
 
 
     # Discord Autocomplete for Web search, rewrited for discord.py, and now for pomice (11-10-2025)
-    async def web_serach_autocomplete(self, ctx: Optional[commands.Context], search: str) -> List[app_commands.Choice[str]]:
+    async def web_serach_autocomplete(self, ctx: Optional[Context], search: str) -> List[Choice[str]]:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
@@ -74,7 +75,7 @@ class MusicGeneral(commands.Cog):
 
         Parameters
         ----------
-        ctx : Optional`[commands.Context]`
+        ctx : Optional`[Context]`
             The context of the command invocation. Optional.
         
         search : str
@@ -87,13 +88,13 @@ class MusicGeneral(commands.Cog):
         
         """
 
-        node = pomice.pool.NodePool.get_node()
+        node = NodePool.get_node()
 
         if not search.startswith("https://"):   # Serach from keywords
             try:
                 tracks = await node.get_tracks(search)
                 return [
-                    app_commands.Choice(name=result.title, value=result.uri)
+                    Choice(name=result.title, value=result.uri)
                     for result in tracks[:25]   # Limit to 25 choices as per Discord's limitation
                 ]
             
@@ -111,13 +112,13 @@ class MusicGeneral(commands.Cog):
 
     @commands.hybrid_command(aliases=["p", "pla"])
     @app_commands.autocomplete(search=web_serach_autocomplete)
-    async def play(self, ctx: commands.Context, *, search: Optional[str] = None) -> commands.Context | None:
+    async def play(self, ctx: Context, *, search: Optional[str] = None) -> Context | None:
         """
         Adds a selected track to the queue from web link or keywords.
 
         Parameters
         ----------
-        ctx: `commands.Context`
+        ctx: `Context`
             The context of the command invocation.
 
         search: str
@@ -125,7 +126,7 @@ class MusicGeneral(commands.Cog):
 
         Returns
         -------
-        commands.Context | None
+        Context | None
 
         """
 
@@ -148,7 +149,7 @@ class MusicGeneral(commands.Cog):
             
             except Exception as e:
                 embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I was unable to join {ctx.author.voice.channel} due to an unexpected error. Please try again later. \n\n {e}", inline=False)
-                embed.color = discord.Color.red()
+                embed.color = Color.red()
                 return await ctx.send(embed=embed)
             
         if not search:
@@ -161,7 +162,7 @@ class MusicGeneral(commands.Cog):
 
         except Exception as e:
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying to search for the track. \n\n {e}", inline=False)
-            embed.color = discord.Color.red()
+            embed.color = Color.red()
             return await ctx.send(embed=embed)
 
         if results is None or (isinstance(results, list) and len(results) == 0):
@@ -169,7 +170,7 @@ class MusicGeneral(commands.Cog):
             embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
             return await ctx.send(embed=embed)
 
-        if isinstance(results, pomice.Playlist):
+        if isinstance(results, Playlist):
             player.queue.put(results)
             embed.add_field(name="", value=f"Added the playlist **{results.name}** (**{len(results.tracks)}** songs) to the queue.", inline=False)
             embed.color = userColor(ctx)
@@ -188,13 +189,13 @@ class MusicGeneral(commands.Cog):
 
 
     @commands.hybrid_command(aliases=["sk", "n", "next"])
-    async def skip(self, ctx: commands.Context, *, amount: Optional[app_commands.Range[int, 1]] = 1) -> None:
+    async def skip(self, ctx: Context, *, amount: Optional[Range[int, 1]] = 1) -> None:
         """
         Skips the current track being played in voice channel
 
         Parameters
         ----------
-        ctx: `commands.Context`
+        ctx: `Context`
             The context of the command invocation.
 
         amount: Optional`[int]` = 1
@@ -213,7 +214,7 @@ class MusicGeneral(commands.Cog):
 
         if player is None:
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            embed.color = discord.Color.red()
+            embed.color = Color.red()
             return await ctx.send(embed=embed)
 
         if len(player.queue.doubleEndedQueue) == 0:  # The player is not playing anything before
@@ -223,7 +224,7 @@ class MusicGeneral(commands.Cog):
         
         if amount < 1:  # Invalid amount
             embed.add_field(name="", value=f"The amount of tracks to skip must be at least 1 :thinking: ...", inline=False)
-            embed.color = discord.Color.red()
+            embed.color = Color.red()
             return await ctx.send(embed=embed)
         
         if player.queue.hasReachedTheEnd:  # The author has already skipped all tracks in the queue
@@ -268,13 +269,13 @@ class MusicGeneral(commands.Cog):
 
 
     @commands.hybrid_command(aliases=["prev", "back"])
-    async def previous(self, ctx: commands.Context, *, amount: Optional[app_commands.Range[int, 1]] = 1) -> None:
+    async def previous(self, ctx: Context, *, amount: Optional[Range[int, 1]] = 1) -> None:
         """
         Rollback to a previous track in the queue.
 
         Parameters
         ----------
-        ctx: `commands.Context`
+        ctx: `Context`
             The context of the command invocation.
 
         amount: Optional`[int]` = 1
@@ -292,7 +293,7 @@ class MusicGeneral(commands.Cog):
 
         if player is None:
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            embed.color = discord.Color.red()
+            embed.color = Color.red()
             return await ctx.send(embed=embed)
 
         
@@ -303,7 +304,7 @@ class MusicGeneral(commands.Cog):
         
         if amount < 1:  # Invalid amount
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> The amount of tracks to rollback must be at least 1 :thinking: ...", inline=False)
-            embed.color = discord.Color.red()
+            embed.color = Color.red()
             return await ctx.send(embed=embed)
 
         if player.queue.hasReachedTheBeginning:  # The author is already at the first track
@@ -327,7 +328,7 @@ class MusicGeneral(commands.Cog):
         # Post check if the previous track is valid
         if not prev_track:
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying to rollback the track(s).", inline=False)
-            embed.color = discord.Color.red()
+            embed.color = Color.red()
             return await ctx.send(embed=embed)
         
         embed.color = userColor(ctx)
@@ -335,13 +336,13 @@ class MusicGeneral(commands.Cog):
 
 
     @commands.hybrid_command(aliases=["pau", "break"])
-    async def pause(self, ctx: commands.Context):
+    async def pause(self, ctx: Context):
         """
         Pauses the current track being played in voice channel
 
         Parameters
         ----------
-        ctx: `commands.Context`
+        ctx: `Context`
             The context of the command invocation.
         
         Returns
@@ -355,7 +356,7 @@ class MusicGeneral(commands.Cog):
 
         if player is None:
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            embed.color = discord.Color.red()
+            embed.color = Color.red()
             return await ctx.send(embed=embed)
         
         if len(player.queue.doubleEndedQueue) == 0:  # The player is not playing anything
@@ -373,7 +374,7 @@ class MusicGeneral(commands.Cog):
 
         except Exception as e:
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying to pause the track. \n\n {e}", inline=False)
-            embed.color = discord.Color.red()
+            embed.color = Color.red()
             return await ctx.send(embed=embed)
             
         embed.add_field(name="", value="The track has been paused.", inline=False)
@@ -382,13 +383,13 @@ class MusicGeneral(commands.Cog):
 
 
     @commands.hybrid_command(aliases=["resu", "continue"])
-    async def resume(self, ctx: commands.Context):
+    async def resume(self, ctx: Context):
         """
         Resumes the current track which is paused in voice channel
 
         Parameters
         ----------
-        ctx: `commands.Context`
+        ctx: `Context`
             The context of the command invocation.
         
         Returns
@@ -402,7 +403,7 @@ class MusicGeneral(commands.Cog):
 
         if player is None:
             embed.add_field(name="", value=f"I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            embed.color = discord.Color.red()
+            embed.color = Color.red()
             return await ctx.send(embed=embed)
         
         if len(player.queue.doubleEndedQueue) == 0:  # The player is not playing anything
@@ -420,7 +421,7 @@ class MusicGeneral(commands.Cog):
 
         except Exception as e:
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying to resume the track. \n\n {e}", inline=False)
-            embed.color = discord.Color.red()
+            embed.color = Color.red()
             return await ctx.send(embed=embed)
 
         embed.add_field(name="", value="The track has been resumed.", inline=False)
@@ -428,13 +429,13 @@ class MusicGeneral(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.hybrid_command(aliases=["now"])
-    async def nowplaying(self, ctx: commands.Context) -> None:
+    async def nowplaying(self, ctx: Context) -> None:
         """
         Display the current track being played in voice channel
 
         Parameters
         ----------
-        ctx: `commands.Context`
+        ctx: `Context`
             The context of the command invocation.
 
 
@@ -453,7 +454,7 @@ class MusicGeneral(commands.Cog):
 
         if player is None:
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            embed.color = discord.Color.red()
+            embed.color = Color.red()
             return await ctx.send(embed=embed)
         
         if len(player.queue.doubleEndedQueue) == 0:  # The player is not playing anything
@@ -470,13 +471,13 @@ class MusicGeneral(commands.Cog):
 
 
     @commands.hybrid_command(aliases=["rep", "r"])
-    async def replay(self, ctx: commands.Context):
+    async def replay(self, ctx: Context):
         """
         Replay the current track.
 
         Parameters
         ----------
-        ctx: `commands.Context`
+        ctx: `Context`
             The context of the command invocation.
 
         Returns
@@ -490,7 +491,7 @@ class MusicGeneral(commands.Cog):
 
         if player is None:
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            embed.color = discord.Color.red()
+            embed.color = Color.red()
             return await ctx.send(embed=embed)
         
         if len(player.queue.doubleEndedQueue) == 0:  # The player is not playing anything
@@ -504,7 +505,7 @@ class MusicGeneral(commands.Cog):
 
         except Exception as e:
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An error occurred while trying to replay the track. \n\n {e}", inline=False)
-            embed.color = discord.Color.red()
+            embed.color = Color.red()
             return await ctx.send(embed=embed)
         
         embed.add_field(name="", value=f"Replaying the current track...", inline=False)
@@ -513,24 +514,24 @@ class MusicGeneral(commands.Cog):
 
 
     @commands.hybrid_group(name="repeat", help="Toggle repeat for the current track or the entire queue.")
-    async def repeat(self, ctx: commands.Context):
+    async def repeat(self, ctx: Context):
         # This is the main command group for repeat
         # We won't implement any logic here, as the subcommands will handle the functionality
         # If no subcommand is invoked, return an error message
         embed = Embed(title="")
         embed.add_field(name="", value=f"{ctx.author.mention}, you need to specify a subcommand: `one` or `all`.", inline=False)
-        embed.color = discord.Color.red()
+        embed.color = Color.red()
         await ctx.send(embed=embed)
     
 
     @repeat.command()
-    async def one(self, ctx: commands.Context):
+    async def one(self, ctx: Context):
         """
         Toggle repeat for the current track.
 
         Parameters
         ----------
-        ctx: `commands.Context`
+        ctx: `Context`
             The context of the command invocation.
 
         Returns
@@ -543,7 +544,7 @@ class MusicGeneral(commands.Cog):
 
         if player is None:
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            embed.color = discord.Color.red()
+            embed.color = Color.red()
             return await ctx.send(embed=embed)
         
         if len(player.queue.doubleEndedQueue) == 0:  # The player is not playing anything
@@ -557,14 +558,14 @@ class MusicGeneral(commands.Cog):
             try:
                 player.queue.disable_loop()
 
-            except pomice.QueueException as e:
+            except QueueException as e:
                 embed.add_field(name="", value=f"The repeat mode is **already disabled** for the current track. \n\n {e}", inline=False)
                 embed.color = userColor(ctx)    # Friendly reminder, so the color won't be red
                 return await ctx.send(embed=embed)
             
             except Exception as e:
                 embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An error occurred while trying to disable repeat for the current track. \n\n {e}", inline=False)
-                embed.color = discord.Color.red()
+                embed.color = Color.red()
                 return await ctx.send(embed=embed)
             
         else:
@@ -576,13 +577,13 @@ class MusicGeneral(commands.Cog):
 
 
     @repeat.command()
-    async def all(self, ctx: commands.Context):
+    async def all(self, ctx: Context):
         """
         Toggle repeat for the entire queue.
 
         Parameters
         ----------
-        ctx: `commands.Context`
+        ctx: `Context`
             The context of the command invocation.
 
         Returns
@@ -596,7 +597,7 @@ class MusicGeneral(commands.Cog):
 
         if player is None:
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            embed.color = discord.Color.red()
+            embed.color = Color.red()
             return await ctx.send(embed=embed)
         
         if len(player.queue.doubleEndedQueue) == 0:  # The player is not playing anything
@@ -610,14 +611,14 @@ class MusicGeneral(commands.Cog):
             try:
                 player.queue.disable_loop()
 
-            except pomice.QueueException as e:
+            except QueueException as e:
                 embed.add_field(name="", value=f"The repeat mode is **already disabled** for the entire queue. \n\n {e}", inline=False)
                 embed.color = userColor(ctx)    # Friendly reminder, so the color won't be red
                 return await ctx.send(embed=embed)
             
             except Exception as e:
                 embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An error occurred while trying to disable repeat for the entire queue. \n\n {e}", inline=False)
-                embed.color = discord.Color.red()
+                embed.color = Color.red()
                 return await ctx.send(embed=embed)
 
         else:
@@ -629,13 +630,13 @@ class MusicGeneral(commands.Cog):
 
 
     @commands.hybrid_command(aliases=["halt", "st"])
-    async def stop(self, ctx: commands.Context):
+    async def stop(self, ctx: Context):
         """
         Stops the current track being played in voice channel and clears the queue.
 
         Parameters
         ----------
-        ctx: `commands.Context`
+        ctx: `Context`
             The context of the command invocation.
 
         Returns
@@ -649,7 +650,7 @@ class MusicGeneral(commands.Cog):
 
         if player is None:
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            embed.color = discord.Color.red()
+            embed.color = Color.red()
             return await ctx.send(embed=embed)
 
         if len(player.queue.doubleEndedQueue) == 0:  # The player is not playing anything
@@ -668,7 +669,7 @@ class MusicGeneral(commands.Cog):
 
         except Exception as e:
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An error occurred while trying to stop the track. \n\n {e}", inline=False)
-            embed.color = discord.Color.red()
+            embed.color = Color.red()
             return await ctx.send(embed=embed)
         
         embed.add_field(name="", value="Stopped the current track and cleared the queue.", inline=False)
@@ -677,13 +678,13 @@ class MusicGeneral(commands.Cog):
 
 
     @commands.hybrid_command(aliases=["vol", "v"])
-    async def volume(self, ctx: commands.Context, *, value: Optional[app_commands.Range[int, 0, 500]] = 60) -> None:
+    async def volume(self, ctx: Context, *, value: Optional[app_commands.Range[int, 0, 500]] = 60) -> None:
         """
         Change the volume of the music player
 
         Parameters
         ----------
-        ctx: `commands.Context`
+        ctx: `Context`
             The context of the command invocation.
 
         value: Optional`[int]` = 30
@@ -700,7 +701,7 @@ class MusicGeneral(commands.Cog):
 
         if player is None:
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            embed.color = discord.Color.red()
+            embed.color = Color.red()
             return await ctx.send(embed=embed)
 
         if len(player.queue.doubleEndedQueue) == 0:  # The player is not playing anything
@@ -710,7 +711,7 @@ class MusicGeneral(commands.Cog):
 
         if value < 0 or value > 500:  # Invalid volume
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> The volume must be between **0** and **500** :thinking: ...\n Generally, **60** is already good enough, **100** is considered as very loud, and **200** will blow your eardrums out lol.", inline=False)
-            embed.color = discord.Color.red()
+            embed.color = Color.red()
             return await ctx.send(embed=embed)
 
         # Set the volume
@@ -727,13 +728,13 @@ class MusicGeneral(commands.Cog):
 
 
     @commands.hybrid_command(aliases=["nig"])
-    async def nightcore(self, ctx: commands.Context):
+    async def nightcore(self, ctx: Context):
         """
         Toggle nightcore mode on the player.
 
         Parameters
         ----------
-        ctx: `commands.Context`
+        ctx: `Context`
             The context of the command invocation.
 
         Returns
@@ -748,7 +749,7 @@ class MusicGeneral(commands.Cog):
         
         if player is None:
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            embed.color = discord.Color.red()
+            embed.color = Color.red()
             return await ctx.send(embed=embed)
 
         if len(player.queue.doubleEndedQueue) == 0:  # The player is not playing anything
@@ -766,6 +767,4 @@ class MusicGeneral(commands.Cog):
         
         embed.color = userColor(ctx)
         await ctx.send(embed=embed)
-
-
 

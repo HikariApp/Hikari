@@ -1,11 +1,11 @@
 from discord import app_commands, Embed, Interaction, User, Member, SelectOption, HTTPException, utils
 from discord.ui import View, Select
 from discord.ext import commands
-from discord.ext.commands import Bot, Cog
+from discord.ext.commands import Bot, Cog, Context
 from typing import Optional
 
 # Helper function to create an avatar embed
-async def createAvatarEmbed(user: User, avatar_url: str) -> Embed:
+async def createAvatarEmbed(user: User, avatarURL: str) -> Embed:
     """
     This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
@@ -16,7 +16,7 @@ async def createAvatarEmbed(user: User, avatar_url: str) -> Embed:
     user : `discord.User`
         The user whose avatar is to be displayed.
 
-    avatar_url : `str`
+    avatarURL : `str`
         The URL of the avatar image.
 
     Returns
@@ -27,9 +27,9 @@ async def createAvatarEmbed(user: User, avatar_url: str) -> Embed:
     """
 
     embed = Embed()
-    embed.set_image(url=avatar_url)
-    embed.url = avatar_url
-    embed.set_author(name=f"{user.display_name}", icon_url=avatar_url)
+    embed.set_image(url=avatarURL)
+    embed.url = avatarURL
+    embed.set_author(name=f"{user.display_name}", icon_url=avatarURL)
     return embed
 
 # Dropdown menu for selecting avatar type
@@ -46,14 +46,14 @@ class AvatarSelectForGuild(Select):
         embed = None
 
         if self.values[0] == "global":
-            avatar_url = self.user.display_avatar.url
-            embed = await createAvatarEmbed(self.user, avatar_url)
+            avatarURL = self.user.display_avatar.url
+            embed = await createAvatarEmbed(self.user, avatarURL)
             embed.title = "Global Avatar"
 
         else:
             member = interaction.guild.get_member(self.user.id)
-            avatar_url = member.display_avatar.url if member else self.user.display_avatar.url
-            embed = await createAvatarEmbed(self.user, avatar_url)
+            avatarURL = member.display_avatar.url if member else self.user.display_avatar.url
+            embed = await createAvatarEmbed(self.user, avatarURL)
             embed.title = "Server Avatar"
         
         embed.set_footer(text=f"Requested by {interaction.user.display_name}", icon_url=interaction.user.avatar.url)
@@ -69,13 +69,13 @@ class DisplayUserInfo(Cog):
     @commands.hybrid_command(aliases=["ava"])
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-    async def avatar(self, ctx: commands.Context, user: Optional[User] = None):
+    async def avatar(self, ctx: Context, user: Optional[User] = None):
         """
         Displays your avatar or someone else's avatar to everyone.
 
         Parameters
         ----------
-        ctx : `commands.Context`
+        ctx : `Context`
             The context in which the command was invoked.
 
         user : `Optional[discord.User]`
@@ -113,13 +113,13 @@ class DisplayUserInfo(Cog):
     @commands.hybrid_command(aliases=["user", "whois"])
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-    async def userinfo(self, ctx: commands.Context, user: Optional[User] = None):
+    async def userinfo(self, ctx: Context, user: Optional[User] = None):
         """
         Displays information about yourself or another member in the server, such as ID and joined date.
 
         Parameters
         ----------
-        ctx : `commands.Context`
+        ctx : `Context`
             The context in which the command was invoked.
 
         user : `Optional[discord.User]`

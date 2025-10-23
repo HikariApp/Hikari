@@ -9,7 +9,7 @@ from typing import Optional
 class Unmute(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.db = self.bot.get_cluster()
+        self.db = self.bot.getMongoClusterDB()
 
     # Unmutes a member from text channels
     @app_commands.command(description="Unmutes a member from text channels")
