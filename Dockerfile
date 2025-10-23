@@ -1,4 +1,4 @@
-FROM python:3.14-bookworm
+FROM python:3.13-bookworm
 
 # Install uv and uvx from Astral's GitHub Container Registry
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
