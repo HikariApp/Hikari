@@ -2,7 +2,7 @@ import discord
 import asyncio
 from discord import app_commands, Interaction, Poll, PollAnswer, PollLayoutType, PollMedia
 from discord.errors import NotFound
-from discord.ext import commands
+from discord.ext.commands import Bot, Cog
 from discord.utils import get
 from datetime import datetime, timedelta
 from typing import Optional
@@ -11,8 +11,8 @@ from errorhandling._errorHandling import *
 most_recent_poll_message = {}
 
 
-class PollNew(commands.Cog):
-    def __init__(self, bot) -> None:
+class PollNew(Cog):
+    def __init__(self, bot: Bot) -> None:
         self.bot = bot
 
     # Getting required message ID from user input
@@ -139,5 +139,5 @@ class PollNew(commands.Cog):
             await msg.delete()
         
 
-async def setup(bot):
+async def setup(bot: Bot):
     await bot.add_cog(PollNew(bot))

@@ -1,8 +1,8 @@
 import discord
 from discord import app_commands, Forbidden, Interaction
+from discord.ext.commands import Bot, Cog
 from discord.ui import Modal, TextInput
 from discord.app_commands.errors import MissingPermissions, BotMissingPermissions
-from discord.ext import commands
 from typing import Optional
 
 class SendAsBotModal(Modal):
@@ -49,8 +49,8 @@ class SendAsBotModal(Modal):
                 else:
                     raise e
 
-class SendAsBot(commands.Cog):
-    def __init__(self, bot):
+class SendAsBot(Cog):
+    def __init__(self, bot: Bot):
         global bool_value
         self.bot = bot
 
@@ -82,6 +82,6 @@ class SendAsBot(commands.Cog):
             raise error
 
 
-async def setup(bot):
+async def setup(bot: Bot):
     await bot.add_cog(SendAsBot(bot))
 
