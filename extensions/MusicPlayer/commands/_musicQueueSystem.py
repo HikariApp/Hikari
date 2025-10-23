@@ -1,14 +1,13 @@
 import math
-import logging
 from discord import Color, Embed, Interaction, SelectOption
 from discord.ext import commands
+from discord.ext.commands import Bot, Cog, Context
 from discord.ui import View, Select
-from pomice import LoopMode, Timescale
+from pomice import LoopMode
 from typing import Optional, List
-from .._player import BetterPlayer
-from ._musicGeneral import userColor
+from extensions.MusicPlayer._player import BetterPlayer
+from extensions.MusicPlayer.commands._musicGeneral import userColor
 
-logger = logging.getLogger("music_v2")
 PAGE_SIZE = 10
 
 
@@ -243,19 +242,19 @@ class QueueView(View):
         )
 
 
-class MusicQueueSystem(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+class MusicQueueSystem(Cog):
+    def __init__(self, bot: Bot):
         self.bot = bot
 
 
     @commands.hybrid_command(aliases=["qu"])
-    async def queue(self, ctx: commands.Context) -> None:
+    async def queue(self, ctx: Context) -> None:
         """
         Show the music queue with pagination in the current guild.
 
         Parameters
         ----------
-        ctx : commands.Context
+        ctx : Context
             The context of the command invocation.
 
         Returns
@@ -287,13 +286,13 @@ class MusicQueueSystem(commands.Cog):
 
 
     @commands.hybrid_command(aliases=["rm", "pop"])
-    async def remove(self, ctx: commands.Context, index: Optional[int] = None) -> None:
+    async def remove(self, ctx: Context, index: Optional[int] = None) -> None:
         """
         Remove a track from the queue by its index.
 
         Parameters
         ----------
-        ctx : commands.Context
+        ctx : Context
             The context of the command invocation.
 
         index : Optional[int]

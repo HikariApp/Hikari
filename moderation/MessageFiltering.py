@@ -8,7 +8,7 @@ class MessageFiltering(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.is_sysdel = False    # Default
-        self.db = self.bot.get_cluster()
+        self.db = self.bot.getMongoClusterDB()
 
     # Toggle the option of deleting messages from the system channel
     @app_commands.command(name="sysdel", description="Configure the option of deleting messages from the system channel")

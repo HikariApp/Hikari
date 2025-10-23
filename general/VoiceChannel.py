@@ -11,11 +11,11 @@ from discord.app_commands.errors import MissingPermissions
 from datetime import datetime, timezone, timedelta
 from typing import cast, Optional, Union
 from general.VoiceChannelFallbackConfig import *
-from configs.Bot._logging import setup_logger
+from configs.Bot._logging import setupLogger
 from errorhandling._errorHandling import *
 
 recording_vc = {}
-logger = setup_logger('discord_bot', 'bot.log', logging.INFO)
+logger = setupLogger('discord_bot', 'bot.log', logging.INFO)
 
 # Main cog, heavily rewrited after wavelink implementation
 class VoiceChannel(commands.Cog):
@@ -24,7 +24,7 @@ class VoiceChannel(commands.Cog):
         global set_fallback_channel
         global recording_vc
         self.bot = bot
-        self.db = self.bot.get_cluster()
+        self.db = self.bot.getMongoClusterDB()
         self.unmute_voice_task.start()
 
     def cog_unload(self):

@@ -1,14 +1,13 @@
 import logging
 import asyncio
-import pomice
 from copy import copy
 from extensions.MusicPlayer._audioMetadataExtractor import *
 from contextlib import suppress
 from datetime import timedelta
 from typing import List, Optional, Iterable
-from pomice import Queue, Track, TrackType
+from pomice import LoopMode, Player, Queue, QueueEmpty, Track, TrackType
 from discord import Color, Embed, Message, HTTPException
-from discord.ext import commands, tasks
+from discord.ext import tasks
 from discord.ext.commands import Context
 
 logger = logging.getLogger("music_v2")
@@ -57,17 +56,17 @@ class BetterQueue(Queue):
 
 
     # Record successful enqueues into doubleEndedQueue
-    def put(self, item: pomice.Track) -> None:  # type: ignore[override]
+    def put(self, item: Track) -> None:  # type: ignore[override]
         super().put(item)
         self.doubleEndedQueue.append(item)
 
 
-    def extend(self, iterable: Iterable[pomice.Track], *, atomic: bool = True) -> None:  # type: ignore[override]
+    def extend(self, iterable: Iterable[Track], *, atomic: bool = True) -> None:  # type: ignore[override]
         # super().extend will call self.put per item, which already appends to doubleEndedQueue
         super().extend(iterable, atomic=atomic)
 
 
-    def put_at_index(self, index: int, item: pomice.Track) -> None:  # type: ignore[override]
+    def put_at_index(self, index: int, item: Track) -> None:  # type: ignore[override]
         super().put_at_index(index, item)
         # Keep history with positional intent: insert at that index
         self.doubleEndedQueue.insert(index, item)
@@ -76,14 +75,14 @@ class BetterQueue(Queue):
             self.currentIndex += 1
 
 
-    def put_at_front(self, item: pomice.Track) -> None:  # type: ignore[override]
+    def put_at_front(self, item: Track) -> None:  # type: ignore[override]
         super().put_at_front(item)
         self.doubleEndedQueue.insert(0, item)
         if self.currentIndex >= 0:
             self.currentIndex += 1
 
 
-    def get(self) -> pomice.Track:  # type: ignore[override]
+    def get(self) -> Track:  # type: ignore[override]
         """
         Return next immediately available item in queue if any.
 
@@ -282,7 +281,7 @@ class BetterQueue(Queue):
 # and to cloudwithax for pomice and help with the API
 
 
-class BetterPlayer(pomice.Player):
+class BetterPlayer(Player):
     """
     A custom player class that extends `pomice.Player` to include advanced queue management and history tracking.
     
@@ -295,13 +294,13 @@ class BetterPlayer(pomice.Player):
         self.context: Context = None    # The command context, for sending messages later
 
 
-    def setContext(self, ctx: commands.Context) -> None:
+    def setContext(self, ctx: Context) -> None:
         """
         Store the command context on the player for later use (e.g., sending embeds).
         
         Parameters
         ----------
-        ctx : commands.Context
+        ctx : Context
             The command context to store.
             
         Returns
@@ -479,11 +478,11 @@ class BetterPlayer(pomice.Player):
         if self.queue.is_looping:
             embed.add_field(name="", value="\u202a", inline=False)
 
-        if self.queue.loop_mode == pomice.LoopMode.TRACK:
+        if self.queue.loop_mode == LoopMode.TRACK:
             # Single track loop
             embed.add_field(name="Repeat:", value="**Enabled** for the current track", inline=False)
 
-        if self.queue.loop_mode == pomice.LoopMode.QUEUE:
+        if self.queue.loop_mode == LoopMode.QUEUE:
             # Entire queue loop
             embed.add_field(name="Repeat:", value="**Enabled** for the entire queue", inline=False)
 
@@ -559,7 +558,7 @@ class BetterPlayer(pomice.Player):
         return prevTrack
 
 
-    async def nextTrack(self) -> Optional[pomice.Track] | None:
+    async def nextTrack(self) -> Optional[Track] | None:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
@@ -587,8 +586,8 @@ class BetterPlayer(pomice.Player):
 
         # Get the next track from the queue, if any
         try:
-            nextTrack: pomice.Track = self.queue.get()
-        except pomice.QueueEmpty:
+            nextTrack: Track = self.queue.get()
+        except QueueEmpty:
             if len(self.queue.doubleEndedQueue) == 0:
                 # Queue is completely empty, nothing to play.
                 # This is a very rare, nearly impossible scenario, probably due to some uncaught errors.
@@ -672,11 +671,4 @@ class BetterPlayer(pomice.Player):
         await asyncio.sleep(0.5)
         self._isRollingBack = False
         self.rollbackFlagInitialize.cancel()
-
-
-
-
-
-
-
 

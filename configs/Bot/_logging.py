@@ -1,6 +1,6 @@
 import logging
 
-def setup_logger(name, log_file, level=logging.INFO):
+def setupLogger(name, log_file, level=logging.INFO):
     """Function to set up a logger."""
     
     logger = logging.getLogger(name)
@@ -12,5 +12,5 @@ def setup_logger(name, log_file, level=logging.INFO):
     # Add handlers to the logger
     logger.addHandler(stream_handler)
 
-    logger.propagate = True   # prevent root duplication
+    logger.propagate = False   # prevent root duplication
     return logger
