@@ -5,6 +5,7 @@ import ast
 import re
 from datetime import datetime
 from discord import app_commands, Embed, Interaction, Thread, NotFound, Forbidden
+from discord.ext.commands import Bot, Cog
 from discord.app_commands import BotMissingPermissions
 from discord.app_commands.errors import MissingPermissions
 from discord.ext import commands
@@ -792,10 +793,10 @@ async def upload_file_to_openai(local_path):
         return await openai_client.files.create(file=file, purpose="assistants")
 
 
-class ChatBot(commands.Cog):
+class ChatBot(Cog):
     """ChatBot Discord bot integration"""
     
-    def __init__(self, bot):
+    def __init__(self, bot: Bot):
         self.bot = bot
         self.db_cluster = self.bot.get_cluster()
         self.ai_repository = AIMongoDB(self.db_cluster)
@@ -1101,5 +1102,5 @@ class ChatBot(commands.Cog):
             raise error
 
 
-async def setup(bot):
+async def setup(bot: Bot):
     await bot.add_cog(ChatBot(bot))

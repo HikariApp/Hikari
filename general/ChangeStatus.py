@@ -1,16 +1,15 @@
-import discord
 from discord import app_commands, Embed, Interaction, Activity, ActivityType, CustomActivity, Status
-from discord.ext import commands
+from discord.ext.commands import Bot, Cog
 from typing import Optional
 from errorhandling._errorHandling import *
 
-class ChangeStatus(commands.Cog):
-    def __init__(self, bot):
+class ChangeStatus(Cog):
+    def __init__(self, bot: Bot):
         self.bot = bot
 
     change = app_commands.Group(name="change", description="Change the status of the application")
 
-    # Fucntion to get the desired activity
+    # Function to retrieve the desired activity
     async def get_type(self, type: str, name: str | None, url: str | None):        
         if type == "custom":
             return CustomActivity(name=name)
@@ -103,5 +102,5 @@ class ChangeStatus(commands.Cog):
         await self.bot.change_presence(status=status, activity=selected_activity)
 
 
-async def setup(bot):
+async def setup(bot: Bot):
     await bot.add_cog(ChangeStatus(bot))

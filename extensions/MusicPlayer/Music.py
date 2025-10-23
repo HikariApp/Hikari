@@ -1,10 +1,7 @@
-import logging
 from discord.ext import commands, tasks
 from extensions.MusicPlayer._nodeManager import NodeManager
 from extensions.MusicPlayer.commands._musicGeneral import MusicGeneral
 from extensions.MusicPlayer.commands._musicQueueSystem import MusicQueueSystem
-
-logging.basicConfig(level=logging.INFO)
 
 # This is just a wrapper cog to initialize the NodeManager and load the Music commands.
 class _Music(commands.Cog):

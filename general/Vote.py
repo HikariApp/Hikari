@@ -1,6 +1,6 @@
 import discord
 from discord import app_commands, Interaction
-from discord.ext import commands
+from discord.ext.commands import Bot, Cog
 from discord.utils import get
 from datetime import datetime
 from typing import Optional
@@ -11,17 +11,17 @@ vote_emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣",
 class ResetConfirm(discord.ui.View):
     # "Yes" button
     @discord.ui.button(label="Yes", row=0, custom_id="yes_button01", style=discord.ButtonStyle.danger)
-    async def first_button_callback(self, button, interaction):
+    async def first_button_callback(self, _, interaction):
         await interaction.response.edit_message(content="The vote has been reset.", view=None)
 
     # "No" button
     @discord.ui.button(label="No", row=0, custom_id="no_button02", style=discord.ButtonStyle.secondary)
-    async def second_button_callback(self, button, interaction):
+    async def second_button_callback(self, _, interaction):
         await interaction.response.edit_message(content="The reset was aborted.", view=None)
 
 
-class Vote(commands.Cog):
-    def __init__(self, bot):
+class Vote(Cog):
+    def __init__(self, bot: Bot):
         global vote_emojis
         self.bot = bot
         self.vote_message = {}
@@ -39,7 +39,7 @@ class Vote(commands.Cog):
     vote = app_commands.Group(name="vote", description="Poll commands")
 
     # Startup
-    @commands.Cog.listener()
+    @Cog.listener()
     async def on_ready(self):
         for guild in self.bot.guilds:
             guild_id = int(guild.id)
@@ -127,7 +127,7 @@ class Vote(commands.Cog):
 
 
     # Appends a member to the list when someone reacts the message, with conditions
-    @commands.Cog.listener()
+    @Cog.listener()
     async def on_raw_reaction_add(self, payload):
         guild_id = payload.guild_id
         
@@ -156,7 +156,7 @@ class Vote(commands.Cog):
 
 
     # Remove the member from the list when someone removes their reaction of the message, with conditions
-    @commands.Cog.listener()
+    @Cog.listener()
     async def on_raw_reaction_remove(self, payload):
         guild_id = payload.guild_id
         
@@ -398,6 +398,6 @@ class Vote(commands.Cog):
             await interaction.response.send_message("No vote was going on in this server.")
 
 
-async def setup(bot):
+async def setup(bot: Bot):
     await bot.add_cog(Vote(bot))
 

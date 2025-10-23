@@ -1,8 +1,7 @@
 import discord
 from discord import app_commands, Interaction, Embed, TextStyle, Member
 from discord.ui import Modal, TextInput
-from discord.ext import commands
-from discord.ext.commands import MissingPermissions
+from discord.ext.commands import Bot, Cog, MissingPermissions
 
 
 # Formater for custom welcome messages (DO NOT MODIFY THE VALUES UNLESS YOU KNOW WHAT YOU'RE DOING)
@@ -82,8 +81,8 @@ class CustomWelcomeMessage(Modal):
             await interaction.response.send_message(embed=update_failure_embed)
             
 
-class Greetings(commands.Cog):
-    def __init__(self, bot):
+class Greetings(Cog):
+    def __init__(self, bot: Bot):
         self.bot = bot
         self._last_member = None
         self.db = self.bot.get_cluster()
@@ -115,7 +114,7 @@ class Greetings(commands.Cog):
 
 
     # Greeting user when somebody joined
-    @commands.Cog.listener()
+    @Cog.listener()
     async def on_member_join(self, member: Member):
         # Default welcome message for new users DM 
         default_dm_welcome_message = f'''Hey {member.mention} Looks like u're the first time to join this server  :wave: 
@@ -176,6 +175,6 @@ The administration team of this server
             await channel.send(server_welcome_message)
 
 
-async def setup(bot):
+async def setup(bot: Bot):
     await bot.add_cog(Greetings(bot))
 

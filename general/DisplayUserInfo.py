@@ -1,6 +1,7 @@
 from discord import app_commands, Embed, Interaction, User, Member, SelectOption, HTTPException, utils
 from discord.ui import View, Select
 from discord.ext import commands
+from discord.ext.commands import Bot, Cog
 from typing import Optional
 
 # Helper function to create an avatar embed
@@ -58,8 +59,8 @@ class AvatarSelectForGuild(Select):
         embed.set_footer(text=f"Requested by {interaction.user.display_name}", icon_url=interaction.user.avatar.url)
         await interaction.response.edit_message(embed=embed)
 
-class DisplayUserInfo(commands.Cog):
-    def __init__(self, bot):
+class DisplayUserInfo(Cog):
+    def __init__(self, bot: Bot):
         self.bot = bot
 
 
@@ -186,8 +187,5 @@ class DisplayUserInfo(commands.Cog):
         await ctx.send(embed=embed)
 
 
-async def setup(bot):
+async def setup(bot: Bot):
     await bot.add_cog(DisplayUserInfo(bot))
-
-
-
