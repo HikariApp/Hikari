@@ -6,16 +6,15 @@ import asyncio
 import nest_asyncio
 import motor.motor_asyncio as motor
 from asyncio import sleep, Queue
-from discord.ext import commands
+from discord.ext.commands import Bot
 from discord.errors import LoginFailure, HTTPException
 from dotenv import load_dotenv
 from hypercorn.asyncio import serve
 from hypercorn.config import Config
 from quart import Quart
 from configs.Bot._logging import setup_logger
-from configs.Bot._customHelpCommand import BetterHelpCommand
 from errorhandling._errorHandling import *
-from typing import Optional
+
 
 load_dotenv()
 nest_asyncio.apply()
@@ -28,7 +27,7 @@ intents.message_content = True
 intents.members = True
 
 
-class Bot(commands.Bot):
+class Bot(Bot):
     """
     The main bot class for the Discord application.
 
@@ -131,37 +130,6 @@ class Bot(commands.Bot):
 
 
 bot = Bot()
-bot.help_command = BetterHelpCommand()
-
-
-# Help command
-# We have to remove the default help command first to avoid conflicts.
-# Then we can add our custom help command with the same functionality. plus hybrid support.
-bot.remove_command("help")
-
-
-# Same as default help command, but with hybrid command support
-@bot.hybrid_command(name="help")
-async def help(ctx, command_or_group: Optional[str]):
-    """
-    Feeling lost? No worries, help is on the way!
-
-    Parameters
-    ----------
-    command_or_group : `Optional[str]`
-        The command or group to get help for.
-
-    Returns
-    ----------
-    None
-
-    """
-    if ctx.interaction:
-        embed = discord.Embed(title="", description="Here's some help coming your way...", color=ctx.author.color)
-        await ctx.send(embed=embed, ephemeral=True)
-
-    entity = command_or_group and (command_or_group,) or ()
-    await ctx.send_help(*entity)
 
 
 async def load_extensions():
@@ -406,7 +374,7 @@ async def run_server():
     """
     config = Config()
     config.bind = [f"0.0.0.0:{os.environ.get("PORT") or 9000}"]  # Custom PORT
-    config.loglevel = "error"
+    config.loglevel = "ERROR"
     config.debug = False
 
     try:

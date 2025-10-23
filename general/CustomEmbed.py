@@ -1,7 +1,7 @@
 import discord
 import re
 from discord import app_commands, Interaction, Embed, TextStyle
-from discord.ext import commands
+from discord.ext.commands import Bot, Cog
 from discord.ui import Modal, TextInput
 from datetime import datetime
 from typing import Optional
@@ -61,8 +61,8 @@ class CustomEmbedModal(Modal, title = "Customize your embed"):
         await interaction.response.send_message(embed=custom_embed)
 
 
-class CustomEmbed(commands.Cog):
-    def __init__(self, bot):
+class CustomEmbed(Cog):
+    def __init__(self, bot: Bot):
         self.bot = bot
 
     async def retrieve_user(self, text):
@@ -169,6 +169,6 @@ class CustomEmbed(commands.Cog):
         await interaction.response.send_modal(CustomEmbedModal())
 
 
-async def setup(bot):
+async def setup(bot: Bot):
     await bot.add_cog(CustomEmbed(bot))
 

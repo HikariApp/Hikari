@@ -1,11 +1,12 @@
 import discord
 from discord import app_commands, Interaction
-from discord.ext import commands
+from discord.ext.commands import Bot, Cog, CommandError, Context
+from discord.ext.commands.errors import MessageNotFound
 from errorhandling._errorHandling import *
 
 # Main cog
-class ReactingMessages(commands.Cog):
-    def __init__(self, bot):
+class ReactingMessages(Cog):
+    def __init__(self, bot: Bot):
         self.bot = bot
 
     reaction = app_commands.Group(name="reaction", description="Reacting to messages")
@@ -144,14 +145,14 @@ class ReactingMessages(commands.Cog):
 
 
     # Error handling
-    async def cog_command_error(self, interaction: commands.Context, error: commands.CommandError):
+    async def cog_command_error(self, interaction: Context, error: CommandError):
         # Handles error for message could not be found
-        if isinstance(error, commands.errors.MessageNotFound):
+        if isinstance(error, MessageNotFound):
             await interaction.response.send_message(MessageNotFoundError())
             
         else:
             raise error  # Raise other errors to ensure they aren't ignored
 
 
-async def setup(bot):
+async def setup(bot: Bot):
     await bot.add_cog(ReactingMessages(bot))

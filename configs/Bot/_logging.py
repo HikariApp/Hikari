@@ -1,5 +1,4 @@
 import logging
-from discord.ext import commands
 
 def setup_logger(name, log_file, level=logging.INFO):
     """Function to set up a logger."""
@@ -8,13 +7,10 @@ def setup_logger(name, log_file, level=logging.INFO):
     logger.setLevel(level)
     
     # Create handlers
-    file_handler = logging.FileHandler(log_file)
-    stream_handler = logging.StreamHandler()
+    stream_handler = logging.StreamHandler(None)
     
     # Add handlers to the logger
-    logger.addHandler(file_handler)
     logger.addHandler(stream_handler)
 
-
-    logger.propagate = False   # prevent root duplication
+    logger.propagate = True   # prevent root duplication
     return logger
