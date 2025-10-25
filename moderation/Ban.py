@@ -42,7 +42,7 @@ class Ban(Cog):
     @commands.bot_has_guild_permissions(ban_members=True)
     async def ban(self, ctx: Context, user: User, *, reason: Optional[str] = None) -> None:
         """
-        Bans a user from the server.
+        Bans a user.
 
         Parameters
         ----------
