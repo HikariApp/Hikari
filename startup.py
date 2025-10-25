@@ -25,6 +25,9 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
+commandPrefix = os.getenv("DISCORD_BOT_COMMAND_PREFIX")
+if commandPrefix is None or commandPrefix.strip() == "":
+    commandPrefix = "!"
 
 class Bot(Bot):
     """
@@ -48,7 +51,7 @@ class Bot(Bot):
     def __init__(self):
         super().__init__(
             intents=intents,
-            command_prefix="!",
+            command_prefix=commandPrefix,
             self_bot=False,  # IMPORTANT!
             strip_after_prefix=True
         )
@@ -157,22 +160,28 @@ async def on_ready():
 
     Displaying startup info
     """
+
     logger.info(
 f'''
 
 {"-" * 120}
 
-Welcome to the application!
+Hi there! {bot.user.name}#{bot.user.discriminator} is now online.
 
-Bot Username: {bot.user.name}#{bot.user.discriminator}
-Bot ID: {bot.application_id}
+ID: {bot.application_id}
 
-The application is now initialized and waiting on your demands!
+To invoke a command, use the prefix: '{commandPrefix}'
+e.g. {commandPrefix}help
+
+You can also use slash commands to do so, if the command you're trying to invoke is supported.
+e.g. /help
+
+Have a great day!
 
 {"-" * 120}
 
 '''
-        )
+    )
 
 
 """
