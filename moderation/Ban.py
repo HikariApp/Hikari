@@ -1,135 +1,147 @@
-import discord
-from discord import app_commands, Embed, Interaction, Forbidden
+from discord import Color, Embed, Forbidden, Member, User
 from discord.ext import commands
-from discord.app_commands import BotMissingPermissions
-from discord.app_commands.errors import MissingPermissions
+from discord.ext.commands import Bot, Cog, Context, CommandInvokeError, MissingPermissions, BotMissingPermissions
 from typing import Optional
 
-class Ban(commands.Cog):
-    def __init__(self, bot):
+class Ban(Cog):
+    def __init__(self, bot: Bot):
         self.bot = bot
 
-    ban = app_commands.Group(name="ban", description="Bans a user")
+    async def isBanned(self, ctx: Context, user: User) -> bool:
+        """
+        This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
+        
+        Checks if a user is already banned in the guild.
 
-    # Main session to ban a user
-    async def ban_user(self, interaction: Interaction, user: discord.User, reason: Optional[str], ban_from_guild: bool):
-        ban_embed = Embed(title="", color=interaction.user.color)
-        ban_error_embed = Embed(title="", color=discord.Colour.red())
-        try:
-            # Ban action for guild or member
-            if ban_from_guild:
-                
-                if reason is not None:
-                    await interaction.guild.ban(user, reason=reason)
-                    ban_embed.add_field(name="", value=f":white_check_mark: {user.mention} has been **banned from guild**.\nReason: **{reason}**")
-                
-                else:
-                    await interaction.guild.ban(user)
-                    ban_embed.add_field(name="", value=f":white_check_mark: {user.mention} has been **banned from guild**.")
-            
-            # Permission check: Only server owner (or bot owner) has privileges to ban admins
-            elif user.guild_permissions.administrator and interaction.user != interaction.guild.owner:
-                
-                if not await self.bot.is_owner(interaction.user):
-                    ban_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Stop trying to **ban an admin**! :rolling_eyes:")
-                    return await interaction.response.send_message(embed=ban_error_embed)
-            
-            else:
-                
-                if reason is not None:
-                    await user.ban(reason=reason)
-                    ban_embed.add_field(name="", value=f":white_check_mark: {user.mention} has been **banned**.\nReason: **{reason}**")
-                
-                else:
-                    await user.ban()
-                    ban_embed.add_field(name="", value=f":white_check_mark: {user.mention} has been **banned**.")
-            
-            await interaction.response.send_message(embed=ban_embed)
+        Parameters
+        ----------
+        ctx : `discord.ext.commands.Context`
+            The context of the command invocation.
         
-        except Forbidden as e:
-        
-            if e.status == 403 and e.code == 50013:
-                # Handling rare forbidden case
-                ban_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **ban** that user. Please **double-check** my **permissions** and **role position**.")
-                await interaction.response.send_message(embed=ban_error_embed)
-            
-            else:
-                raise e
+        user : `discord.User`
+            The user to check.
 
+        Returns
+        ----------
+        bool
+            Returns `True` if the user is already banned, `False` otherwise.
 
-    # Check for conditions
-    async def check_ban_conditions(self, interaction: Interaction, user: discord.User, reason: Optional[str], ban_from_guild: bool):
-        ban_error_embed = Embed(title="", color=discord.Colour.red())
-        
-        if interaction.guild.get_member(user.id) is None and not ban_from_guild:
-            ban_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {user.mention} is **not in the server** currently.\nTo **ban them from the server**, use the command </ban guild:1187832408888840205> instead. :wink:")
-            return await interaction.response.send_message(embed=ban_error_embed)
-        
-        if user == interaction.user:
-            ban_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {interaction.user.mention}, You can't **ban yourself**!")
-            return await interaction.response.send_message(embed=ban_error_embed)
-        
-        if user == self.bot.user:
-            ban_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {interaction.user.mention}, I can't **ban myself**!")
-            return await interaction.response.send_message(embed=ban_error_embed)
-        
-        if await self.is_banned(interaction, user):
-            ban_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {user.mention} is **already banned**!")
-            return await interaction.response.send_message(embed=ban_error_embed)
-        
-        await self.ban_user(interaction, user, reason, ban_from_guild)
+        """
 
-
-    # Banned list lookup
-    async def is_banned(self, interaction: Interaction, user: discord.User) -> bool:
-        is_banned = False
-        
-        async for entry in interaction.guild.bans():
-            
+        async for entry in ctx.guild.bans():
             if entry.user.id == user.id:
-                is_banned = True
-                break
+                return True
+
+        return False
+
+    # Bans a user
+    # UPDATE 24-10-2025: This command has been heavily rewritten to support hybrid commands, see Note for more details.
+    @commands.hybrid_command(name="ban", help="Bans a user")
+    @commands.has_permissions(ban_members=True)
+    @commands.bot_has_permissions(ban_members=True)
+    @commands.bot_has_guild_permissions(ban_members=True)
+    async def ban(self, ctx: Context, user: User, *, reason: Optional[str] = None) -> None:
+        """
+        Bans a user from the server.
+
+        Parameters
+        ----------
+        user : discord.User
+            The user to ban (Enter the User ID e.g. 529872483195806124)
         
-        return is_banned
-
-
-    # Ban users in the guild or by using user_id
-    @ban.command(name="guild", description="Ban a user by their user ID from the guild")
-    @app_commands.checks.has_permissions(ban_members=True)
-    @app_commands.checks.bot_has_permissions(ban_members=True)
-    @app_commands.describe(user="User to ban (Enter the User ID e.g. 529872483195806124)")
-    @app_commands.describe(reason="Reason for ban")
-    async def ban_guild(self, interaction: Interaction, user: discord.User, reason: Optional[str] = None):
-        await self.check_ban_conditions(interaction, user, reason, ban_from_guild=True)
-
-
-    # Ban members in the server
-    @ban.command(name="member", description="Bans a member currently in the server")
-    @app_commands.checks.has_permissions(ban_members=True)
-    @app_commands.checks.bot_has_permissions(ban_members=True)
-    @app_commands.describe(member="Member to ban")
-    @app_commands.describe(reason="Reason for ban")
-    async def ban_member(self, interaction: Interaction, member: discord.User, reason: Optional[str] = None):
-        await self.check_ban_conditions(interaction, member, reason, ban_from_guild=False)
-
-
-    # Error handling
-    @ban_guild.error
-    @ban_member.error
-    async def ban_error(self, interaction: Interaction, error):
-        ban_error_embed = Embed(title="", color=discord.Colour.red())
+        reason : Optional[str]
+            The reason for the ban.
         
-        if isinstance(error, MissingPermissions):
-            ban_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `ban_members` permission, and you probably **don't have** it, {interaction.user.mention}.")
-            await interaction.response.send_message(embed=ban_error_embed)
+        Returns
+        ----------
+        None
         
-        elif isinstance(error, BotMissingPermissions):
-            ban_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **ban** that user. Please **double-check** my **permissions** and **role position**.")
-            await interaction.response.send_message(embed=ban_error_embed)
+        Note
+        ----------
+        This command has been heavily rewritten to support hybrid commands, and it now combines both guild ban and member ban functionalities for simplicity.
+
+        If the user is not in the server, it will ban them from the guild using their user ID, otherwise, it will ban them as a member.
+
+        As same as before, only the server owner (or bot owner) has privileges to ban admins.
+
+        """
+
+        embed = Embed(title="")
+        member: Optional[Member] = None
+
+        # Defer the interaction response if invoked as a slash command, in case of long processing time.
+        if ctx.interaction:
+            await ctx.interaction.response.defer()
+
+        # Basic checks
+        # Error handling will be done by the error handler below
+        if (user.id == ctx.author.id):
+            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {ctx.author.mention}, You can't **ban yourself**!")
+            embed.color = Color.red()
+            return await ctx.send(embed=embed)
         
+        if (user.id == self.bot.user.id):
+            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {ctx.author.mention}, I can't **ban myself**!")
+            embed.color = Color.red()
+            return await ctx.send(embed=embed)
+
+        if await self.isBanned(ctx, user):
+            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {ctx.author.mention}, {user.mention} is already **banned**!")
+            embed.color = Color.red()
+            return await ctx.send(embed=embed)
+
+        # Determine if banning from guild or as member
+        # Try to find the user as a member of the current guild
+        if ctx.guild:
+            member = ctx.guild.get_member(user.id)
+
+        # As stated above, only the server owner (or bot owner) has privileges to ban admins
+        if member and member.guild_permissions.administrator and (ctx.author.id != ctx.guild.owner.id or not await self.bot.is_owner(ctx.author)):
+            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {ctx.author.mention}, I know you're trying to **ban an admin**, but I can't let you do that... :rolling_eyes:")
+            embed.color = Color.red()
+            return await ctx.send(embed=embed)
+        
+        if member and member.top_role >= ctx.guild.get_member(self.bot.user.id).top_role:
+            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {ctx.author.mention}, I can't **ban** {user.mention} because their **top role is higher than mine**.")
+            embed.color = Color.red()
+            return await ctx.send(embed=embed)
+        
+        # All checks passed, proceed to ban
+        if reason is None:
+            await member.ban() if member else await ctx.guild.ban(user)
+            embed.add_field(name="", value=f":white_check_mark: {user.mention} has been **banned**.")
+
         else:
+            await member.ban(reason=reason) if member else await ctx.guild.ban(user, reason=reason)
+            embed.add_field(name="", value=f":white_check_mark: {user.mention} has been **banned**.\nReason: **{reason}**")
+
+        embed.color = ctx.author.color
+        await ctx.send(embed=embed)
+        
+
+    # Error handling, for both commands and slash commands
+    @ban.error
+    async def ban_error(self, ctx: Context, error):
+        embed = Embed(title="")
+        if isinstance(error, MissingPermissions):
+            # The command invoker doesn't have permissions
+            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `ban_members` permission, and you probably **don't have** it, {ctx.author.mention}.")
+
+        elif (
+            isinstance(error, BotMissingPermissions) or
+            (isinstance(error, CommandInvokeError) and isinstance(error.original, Forbidden))    # Sometimes the application might throw a CommandInvokeError which caused by Forbidden, which is basically the same concept
+        ):
+            # The application doesn't have permissions to do so
+            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **ban** that user. Please **double-check** my **permissions** and **role position**.")
+
+        else:
+            # Re-raise the error to prevent silent failures
             raise error
+
+        embed.color = Color.red()
+        await ctx.send(embed=embed)
 
 
 async def setup(bot):
     await bot.add_cog(Ban(bot))
+
