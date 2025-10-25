@@ -1,12 +1,19 @@
 from discord import Color, Embed, Forbidden, Member, User
 from discord.ext import commands
-from discord.ext.commands import Bot, Cog, Context, CommandInvokeError, MissingPermissions, MissingRequiredArgument, BotMissingPermissions
+from discord.ext.commands import Bot, Cog, Context, CommandInvokeError, MissingPermissions, MissingRequiredArgument, BotMissingPermissions, UserNotFound
 from typing import Optional
 
 class Ban(Cog):
     def __init__(self, bot: Bot):
         self.bot = bot
+        self.logger = self.bot.getLogger()
 
+    # Cog-level error listener for unhandled errors
+    async def cog_on_command_error(self, ctx: Context, error: Exception):
+        self.logger.exception(f"Uncaught error in {ctx.cog.__cog_name__}:", exc_info=error)
+        raise error
+    
+    # Check if a user is already banned in the guild
     async def isBanned(self, ctx: Context, user: User) -> bool:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
@@ -132,6 +139,13 @@ class Ban(Cog):
             embed.color = ctx.author.color
             return await ctx.send(embed=embed)
         
+        if isinstance(error, UserNotFound):
+            # The member argument couldn't be converted to either User or Member
+            # A special case to return a more user-friendly message
+            embed.add_field(name="", value=f"I couldn't find **the user you wanted to ban** :thinking: ... Perhaps check if that user really **exists** on Discord, {ctx.author.mention}?")
+            embed.color = ctx.author.color
+            return await ctx.send(embed=embed)
+        
         if isinstance(error, MissingRequiredArgument):
             # Missing argument(s)
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Missing argument: `{error.param.name}`. Please provide all required arguments, {ctx.author.mention}.")
@@ -150,9 +164,11 @@ class Ban(Cog):
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **ban** that user. Please **double-check** my **permissions** and **role position**.")
             return await ctx.send(embed=embed)
 
-        # If the error is not handled, re-raise the error to prevent silent failures
-        raise error
+        # If the error is not handled, forward to the cog-level listener, or even bot-level if unhandled here
+        self.cog_on_command_error(ctx, error)
 
 
 async def setup(bot):
     await bot.add_cog(Ban(bot))
+
+
