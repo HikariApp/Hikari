@@ -1,80 +1,121 @@
-import discord
-from discord import app_commands, Embed, Interaction, Forbidden
+from discord import Color, Embed, Forbidden, Member
 from discord.ext import commands
-from discord.app_commands import BotMissingPermissions
-from discord.app_commands.errors import MissingPermissions
+from discord.ext.commands import Bot, Cog, Context, CommandInvokeError, MissingPermissions, MissingRequiredArgument, BotMissingPermissions
 from typing import Optional
 
-
-class Kick(commands.Cog):
-    def __init__(self, bot):
+class Kick(Cog):
+    def __init__(self, bot: Bot):
         self.bot = bot
+        self.logger = self.bot.getLogger()
 
-    # Kicks a member from the entire server
-    @app_commands.command(description="Kicks a member")
-    @app_commands.checks.has_permissions(kick_members=True)
-    @app_commands.checks.bot_has_permissions(kick_members=True)
-    @app_commands.describe(member="User to kick")
-    @app_commands.rename(member="user")
-    @app_commands.describe(reason="Reason for kick")
-    async def kick(self, interaction: Interaction, member: discord.User, reason: Optional[str] = None):
-        kick_embed = Embed(title="", color=interaction.user.color)
-        kick_error_embed = Embed(title="", color=discord.Colour.red())
-        try:
-            
-            if interaction.guild.get_member(member.id) is None:
-                kick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {member.mention} is **not in the server** currently.")
-                return await interaction.response.send_message(embed=kick_error_embed)
-            
-            if member == interaction.user:
-                kick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {interaction.user.mention}, You can't **kick yourself**!")
-                return await interaction.response.send_message(embed=kick_error_embed)
-            
-            if member == self.bot.user:
-                kick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {interaction.user.mention}, I can't **kick myself**!")
-                return await interaction.response.send_message(embed=kick_error_embed)
-            
-            if member.guild_permissions.administrator and interaction.user != interaction.guild.owner:
-                
-                if not await self.bot.is_owner(interaction.user):
-                    kick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Stop trying to **ban an admin**! :rolling_eyes:")
-                    return await interaction.response.send_message(embed=kick_error_embed)
-            
-            if reason is not None:
-                await member.kick(reason=reason)
-                kick_embed.add_field(name="", value=f":white_check_mark: {member.mention} has been **kicked**.\nReason: **{reason}**")
-            
-            else:
-                await member.kick()
-                kick_embed.add_field(name="", value=f":white_check_mark: {member.mention} has been **kicked**.")        
-            
-            return await interaction.response.send_message(embed=kick_embed)
-        
-        except Forbidden as e:
-            if e.status == 403 and e.code == 50013:
-                # Handling rare forbidden case
-                kick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **kick** that user. Please **double-check** my **permissions** and **role position**.")
-                await interaction.response.send_message(embed=kick_error_embed)
-            
-            else:
-                raise e
+    # Cog-level error listener for unhandled errors
+    async def cog_on_command_error(self, ctx: Context, error: Exception):
+        self.logger.exception(f"Uncaught error in {ctx.cog.__cog_name__}:", exc_info=error)
+        raise error
 
+    # Kicks a member
+    # UPDATE 25-10-2025: This command has been heavily rewritten to support hybrid commands, see Note for more details.
+    @commands.hybrid_command(name="kick", help="Kicks a member")
+    @commands.has_permissions(kick_members=True)
+    @commands.bot_has_permissions(kick_members=True)
+    @commands.bot_has_guild_permissions(kick_members=True)
+    async def kick(self, ctx: Context, member: Member, *, reason: Optional[str] = None) -> None:
+        """
+        Kicks a member.
 
-    @kick.error
-    async def kick_error(self, interaction: Interaction, error):
-        kick_error_embed = Embed(title="", color=discord.Colour.red())
+        Parameters
+        ----------
+        member : discord.Member
+            The member to kick.
         
-        if isinstance(error, MissingPermissions):
-            kick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `kick_members` permission, and you probably **don't have** it, {interaction.user.mention}.")
-            await interaction.response.send_message(embed=kick_error_embed)
+        reason : Optional[str]
+            The reason for the kick.
         
-        elif isinstance(error, BotMissingPermissions):
-            kick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **kick** that member. Please **double-check** my **permissions** and **role position**.")
-            await interaction.response.send_message(embed=kick_error_embed)
+        Returns
+        ----------
+        None
         
+        Note
+        ----------
+        This command has been heavily rewritten to support hybrid commands.
+
+        """
+
+        embed = Embed(title="")
+        # Defer the interaction response if invoked as a slash command, in case of long processing time.
+        if ctx.interaction:
+            await ctx.interaction.response.defer()
+
+        # Basic checks
+        # Error handling will be done by the error handler below
+        if (member.id == ctx.author.id):
+            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {ctx.author.mention}, You can't **kick yourself**!")
+            embed.color = Color.red()
+            return await ctx.send(embed=embed)
+        
+        if (member.id == self.bot.user.id):
+            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {ctx.author.mention}, I can't **kick myself**!")
+            embed.color = Color.red()
+            return await ctx.send(embed=embed)
+
+        # As stated above, only the server owner (or bot owner) has privileges to kick admins
+        if member.guild_permissions.administrator and (ctx.author.id != ctx.guild.owner.id or not await self.bot.is_owner(ctx.author)):
+            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {ctx.author.mention}, I know you're trying to **kick an admin**, but I can't let you do that... :rolling_eyes:")
+            embed.color = Color.red()
+            return await ctx.send(embed=embed)
+        
+        if member and member.top_role >= ctx.guild.get_member(self.bot.user.id).top_role:
+            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {ctx.author.mention}, I can't **kick** {member.mention} because their **top role is higher than mine**.")
+            embed.color = Color.red()
+            return await ctx.send(embed=embed)
+
+        # All checks passed, proceed to kick
+        if reason is None:
+            await member.kick() or await ctx.guild.kick(member)
+            embed.add_field(name="", value=f":white_check_mark: {member.mention} has been **kicked**.")
+
         else:
-            raise error
+            await member.kick(reason=reason) or await ctx.guild.kick(member, reason=reason)
+            embed.add_field(name="", value=f":white_check_mark: {member.mention} has been **kicked**.\nReason: **{reason}**")
 
+        embed.color = ctx.author.color
+        await ctx.send(embed=embed)
+        
+
+    # Error handling, for both commands and slash commands
+    @kick.error
+    async def kick_error(self, ctx: Context, error):
+        embed = Embed(title="")
+        embed.color = Color.red()
+
+        if isinstance(error, MissingRequiredArgument) and error.param.name == "member":
+            # The command invoker doesn't provide the member argument
+            # A special case to return a more user-friendly message
+            embed.add_field(name="", value=f"Looks like you want me to **kick someone**, but **haven't specified** the user you would like to kick :thinking:  ...\nJust curious to know, **who** should I kick for now, {ctx.author.mention}?")
+            embed.color = ctx.author.color
+            return await ctx.send(embed=embed)
+
+        if isinstance(error, MissingRequiredArgument):
+            # Missing argument(s)
+            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Missing argument: `{error.param.name}`. Please provide all required arguments, {ctx.author.mention}.")
+            return await ctx.send(embed=embed)
+
+        if isinstance(error, MissingPermissions):
+            # The command invoker doesn't have permissions
+            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `kick_members` permission, and you probably **don't have** it, {ctx.author.mention}.")
+            return await ctx.send(embed=embed)
+
+        if (
+            isinstance(error, BotMissingPermissions) or
+            (isinstance(error, CommandInvokeError) and isinstance(error.original, Forbidden))    # Sometimes the application might throw a CommandInvokeError which caused by Forbidden, which is basically the same concept
+        ):
+            # The application doesn't have permissions to do so
+            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **kick** that member. Please **double-check** my **permissions** and **role position**.")
+            return await ctx.send(embed=embed)
+
+        # If the error is not handled, forward to the cog-level listener
+        await self.cog_command_error(ctx, error)
 
 async def setup(bot):
     await bot.add_cog(Kick(bot))
+
