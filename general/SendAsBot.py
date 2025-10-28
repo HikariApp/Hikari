@@ -1,5 +1,5 @@
 import discord
-from discord import app_commands, Forbidden, Interaction, TextStyle, VoiceChannel
+from discord import app_commands, Color, Embed, File, Forbidden, Interaction, TextStyle, VoiceChannel
 from discord.ext.commands import Bot, Cog
 from discord.ui import Modal, TextInput
 from discord.app_commands.errors import MissingPermissions, BotMissingPermissions, CommandInvokeError
@@ -20,7 +20,7 @@ class SendAsBotModal(Modal):
     )
 
 
-    def __init__(self, bot: Bot, silent: bool = False, file: Optional[discord.File] = None):
+    def __init__(self, bot: Bot, silent: bool = False, file: Optional[File] = None):
         self.bot = bot
         self.silent = silent
         self.file = file
@@ -32,6 +32,8 @@ class SendAsBotModal(Modal):
         embed = discord.Embed(title="")
 
         if isinstance(error, CommandInvokeError) and isinstance(error.original, Forbidden):
+            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **send the content you provided**. Please **double-check** my **permissions** and **role position**.")
+            embed.color = Color.red()
             return await interaction.followup.send(embed=embed)
         
         self.logger.exception(f"Uncaught error in {interaction.cog.__cog_name__}:", exc_info=error)
@@ -42,7 +44,7 @@ class SendAsBotModal(Modal):
         """
         Handle modal submission.
         """
-        send_as_bot_error_embed = discord.Embed(title="", color=discord.Colour.red())
+        errorEmbed = Embed(title="", color=Color.red())
         await interaction.response.defer()
         content = self.content.value or None
         #
@@ -57,8 +59,8 @@ class SendAsBotModal(Modal):
         # Safety guard ends here, proceed to send the message
         if content is None and self.file is None:
             # Returns if both message and attachments are not provided
-            send_as_bot_error_embed.add_field(name="", value="<a:crossred:1356353067024515266> You cannot let me to send nothing... (say at least send a message or an attachment)", inline=False)
-            return await interaction.followup.send(embed=send_as_bot_error_embed)
+            errorEmbed.add_field(name="", value="<a:crossred:1356353067024515266> You cannot let me to send nothing... (say at least send a message or an attachment)", inline=False)
+            return await interaction.followup.send(embed=errorEmbed)
     
         return await interaction.channel.send(content=content, file=self.file, silent=self.silent) if not isinstance(interaction.channel, VoiceChannel) else None
 
@@ -100,15 +102,15 @@ class SendAsBot(Cog):
 
     @send.error
     async def send_error(self, interaction: Interaction, error):
-        send_as_bot_error_embed = discord.Embed(title="", color=discord.Colour.red())
+        embed = embed(title="", color=Color.red())
 
         if isinstance(error, MissingPermissions):
-            send_as_bot_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `move members` permission, and you probably **don't have** it, {interaction.user.mention}.", inline=False)
-            await interaction.response.send_message(embed=send_as_bot_error_embed)
+            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `move members` permission, and you probably **don't have** it, {interaction.user.mention}.", inline=False)
+            await interaction.response.send_message(embed=embed)
             
         if isinstance(error, BotMissingPermissions):
-            send_as_bot_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I **don't have** `send messages` permission in this channel. Please grant me the permission in advance when proceeding.", inline=False)
-            await interaction.response.send_message(embed=send_as_bot_error_embed)
+            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I **don't have** `send messages` permission in this channel. Please grant me the permission in advance when proceeding.", inline=False)
+            await interaction.response.send_message(embed=embed)
 
         else:
             raise error
