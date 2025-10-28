@@ -1,7 +1,7 @@
 from discord import Color, Embed, Forbidden, Member, User
 from discord.ext import commands
 from discord.ext.commands import BadUnionArgument, Bot, Cog, Context, CommandInvokeError, MissingPermissions, MissingRequiredArgument, MemberNotFound, BotMissingPermissions, UserNotFound
-from typing import Optional
+from typing import Any, Optional
 
 class Kick(Cog):
     def __init__(self, bot: Bot):
@@ -96,7 +96,7 @@ class Kick(Cog):
 
     # Error handling, for both commands and slash commands
     @kick.error
-    async def kick_error(self, ctx: Context, error):
+    async def kick_error(self, ctx: Context, error: Any):
         embed = Embed(title="")
         embed.color = Color.red()
 
