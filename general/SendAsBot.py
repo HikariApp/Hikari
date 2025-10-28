@@ -72,7 +72,7 @@ class SendAsBot(Cog):
 
 
     # Send message from user input
-    @app_commands.command(help="Send your message or attatchment, or both through me")
+    @app_commands.command()
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.checks.bot_has_permissions(send_messages=True)
     async def send(self, interaction: Interaction, silent: bool, attachment: Optional[discord.Attachment] = None):
