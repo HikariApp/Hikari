@@ -1,7 +1,37 @@
 from discord import Color, Embed, Forbidden, Member, User
 from discord.ext import commands
 from discord.ext.commands import Bot, Cog, Context, CommandInvokeError, MissingPermissions, MissingRequiredArgument, BotMissingPermissions, UserNotFound
-from typing import Optional
+from typing import Any, Optional
+
+
+# Check if a user is already banned in the guild
+async def isBanned(ctx: Context, user: User) -> bool:
+    """
+    This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
+    
+    Checks if a user is already banned in the guild.
+
+    Parameters
+    ----------
+    ctx : `discord.ext.commands.Context`
+        The context of the command invocation.
+    
+    user : `discord.User`
+        The user to check.
+
+    Returns
+    ----------
+    bool
+        Returns `True` if the user is already banned, `False` otherwise.
+
+    """
+
+    async for entry in ctx.guild.bans():
+        if entry.user.id == user.id:
+            return True
+
+    return False
+
 
 class Ban(Cog):
     def __init__(self, bot: Bot):
@@ -12,34 +42,6 @@ class Ban(Cog):
     async def cog_on_command_error(self, ctx: Context, error: Exception):
         self.logger.exception(f"Uncaught error in {ctx.cog.__cog_name__}:", exc_info=error)
         raise error
-    
-    # Check if a user is already banned in the guild
-    async def isBanned(self, ctx: Context, user: User) -> bool:
-        """
-        This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
-        
-        Checks if a user is already banned in the guild.
-
-        Parameters
-        ----------
-        ctx : `discord.ext.commands.Context`
-            The context of the command invocation.
-        
-        user : `discord.User`
-            The user to check.
-
-        Returns
-        ----------
-        bool
-            Returns `True` if the user is already banned, `False` otherwise.
-
-        """
-
-        async for entry in ctx.guild.bans():
-            if entry.user.id == user.id:
-                return True
-
-        return False
 
     # Bans a user
     # UPDATE 24-10-2025: This command has been heavily rewritten to support hybrid commands, see Note for more details.
@@ -76,6 +78,11 @@ class Ban(Cog):
         embed = Embed(title="")
         member: Optional[Member] = None
 
+        if not ctx.guild:
+            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command can only be used in a **server**, {ctx.author.mention}.")
+            embed.color = Color.red()
+            return await ctx.send(embed=embed)
+
         # Defer the interaction response if invoked as a slash command, in case of long processing time.
         if ctx.interaction:
             await ctx.interaction.response.defer()
@@ -92,7 +99,7 @@ class Ban(Cog):
             embed.color = Color.red()
             return await ctx.send(embed=embed)
 
-        if await self.isBanned(ctx, user):
+        if await isBanned(ctx, user):
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {ctx.author.mention}, {user.mention} is already **banned**!")
             embed.color = Color.red()
             return await ctx.send(embed=embed)
@@ -128,7 +135,7 @@ class Ban(Cog):
 
     # Error handling, for both commands and slash commands
     @ban.error
-    async def ban_error(self, ctx: Context, error):
+    async def ban_error(self, ctx: Context, error: Any):
         embed = Embed(title="")
         embed.color = Color.red()
 
