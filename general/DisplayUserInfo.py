@@ -73,7 +73,8 @@ class DisplayUserInfo(Cog):
         """
         Displays your avatar or someone else's avatar to everyone.
 
-        Parameters
+        Parameters 
+        
         ----------
         ctx : `Context`
             The context in which the command was invoked.
