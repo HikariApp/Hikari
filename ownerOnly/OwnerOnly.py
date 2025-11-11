@@ -22,7 +22,7 @@ class OwnerOnly(Cog):
     # Sync, load, unload, reload, systeminfo, restart, shutdown
 
 
-    # Sync all cogs for latest changes
+    # Sync all cogs for latest changes 
     @commands.command(hidden=True)
     async def sync(self, ctx):
         """
