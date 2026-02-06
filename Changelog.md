@@ -1185,3 +1185,10 @@ A blank line will now shown and deletes immediately when the command are all fin
 (-/+) Refactor all history from old repo
 
 (+) Minior code opitmization
+
+#
+
+# 20260207
+
+(+) Patched the issue where bot goes offline when the player.nextTrack() is dead
+
