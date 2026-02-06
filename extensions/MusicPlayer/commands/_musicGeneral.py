@@ -53,17 +53,54 @@ class MusicGeneral(Cog):
             # OR EVEN WORSE, THE PLAYER WILL BE MALFUNCTIONING AND CAUSING AN INFINITE LOOP!!
             #
             return
-        await player.nextTrack()
+        
+        try:
+            await player.nextTrack()
+
+        except Exception as e:
+            #
+            # We catch the exception here to prevent the bot from crashing if there is an error in the nextTrack function
+            # This is a known issue with pomice that sometimes it will throw an exception when trying to skip to the next track, which will cause the bot to crash if not handled properly. We will handle it gracefully by just ignoring the error and not crashing the bot, but it may cause the player to be stuck on the current track until the next track ends or errors again.
+            #
+            if player.context:
+                return player.context.send(embed=Embed(title="", description=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", color=Color.red()))
+            
+            # If there was an error and the context is not available, we just simply ignore this action.
+            return
 
 
     @commands.Cog.listener()
     async def on_pomice_track_stuck(self, player: BetterPlayer, track, _):
-        await player.nextTrack()
+        try:
+            await player.nextTrack()
+
+        except Exception as e:
+            #
+            # We catch the exception here to prevent the bot from crashing if there is an error in the nextTrack function
+            # This is a known issue with pomice that sometimes it will throw an exception when trying to skip to the next track, which will cause the bot to crash if not handled properly. We will handle it gracefully by just ignoring the error and not crashing the bot, but it may cause the player to be stuck on the current track until the next track ends or errors again.
+            #
+            if player.context:
+                return player.context.send(embed=Embed(title="", description=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", color=Color.red()))
+            
+            # If there was an error and the context is not available, we just simply ignore this action.
+            return
 
 
     @commands.Cog.listener()
     async def on_pomice_track_exception(self, player: BetterPlayer, track, _):
-        await player.nextTrack()
+        try:
+            await player.nextTrack()
+
+        except Exception as e:
+            #
+            # We catch the exception here to prevent the bot from crashing if there is an error in the nextTrack function
+            # This is a known issue with pomice that sometimes it will throw an exception when trying to skip to the next track, which will cause the bot to crash if not handled properly. We will handle it gracefully by just ignoring the error and not crashing the bot, but it may cause the player to be stuck on the current track until the next track ends or errors again.
+            #
+            if player.context:
+                return player.context.send(embed=Embed(title="", description=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", color=Color.red()))
+            
+            # If there was an error and the context is not available, we just simply ignore this action.
+            return
 
 
     # Discord Autocomplete for Web search, rewrited for discord.py, and now for pomice (11-10-2025)
