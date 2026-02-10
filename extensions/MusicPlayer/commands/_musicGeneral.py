@@ -127,25 +127,25 @@ class MusicGeneral(Cog):
 
         node = NodePool.get_node()
 
-        if not search.startswith("https://"):   # Serach from keywords
+        if not (search.startswith("http://") or search.startswith("https://")):   # Search from keywords
             try:
                 tracks = await node.get_tracks(search)
                 return [
                     Choice(name=result.title, value=result.uri)
-                    for result in tracks[:25]   # Limit to 25 choices as per Discord's limitation
+                    for result in tracks[:25]   # Limit to 25 choices due to the limitation from Discord
                 ]
             
             except TypeError:
                 # The author did not entered anything yet
-                # Originally it should return a defult list on Windows, not sure why it's not working on linux...
                 return []
             
             except Exception:
+                # An unexpected error occurred while trying to search for the track
                 return []
         
-        # Reutrn a blank list because web URL's does not required to be searched, or the player object is None.
+        # Return a blank list because web URL's does not require to be searched, or the player object is None.
         return []
-
+    
 
     @commands.hybrid_command(aliases=["p", "pla"])
     @app_commands.autocomplete(search=web_serach_autocomplete)
@@ -426,7 +426,7 @@ class MusicGeneral(Cog):
 
         Parameters
         ----------
-        ctx: `Context`
+        ctx: `Context`24 
             The context of the command invocation.
         
         Returns
@@ -780,7 +780,7 @@ class MusicGeneral(Cog):
 
         """
 
-        #Set the filter to a nightcore style. To do this, we have to use pomice.Timescale to set the pitch and speed.
+        # Set the filter to a nightcore style. We have to use pomice.Timescale to adjust the pitch and speed.
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
         embed = Embed(title="")
         
