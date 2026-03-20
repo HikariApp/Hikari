@@ -1,5 +1,5 @@
 import os
-from pomice import NodePool
+from lava_lyra import NodePool
 from discord.ext.commands import Bot
 
 
@@ -21,10 +21,10 @@ class NodeManager:
                 password=os.getenv("LAVALINK_PASSWORD"),
                 identifier="MAIN",
             )
-            self.logger.info(f"Pomice node has been established to a Lavalink server at {self.nodePool.nodes if self.nodePool.nodes else '<unknown host>'}.")
+            self.logger.info(f"LavaLyra (Pomice) node has been established to a Lavalink server at {self.nodePool.nodes if self.nodePool.nodes else '<unknown host>'}.")
 
         except Exception as exc:
-            self.logger.exception("Failed to create pomice node: %s", exc)
+            self.logger.exception("Failed to create lava_lyra node: %s", exc)
 
 
     async def get_node_pool(self):

@@ -2,7 +2,7 @@ import discord
 import asyncio
 import re
 import logging
-import pomice
+import lava_lyra
 from extensions.MusicPlayer._player import BetterPlayer
 from discord import app_commands, Embed, Interaction, Forbidden, Member, VoiceChannel
 from discord.ext import commands, tasks
@@ -84,7 +84,7 @@ class VoiceChannel(commands.Cog):
         if not player:
             try:
                 # Join voice channel
-                player = await voice_channel.connect(cls=pomice.Player)
+                player = await voice_channel.connect(cls=lava_lyra.Player)
                 set_fallback_text_channel(interaction, interaction.channel)
                 join_embed.add_field(name="", value=f"I've joined the voice channel {voice_channel.mention}")
                 return await interaction.response.send_message(embed=join_embed)
@@ -113,8 +113,8 @@ class VoiceChannel(commands.Cog):
     # Leaving voice channel
     @app_commands.command(description="Leaving a voice channel")
     async def leave(self, interaction: Interaction):
-        player: pomice.Player
-        player = cast(pomice.Player, interaction.guild.voice_client)
+        player: lava_lyra.Player
+        player = cast(lava_lyra.Player, interaction.guild.voice_client)
         leaving_vc = discord.Embed(title="", description="", color=self.bot.user.color)
         leaving_vc_error_embed = discord.Embed(title="", color=discord.Colour.red())
 

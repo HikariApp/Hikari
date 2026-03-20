@@ -2,8 +2,8 @@ from discord import app_commands, Color, Embed
 from discord.ext import commands
 from discord.ext.commands import Bot, Cog, Context
 from discord.app_commands import Choice, Range
-from pomice import LoopMode, Playlist, QueueException, Timescale
-from pomice.pool import NodePool
+from lava_lyra import LoopMode, Playlist, QueueException, Timescale
+from lava_lyra.pool import NodePool
 from typing import cast, Optional, List
 from extensions.MusicPlayer._player import BetterPlayer
 from errorhandling._errorHandling import *
@@ -32,7 +32,7 @@ class MusicGeneral(Cog):
     def __init__(self, bot: Bot):
         self.bot = bot
 
-    # The following are events from pomice.events
+    # The following are events from lava_lyra.events
     # We are using these so that if the track either stops or errors,
     # we can just skip to the next track
 
@@ -41,12 +41,12 @@ class MusicGeneral(Cog):
     
     # General event listener for when a track ends or stops
     @commands.Cog.listener()
-    async def on_pomice_track_end(self, player: BetterPlayer, track, _):
+    async def on_lava_lyra_track_end(self, player: BetterPlayer, track, _):
         if player._isRollingBack:
             # 
             # Prevent auto-skipping when a rollback operation is in progress
             #
-            # We have to do this unfortunately because pomice does not provide a way to differentiate 
+            # We have to do this unfortunately because lava_lyra does not provide a way to differentiate 
             # between a normal track end and a manual stop, and there are current no ways to workaround this.
             #
             # WARNING: PLEASE DO NOT REMOVE THIS CHECK OR ELSE THE ROLLBACK WILL NOT WORK!!
@@ -60,7 +60,7 @@ class MusicGeneral(Cog):
         except Exception as e:
             #
             # We catch the exception here to prevent the bot from crashing if there is an error in the nextTrack function
-            # This is a known issue with pomice that sometimes it will throw an exception when trying to skip to the next track, which will cause the bot to crash if not handled properly. We will handle it gracefully by just ignoring the error and not crashing the bot, but it may cause the player to be stuck on the current track until the next track ends or errors again.
+            # This is a known issue with lava_lyra that sometimes it will throw an exception when trying to skip to the next track, which will cause the bot to crash if not handled properly. We will handle it gracefully by just ignoring the error and not crashing the bot, but it may cause the player to be stuck on the current track until the next track ends or errors again.
             #
             if player.context:
                 return player.context.send(embed=Embed(title="", description=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", color=Color.red()))
@@ -70,14 +70,14 @@ class MusicGeneral(Cog):
 
 
     @commands.Cog.listener()
-    async def on_pomice_track_stuck(self, player: BetterPlayer, track, _):
+    async def on_lava_lyra_track_stuck(self, player: BetterPlayer, track, _):
         try:
             await player.nextTrack()
 
         except Exception as e:
             #
             # We catch the exception here to prevent the bot from crashing if there is an error in the nextTrack function
-            # This is a known issue with pomice that sometimes it will throw an exception when trying to skip to the next track, which will cause the bot to crash if not handled properly. We will handle it gracefully by just ignoring the error and not crashing the bot, but it may cause the player to be stuck on the current track until the next track ends or errors again.
+            # This is a known issue with lava_lyra that sometimes it will throw an exception when trying to skip to the next track, which will cause the bot to crash if not handled properly. We will handle it gracefully by just ignoring the error and not crashing the bot, but it may cause the player to be stuck on the current track until the next track ends or errors again.
             #
             if player.context:
                 return player.context.send(embed=Embed(title="", description=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", color=Color.red()))
@@ -87,14 +87,14 @@ class MusicGeneral(Cog):
 
 
     @commands.Cog.listener()
-    async def on_pomice_track_exception(self, player: BetterPlayer, track, _):
+    async def on_lava_lyra_track_exception(self, player: BetterPlayer, track, _):
         try:
             await player.nextTrack()
 
         except Exception as e:
             #
             # We catch the exception here to prevent the bot from crashing if there is an error in the nextTrack function
-            # This is a known issue with pomice that sometimes it will throw an exception when trying to skip to the next track, which will cause the bot to crash if not handled properly. We will handle it gracefully by just ignoring the error and not crashing the bot, but it may cause the player to be stuck on the current track until the next track ends or errors again.
+            # This is a known issue with lava_lyra that sometimes it will throw an exception when trying to skip to the next track, which will cause the bot to crash if not handled properly. We will handle it gracefully by just ignoring the error and not crashing the bot, but it may cause the player to be stuck on the current track until the next track ends or errors again.
             #
             if player.context:
                 return player.context.send(embed=Embed(title="", description=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", color=Color.red()))
@@ -103,7 +103,7 @@ class MusicGeneral(Cog):
             return
 
 
-    # Discord Autocomplete for Web search, rewrited for discord.py, and now for pomice (11-10-2025)
+    # Discord Autocomplete for Web search, rewrited for discord.py, and now for lava_lyra (11-10-2025)
     async def web_serach_autocomplete(self, ctx: Optional[Context], search: str) -> List[Choice[str]]:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
@@ -780,7 +780,7 @@ class MusicGeneral(Cog):
 
         """
 
-        #Set the filter to a nightcore style. To do this, we have to use pomice.Timescale to set the pitch and speed.
+        #Set the filter to a nightcore style. To do this, we have to use lava_lyra.Timescale to set the pitch and speed.
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
         embed = Embed(title="")
         

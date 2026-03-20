@@ -5,26 +5,26 @@ from extensions.MusicPlayer._audioMetadataExtractor import *
 from contextlib import suppress
 from datetime import timedelta
 from typing import List, Optional, Iterable
-from pomice import LoopMode, Player, Queue, QueueEmpty, Track, TrackType
+from lava_lyra import LoopMode, Player, Queue, QueueEmpty, Track, TrackType
 from discord import Color, Embed, Message, HTTPException
 from discord.ext import tasks
 from discord.ext.commands import Context
 
 logger = logging.getLogger("music_v2")
 
-# Queue class that combines list operations with pomice.Queue functionality
+# Queue class that combines list operations with lava_lyra.Queue functionality
 # A good demonstration of multiple inheritance usage in python
-# This allows us to use list operations (like indexing, slicing, etc.) while still having the queue behavior of pomice.Queue
+# This allows us to use list operations (like indexing, slicing, etc.) while still having the queue behavior of lava_lyra.Queue
 
 class BetterQueue(Queue):
     """
-    A custom queue class that extends `pomice.Queue` to include advanced queue management and history tracking.
+    A custom queue class that extends `lava_lyra.Queue` to include advanced queue management and history tracking.
 
     This allows us to maintain a full history of tracks played, indexing and slicing.
 
     Attributes
     ----------
-    doubleEndedQueue : `List[pomice.Track]`
+    doubleEndedQueue : `List[lava_lyra.Track]`
         A double-ended queue that maintains the full history of tracks played.
     
     currentIndex : `Optional[int]`
@@ -33,7 +33,7 @@ class BetterQueue(Queue):
     Methods
     -------
 
-    get() -> `pomice.Track`
+    get() -> `lava_lyra.Track`
         Retrieves the next track from the queue and updates `currentIndex` accordingly.
 
     copy() -> `BetterQueue`
@@ -51,7 +51,7 @@ class BetterQueue(Queue):
 
     def __getitem__(self, key):  # type: ignore[override]
         if isinstance(key, slice):
-            return self._queue[key]  # returns List[pomice.Track]
+            return self._queue[key]  # returns List[lava_lyra.Track]
         return super().__getitem__(key)
 
 
@@ -92,16 +92,16 @@ class BetterQueue(Queue):
 
         `doubleEndedQueue` will not be modified after `Queue.pop()`, so the full history will be preserved.
 
-        However, if the queue is empty, this will raise `pomice.QueueEmpty` as usual.
+        However, if the queue is empty, this will raise `lava_lyra.QueueEmpty` as usual.
 
         Returns
         ----------
-        pomice.Track
+        lava_lyra.Track
             The next track in the queue.
 
         Raises 
         ----------
-        pomice.QueueEmpty
+        lava_lyra.QueueEmpty
             Raised if no items in queue.
 
         """
@@ -109,7 +109,7 @@ class BetterQueue(Queue):
         item = super().get()
 
         #
-        # Overrides the default behavior of pomice.Queue.get() to update currentIndex
+        # Overrides the default behavior of lava_lyra.Queue.get() to update currentIndex
         #
         
         originalIndex = self.currentIndex if self.currentIndex is not None else 0
@@ -138,7 +138,7 @@ class BetterQueue(Queue):
         """
         Create a copy of the current queue including all it's members.
 
-        Same as `pomice.Queue.copy()` but also maintains the state of `doubleEndedQueue` and `currentIndex`.
+        Same as `lava_lyra.Queue.copy()` but also maintains the state of `doubleEndedQueue` and `currentIndex`.
         
         Returns
         -------
@@ -168,7 +168,7 @@ class BetterQueue(Queue):
 
         Parameters
         ----------
-        item : pomice.Track
+        item : lava_lyra.Track
             The track to remove from the queue.
         
         Returns
@@ -278,12 +278,12 @@ class BetterQueue(Queue):
 
 # Customized Player class to handle queue and history (i.e. with a modifiable queue system and previous track support)
 # Huge thanks to GPT-5 for the original implementation idea lol
-# and to cloudwithax for pomice and help with the API
+# and to cloudwithax for lava_lyra and help with the API
 
 
 class BetterPlayer(Player):
     """
-    A custom player class that extends `pomice.Player` to include advanced queue management and history tracking.
+    A custom player class that extends `lava_lyra.Player` to include advanced queue management and history tracking.
     
     """
     def __init__(self, *args, **kwargs):
@@ -336,7 +336,7 @@ class BetterPlayer(Player):
 
         Parameters
         ----------
-        track: Optional`[pomice.Track]`
+        track: Optional`[lava_lyra.Track]`
             The track that is currently playing. Leave it empty if no track is playing.
 
         Returns
@@ -512,7 +512,7 @@ class BetterPlayer(Player):
         None
             Returns if the function is called while a backward process is ongoing.
 
-        Optional`[pomice.Track]`
+        Optional`[lava_lyra.Track]`
             The track being played after moving backward, if successful.
 
         """
@@ -570,7 +570,7 @@ class BetterPlayer(Player):
 
         Returns
         -------
-        Optional`[pomice.Track]`
+        Optional`[lava_lyra.Track]`
             The track being played after moving forward, if successful.
 
         bool: True
