@@ -41,7 +41,7 @@ class MusicGeneral(Cog):
     
     # General event listener for when a track ends or stops
     @commands.Cog.listener()
-    async def on_lava_lyra_track_end(self, player: BetterPlayer, track, _):
+    async def on_lyra_track_end(self, player: BetterPlayer, track, _):
         if player._isRollingBack:
             # 
             # Prevent auto-skipping when a rollback operation is in progress
@@ -70,7 +70,7 @@ class MusicGeneral(Cog):
 
 
     @commands.Cog.listener()
-    async def on_lava_lyra_track_stuck(self, player: BetterPlayer, track, _):
+    async def on_lyra_track_stuck(self, player: BetterPlayer, track, _):
         try:
             await player.nextTrack()
 
@@ -87,7 +87,7 @@ class MusicGeneral(Cog):
 
 
     @commands.Cog.listener()
-    async def on_lava_lyra_track_exception(self, player: BetterPlayer, track, _):
+    async def on_lyra_track_exception(self, player: BetterPlayer, track, _):
         try:
             await player.nextTrack()
 
