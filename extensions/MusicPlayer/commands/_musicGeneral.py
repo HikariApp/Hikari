@@ -780,11 +780,7 @@ class MusicGeneral(Cog):
 
         """
 
-<<<<<<< HEAD
-        #Set the filter to a nightcore style. To do this, we have to use lava_lyra.Timescale to set the pitch and speed.
-=======
         # Set the filter to a nightcore style. We have to use pomice.Timescale to adjust the pitch and speed.
->>>>>>> ebfd0c4fcf726a7f1ed450fd8df373f51537de1e
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
         embed = Embed(title="")
         
