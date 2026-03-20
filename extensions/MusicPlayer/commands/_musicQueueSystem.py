@@ -318,13 +318,13 @@ class MusicQueueSystem(Cog):
             embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
             return await ctx.send(embed=embed)
 
-        if index is not None and (index < 1 or index > player.queue.size):
+        if index is not None and (index < 1 or index > len(player.queue.doubleEndedQueue)):
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Please enter a valid index of the track you want to remove from the queue.", inline=False)
             embed.color = Color.red()
             return await ctx.send(embed=embed)
 
-        # Calculate the zero-based index
-        index = player.queue.size - 1 if index is None else index - 1
+        # Calculate the zero-based index, default to the last track if index is None
+        index = index - 1 if index else len(player.queue.doubleEndedQueue) - 1
 
         if index == player.queue.currentIndex:
             embed.add_field(name="", value=f"{ctx.author.mention}, You cannot remove the **currently playing track**. Use the `skip` command instead to skip to the next track.", inline=False)
@@ -332,7 +332,12 @@ class MusicQueueSystem(Cog):
             return await ctx.send(embed=embed)
         
         try:
-            player.queue.pop(player.queue.doubleEndedQueue[index])
+            # Since the pop() method from pomice's queue does not support removing arbitrary indices, we directly manipulate the doubleEndedQueue and then rebuild the internal queue.
+            player.queue.doubleEndedQueue.pop(index)
+
+            # Rebuild the internal queue from the doubleEndedQueue
+            player.queue._queue = player.queue.doubleEndedQueue[1 + index:]
+            player.queue.currentIndex -= 1  # Adjust current index to account for the removed track
 
         except ValueError as e:
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An error (ValueError) occurred while trying to remove the track at index **#{1 + index}** from the queue, please try again later. \n\n {e}", inline=False)
@@ -355,4 +360,3 @@ class MusicQueueSystem(Cog):
         embed.add_field(name="", value=f"Removed track **#{1 + index}** from the queue.", inline=False)
         embed.color = userColor(ctx)
         await ctx.send(embed=embed)
-
