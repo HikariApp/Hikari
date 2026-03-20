@@ -1192,3 +1192,13 @@ A blank line will now shown and deletes immediately when the command are all fin
 
 (+) Patched the issue where bot goes offline when the player.nextTrack() is dead
 
+#
+
+# 20260320 (night)
+
+(-/+) Replaced music player module from pomice to lava-lyra to adapt discord DAVE changes before 31-03-2026
+
+(+) Refactor the music player due to the above changes
+
+(+) Minior code improvement
+
