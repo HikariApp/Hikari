@@ -105,7 +105,23 @@ class BetterQueue(Queue):
 
         """
 
-        item = super().get()
+        if self.loop_mode == LoopMode.QUEUE:
+            wrapped = not self._queue and bool(self.doubleEndedQueue)
+            if wrapped:
+                self._queue = self.doubleEndedQueue.copy()
+
+            item = self._get()
+            self._current_item = item
+
+            if wrapped or self.currentIndex is None:
+                self.currentIndex = 0
+            else:
+                self.currentIndex = (self.currentIndex + 1) % len(self.doubleEndedQueue)
+
+            return item
+
+        else:
+            item = super().get()
 
         #
         # Overrides the default behavior of lava_lyra.Queue.get() to update currentIndex
@@ -131,6 +147,22 @@ class BetterQueue(Queue):
                 pass
 
         return item
+
+
+    def set_loop_mode(self, mode: LoopMode) -> None:  # type: ignore[override]
+        if mode == LoopMode.QUEUE:
+            self._loop_mode = mode
+            return
+
+        super().set_loop_mode(mode)
+
+
+    def disable_loop(self) -> None:  # type: ignore[override]
+        if self.loop_mode == LoopMode.QUEUE:
+            self._loop_mode = None
+            return
+
+        super().disable_loop()
 
 
     def copy(self) -> "BetterQueue":  # type: ignore[override]
@@ -330,7 +362,6 @@ class BetterPlayer(Player):
             and currentIndex is not None
             and currentIndex >= len(history) - 1
         )
-
 
     # Create an embed for the currently playing track
     # UPDATE 17-10-2025: This function has been heavily modified and it returns a tuple now, see the Notes section below
@@ -591,6 +622,7 @@ class BetterPlayer(Player):
         self.queue.hasReachedTheEnd = False
 
         # Get the next track from the queue, if any
+
         try:
             nextTrack: Track = self.queue.get()
         except QueueEmpty:
@@ -598,11 +630,11 @@ class BetterPlayer(Player):
                 # Queue is completely empty, nothing to play.
                 # This is a very rare, nearly impossible scenario, probably due to some uncaught errors.
                 return
-            
+
             # Otherwise, this could generally mean that we are at the end of the queue
             # Stop playback and set the isEnded flag
             self.queue.hasReachedTheEnd = True
-
+        
             # Reset currentIndex to the end of the queue to prevent overflow
             self.queue.currentIndex = len(self.queue.doubleEndedQueue) - 1
 
