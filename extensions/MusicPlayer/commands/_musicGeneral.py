@@ -282,7 +282,7 @@ class MusicGeneral(Cog):
         if not (player.queue.loop_mode == LoopMode.QUEUE and player.isFinalTrack):
             # Replace the current queue with the remaining tracks after skipping          
             originalIndex = player.queue.currentIndex
-            player.queue.currentIndex = originalIndex + amount
+            player.queue.currentIndex = originalIndex + amount - 1
             player.queue._queue = player.queue.doubleEndedQueue[originalIndex + amount:]
 
 
