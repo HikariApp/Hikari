@@ -25,7 +25,7 @@ A much detailed documenatation will be provided on a later stage.
 > Being incredibly a work in progress and time constrain under poor code mangaement, Hikari should be used, for now, with caution.
 
 > [!NOTE]
-> A full code refactor is scheduled to increase readability once I have enough spare time to do so. In addtion, I know that both discord.py and Python itself has relatively slow performance. Since this project was inherited from one of my earliest projects as I mentioned above, I may consider a **complete rewrite** using **discord.js** or other frameworks in the future, if feasible.
+> A full code refactor is scheduled to increase readability once I have enough spare time to do so. In addtion, I know that both discord.py and Python itself has relatively slow performance. Since this project was inherited from one of my earliest projects as I mentioned above, I may consider performing a **complete rewrite** using **discord.js** or other frameworks in the future, if feasible.
 
 ## What can Hikari do for now?
 
@@ -34,8 +34,7 @@ Hikari has now been equipped with these functions:
    - Banning users
    - Muting users
    - Timeout users
-- AI chatbot (powered by ChatGPT)
-- Music player (streaming online or play files uploaded from your client)
+- Music player (streaming online music or playing from HTTP/HTTPS links)
 - Getting an vaild discord user information or avatar
 - Writing an embed for you (Only works with server invitation)
 
@@ -46,20 +45,20 @@ and so much more... (waiting for your discovery 😉)
 The simplest way to use Hikari is to use the publicly hosted instance of it, and we already have one over **[here][Bot_outh_link]**.
 
 <p align="center">
-  <a href="https://discord.com/oauth2/authorize?client_id=1356195507751358500"><img width="475" src="https://api.lolicon.io/discord-api/user/1356195507751358500" alt="Hikari's profile :)"></img></a>
+  <a href="https://discord.com/oauth2/authorize?client_id=1356195507751358500"><img width="475" src="https://api.lolicon.io/discord-profile-preview/user/1356195507751358500" alt="Hikari's profile :)"></img></a>
 </p>
 
 You can either invite the bot to your server, or install it as a **user-installed application** as you prefer.
 
 ## Future implemtations
 
-The meaning of Hikari stands for light, and of course we'll have to keep her bright! :D
+The meaning of Hikari stands for light (光 / ひかり), and of course we'll have to keep her bright! :D
 
 Here're some implemtations we've already planned and will likely be deployed later on
 
 - **Role Management**: Allow the bot to assign or remove roles from users.
 - **Mutiligual-support**: Allow user to change the language of the bot by modifing server settings or regional settings
-
+- **Database Integration**: Allow the bot to store and retrieve data from a database for persistent storage.
 <br>
 
 Having some good ideas but never being listed above? Feel free to head over our [Discussion Forum](https://github.com/Hikari-Discord/Hikari-Internal/discussions) and leave a suggestion :)
