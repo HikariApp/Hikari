@@ -322,7 +322,14 @@ class BetterPlayer(Player):
 
         """
 
-        return self.queue.currentIndex == (len(self.queue.doubleEndedQueue) - 1) if self.queue.currentIndex is not None else False
+        history = self.queue.doubleEndedQueue
+        currentIndex = self.queue.currentIndex
+
+        return (
+            bool(history)
+            and currentIndex is not None
+            and currentIndex >= len(history) - 1
+        )
 
 
     # Create an embed for the currently playing track

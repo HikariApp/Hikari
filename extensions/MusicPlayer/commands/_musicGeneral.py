@@ -256,7 +256,7 @@ class MusicGeneral(Cog):
             embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
             return await ctx.send(embed=embed)
 
-        if player.current and player.isFinalTrack:  # The author just skipped the final track
+        if player.isFinalTrack:  # The author just skipped the final track
             embed.add_field(name="", value=f"Skipped the **final track**. There are **no upcoming tracks** to be played unless you **add more tracks to the queue** or **looping** is enabled.", inline=False)
             amount = 1  # Set amount to 1 since they are at the final track
 
@@ -657,7 +657,7 @@ class MusicGeneral(Cog):
     async def stop(self, ctx: Context):
         """
         Stops the current track being played in voice channel and clears the queue.
-
+again
         Parameters
         ----------
         ctx: `Context`
