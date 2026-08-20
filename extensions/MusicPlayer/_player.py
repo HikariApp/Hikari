@@ -13,7 +13,6 @@ from discord.ext.commands import Context
 logger = logging.getLogger("music_v2")
 
 # Queue class that combines list operations with lava_lyra.Queue functionality
-# A good demonstration of multiple inheritance usage in python
 # This allows us to use list operations (like indexing, slicing, etc.) while still having the queue behavior of lava_lyra.Queue
 
 class BetterQueue(Queue):

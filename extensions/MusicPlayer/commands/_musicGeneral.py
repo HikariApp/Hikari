@@ -46,11 +46,10 @@ class MusicGeneral(Cog):
             # 
             # Prevent auto-skipping when a rollback operation is in progress
             #
-            # We have to do this unfortunately because lava_lyra does not provide a way to differentiate 
+            # We have to do this unfortunately because lyra does not provide a way to differentiate 
             # between a normal track end and a manual stop, and there are current no ways to workaround this.
             #
-            # WARNING: PLEASE DO NOT REMOVE THIS CHECK OR ELSE THE ROLLBACK WILL NOT WORK!!
-            # OR EVEN WORSE, THE PLAYER WILL BE MALFUNCTIONING AND CAUSING AN INFINITE LOOP!!
+            # DO NOT REMOVE THIS CHECK or else the rollback WILL NOT WORK
             #
             return
         
@@ -58,10 +57,6 @@ class MusicGeneral(Cog):
             await player.nextTrack()
 
         except Exception as e:
-            #
-            # We catch the exception here to prevent the bot from crashing if there is an error in the nextTrack function
-            # This is a known issue with lava_lyra that sometimes it will throw an exception when trying to skip to the next track, which will cause the bot to crash if not handled properly. We will handle it gracefully by just ignoring the error and not crashing the bot, but it may cause the player to be stuck on the current track until the next track ends or errors again.
-            #
             if player.context:
                 return player.context.send(embed=Embed(title="", description=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", color=Color.red()))
             
@@ -75,10 +70,6 @@ class MusicGeneral(Cog):
             await player.nextTrack()
 
         except Exception as e:
-            #
-            # We catch the exception here to prevent the bot from crashing if there is an error in the nextTrack function
-            # This is a known issue with lava_lyra that sometimes it will throw an exception when trying to skip to the next track, which will cause the bot to crash if not handled properly. We will handle it gracefully by just ignoring the error and not crashing the bot, but it may cause the player to be stuck on the current track until the next track ends or errors again.
-            #
             if player.context:
                 return player.context.send(embed=Embed(title="", description=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", color=Color.red()))
             
@@ -92,10 +83,6 @@ class MusicGeneral(Cog):
             await player.nextTrack()
 
         except Exception as e:
-            #
-            # We catch the exception here to prevent the bot from crashing if there is an error in the nextTrack function
-            # This is a known issue with lava_lyra that sometimes it will throw an exception when trying to skip to the next track, which will cause the bot to crash if not handled properly. We will handle it gracefully by just ignoring the error and not crashing the bot, but it may cause the player to be stuck on the current track until the next track ends or errors again.
-            #
             if player.context:
                 return player.context.send(embed=Embed(title="", description=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", color=Color.red()))
             
@@ -103,7 +90,7 @@ class MusicGeneral(Cog):
             return
 
 
-    # Discord Autocomplete for Web search, rewrited for discord.py, and now for lava_lyra (11-10-2025)
+    # Discord Autocomplete for Web search, rewrited for discord.py, and now for lava_lyra
     async def web_serach_autocomplete(self, ctx: Optional[Context], search: str) -> List[Choice[str]]:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
