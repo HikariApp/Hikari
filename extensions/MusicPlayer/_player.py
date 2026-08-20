@@ -423,7 +423,7 @@ class BetterPlayer(Player):
             embed.description = f"[{audioMetadata.title or track.title}]({track.uri})"
 
             # Add a special source handling for some common links
-            if "plex.direct" in track.uri or "plex.tv" in track.uri:
+            if "plex" in track.uri:
                 # The track is from Plex Media Server
                 embed.add_field(name="Source:", value="Plex Media Server", inline=False)
                 embed.set_thumbnail(url="https://avatars.githubusercontent.com/u/324832")  # Plex logo
