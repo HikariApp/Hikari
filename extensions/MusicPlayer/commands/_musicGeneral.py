@@ -58,7 +58,7 @@ class MusicGeneral(Cog):
 
         except Exception as e:
             if player.context:
-                return player.context.send(embed=Embed(title="", description=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", color=Color.red()))
+                return await player.context.send(embed=Embed(title="", description=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", color=Color.red()))
             
             # If there was an error and the context is not available, we just simply ignore this action.
             return
@@ -71,7 +71,7 @@ class MusicGeneral(Cog):
 
         except Exception as e:
             if player.context:
-                return player.context.send(embed=Embed(title="", description=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", color=Color.red()))
+                return await player.context.send(embed=Embed(title="", description=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", color=Color.red()))
             
             # If there was an error and the context is not available, we just simply ignore this action.
             return
@@ -84,7 +84,7 @@ class MusicGeneral(Cog):
 
         except Exception as e:
             if player.context:
-                return player.context.send(embed=Embed(title="", description=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", color=Color.red()))
+                return await player.context.send(embed=Embed(title="", description=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", color=Color.red()))
             
             # If there was an error and the context is not available, we just simply ignore this action.
             return
