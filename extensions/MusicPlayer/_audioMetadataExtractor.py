@@ -120,6 +120,9 @@ class AudioMetadataExtractor:
         if not self._tag:
             return None
 
+        if not self._tag.images.any:
+            return None
+
         image_data = self._tag.images.any.data
         if not image_data:
             return None
@@ -487,9 +490,8 @@ class AudioMetadataExtractor:
         return (self.getMetadata().get(tag)[0] if self.getMetadata().get(tag) else None) or self.getMetadata().get(tag)
 
 
-# ---------------------------------------------------------------
-# Utility: Convert artwork dict → Discord File
-# ---------------------------------------------------------------
+# Utility
+# Convert artwork dict to a Discord File
 
 def toDiscordFile(artwork: dict, filename: str = "artwork.png") -> "discord.File | None":
     """
@@ -530,4 +532,3 @@ def toDiscordFile(artwork: dict, filename: str = "artwork.png") -> "discord.File
     except Exception as e:
         print(f"Error converting artwork to Discord file: {e}")
         return None
-
