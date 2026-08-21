@@ -600,7 +600,7 @@ class BetterPlayer(Player):
         return prevTrack
 
 
-    async def nextTrack(self) -> Optional[Track] | None:
+    async def nextTrack(self) -> Optional[Track] | bool | None:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
@@ -660,8 +660,10 @@ class BetterPlayer(Player):
         # Update controller message if applicable
         if not self.updateController.is_running():
             self.updateController.start()
- 
 
+        # Return the track being played
+        return nextTrack
+ 
 
     # Update the controller message with the current track information
     @tasks.loop(count=1)
