@@ -298,6 +298,29 @@ class BetterQueue(Queue):
         return self._currentIndex if self._currentIndex is not None and self._currentIndex >= 0 else None
 
 
+    @currentTrackIndex.setter
+    def currentTrackIndex(self, value: int | None) -> None:
+        """
+        Set current track index.
+
+        Parameters
+        ----------
+        value : int | None
+            The new current track index. Use None to reset before-first state.
+
+        Returns
+        -------
+        None
+
+        """
+
+        if value is None:
+            self._currentIndex = None
+            return
+
+        self._currentIndex = int(value)
+
+
     @property
     def isAtHistoryEnd(self) -> bool:
         """
