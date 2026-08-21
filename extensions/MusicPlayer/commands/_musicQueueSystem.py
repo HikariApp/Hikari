@@ -286,7 +286,7 @@ class MusicQueueSystem(Cog):
 
 
     @commands.hybrid_command(aliases=["rm", "pop"])
-    async def remove(self, ctx: Context, index: Optional[int] = None) -> None:
+    async def remove(self, ctx: Context, index: Optional[int] = 0) -> None:
         """
         Remove a track from the queue by its index.
 
@@ -296,7 +296,7 @@ class MusicQueueSystem(Cog):
             The context of the command invocation.
 
         index : Optional[int]
-            The index of the track to remove from the queue start from 1. Leave this blank to remove the last track in the queue.
+            The index of the track to remove. Leave this blank or pass 0 to remove the last track in the queue.
 
         Returns
         -------
@@ -306,7 +306,6 @@ class MusicQueueSystem(Cog):
 
         player: BetterPlayer = ctx.voice_client
         embed = Embed(title="")
-        player.queue.set_loop_mode(False)  # Disable loop mode when removing tracks
 
         if player is None:
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
@@ -318,13 +317,17 @@ class MusicQueueSystem(Cog):
             embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
             return await ctx.send(embed=embed)
 
-        if index is not None and (index < 1 or index > player.queue.historySize):
+        if index is not None and (index < 0 or index > player.queue.historySize):
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Please enter a valid index of the track you want to remove from the queue.", inline=False)
             embed.color = Color.red()
             return await ctx.send(embed=embed)
 
+        # Disable loop mode when removing tracks
+        if player.queue.is_looping:
+            player.queue.disable_loop()
+
         # Calculate the zero-based index, default to the last track if index is None
-        index = index - 1 if index else player.queue.historySize - 1
+        index = (index - 1) % player.queue.historySize
 
         if index == player.queue.currentTrackIndex:
             embed.add_field(name="", value=f"{ctx.author.mention}, You cannot remove the **currently playing track**. Use the `skip` command instead to skip to the next track.", inline=False)
@@ -332,15 +335,26 @@ class MusicQueueSystem(Cog):
             return await ctx.send(embed=embed)
         
         try:
-            # Since the pop() method from pomice's queue does not support removing arbitrary indices, we directly manipulate the playbackHistory and then rebuild the internal queue.
+            newCurrentIndex = player.queue.currentTrackIndex
+            if newCurrentIndex is None:
+                embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't determine the current playback position. Please try again.", inline=False)
+                embed.color = Color.red()
+                return await ctx.send(embed=embed)
+
+            # Remove from history first.
             player.queue.playbackHistory.pop(index)
 
-            # Rebuild the internal queue from the playbackHistory
-            player.queue._queue = player.queue.playbackHistory[1 + index:]
-            player.queue.currentTrackIndex -= 1  # Adjust current index to account for the removed track
+            # If we removed a track before the current one, shift current left once.
+            newCurrentIndex -= 1 if index < newCurrentIndex else newCurrentIndex
 
-        except ValueError as e:
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An error (ValueError) occurred while trying to remove the track at index **#{1 + index}** from the queue, please try again later. \n\n {e}", inline=False)
+            player.queue.currentTrackIndex = newCurrentIndex
+
+            # Rebuild upcoming queue from the track after the current index.
+            # We don't need to worry if the current track is the final one, thanks to the way slicing works in Python :)
+            player.queue._queue = player.queue.playbackHistory[newCurrentIndex + 1:]
+
+        except (ValueError, IndexError) as e:
+            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An error occurred while trying to remove the track at index **#{1 + index}** from the queue, please try again later. \n\n {e}", inline=False)
             embed.color = Color.red()
             return await ctx.send(embed=embed)
         
@@ -349,13 +363,6 @@ class MusicQueueSystem(Cog):
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying to remove the track at index **#{1 + index}** from the queue, please try again later. \n\n {e}", inline=False)
             embed.color = Color.red()
             return await ctx.send(embed=embed)
-
-
-        if player.queue.currentTrackIndex >= index - 1:
-            player.queue.currentTrackIndex -= 1   # Adjust position if necessary
-
-        if player.queue.currentTrackIndex < 0:
-            player.queue.currentTrackIndex = 0
 
         embed.add_field(name="", value=f"Removed track **#{1 + index}** from the queue.", inline=False)
         embed.color = userColor(ctx)
