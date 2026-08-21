@@ -241,7 +241,7 @@ class MusicGeneral(Cog):
             embed.color = Color.red()
             return await ctx.send(embed=embed)
 
-        if len(player.queue.doubleEndedQueue) == 0:  # The player is not playing anything before
+        if player.queue.historyIsEmpty:  # The player is not playing anything before
             embed.add_field(name="", value=f"There are no tracks being played in history :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
             embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
             return await ctx.send(embed=embed)
@@ -251,7 +251,7 @@ class MusicGeneral(Cog):
             embed.color = Color.red()
             return await ctx.send(embed=embed)
         
-        if player.queue.hasReachedTheEnd:  # The author has already skipped all tracks in the queue
+        if player.queue.isAtHistoryEnd:  # The author has already skipped all tracks in the queue
             embed.add_field(name="", value=f"{ctx.author.mention}, you are already **gone through all tracks** in the queue.", inline=False)
             embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
             return await ctx.send(embed=embed)
@@ -281,9 +281,9 @@ class MusicGeneral(Cog):
 
         if not (player.queue.loop_mode == LoopMode.QUEUE and player.isFinalTrack):
             # Replace the current queue with the remaining tracks after skipping          
-            originalIndex = player.queue.currentIndex
-            player.queue.currentIndex = originalIndex + amount - 1
-            player.queue._queue = player.queue.doubleEndedQueue[originalIndex + amount:]
+            originalIndex = player.queue.currentTrackIndex
+            player.queue.currentTrackIndex = originalIndex + amount - 1
+            player.queue._queue = player.queue.playbackHistory[originalIndex + amount:]
 
 
         await player.stop()
@@ -321,7 +321,7 @@ class MusicGeneral(Cog):
             return await ctx.send(embed=embed)
 
         
-        if len(player.queue.doubleEndedQueue) == 0:  # The player is not playing anything
+        if player.queue.historyIsEmpty:  # The player is not playing anything
             embed.add_field(name="", value=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
             embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
             return await ctx.send(embed=embed)
@@ -331,17 +331,17 @@ class MusicGeneral(Cog):
             embed.color = Color.red()
             return await ctx.send(embed=embed)
 
-        if player.queue.hasReachedTheBeginning:  # The author is already at the first track
+        if player.queue.isAtHistoryStart:  # The author is already at the first track
             embed.add_field(name="", value=f"{ctx.author.mention}, you are already at the **first track** in the history.", inline=False)
             embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
             return await ctx.send(embed=embed)
 
-        if amount == max(player.queue.getCurrentTrackIndex, player.queue.getCurrentTrackIndex + int(player.queue.hasReachedTheEnd)):    # The author just rolled back to the first track
+        if amount == max(player.queue.currentTrackIndex, player.queue.currentTrackIndex + int(player.queue.isAtHistoryEnd)):    # The author just rolled back to the first track
             embed.add_field(name="", value=f"Rolling back to the **first track**...", inline=False)
 
-        elif amount > player.queue.getCurrentTrackIndex:  # The author tried to rollback more tracks than available in history
+        elif amount > player.queue.currentTrackIndex:  # The author tried to rollback more tracks than available in history
             embed.add_field(name="", value=f"The amount of tracks you tried to rollback **exceeded** the **total number of previous tracks** in the history. Automatically **rolling back to the first track** in the history...", inline=False)
-            amount = 1 + player.queue.getCurrentTrackIndex  # Set amount to the current position
+            amount = 1 + player.queue.currentTrackIndex  # Set amount to the current position
 
         else:  # The author is rolling back to a previous track
             embed.add_field(name="", value=f"Rolling back **{amount}** track(s)...", inline=False)
@@ -383,7 +383,7 @@ class MusicGeneral(Cog):
             embed.color = Color.red()
             return await ctx.send(embed=embed)
         
-        if len(player.queue.doubleEndedQueue) == 0:  # The player is not playing anything
+        if player.queue.historyIsEmpty:  # The player is not playing anything
             embed.add_field(name="", value=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
             embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
             return await ctx.send(embed=embed)
@@ -430,7 +430,7 @@ class MusicGeneral(Cog):
             embed.color = Color.red()
             return await ctx.send(embed=embed)
         
-        if len(player.queue.doubleEndedQueue) == 0:  # The player is not playing anything
+        if player.queue.historyIsEmpty:  # The player is not playing anything
             embed.add_field(name="", value=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
             embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
             return await ctx.send(embed=embed)
@@ -481,7 +481,7 @@ class MusicGeneral(Cog):
             embed.color = Color.red()
             return await ctx.send(embed=embed)
         
-        if len(player.queue.doubleEndedQueue) == 0:  # The player is not playing anything
+        if player.queue.historyIsEmpty:  # The player is not playing anything
             embed.add_field(name="", value=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
             embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
             return await ctx.send(embed=embed)
@@ -518,7 +518,7 @@ class MusicGeneral(Cog):
             embed.color = Color.red()
             return await ctx.send(embed=embed)
         
-        if len(player.queue.doubleEndedQueue) == 0:  # The player is not playing anything
+        if player.queue.historyIsEmpty:  # The player is not playing anything
             embed.add_field(name="", value=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
             embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
             return await ctx.send(embed=embed)
@@ -571,7 +571,7 @@ class MusicGeneral(Cog):
             embed.color = Color.red()
             return await ctx.send(embed=embed)
         
-        if len(player.queue.doubleEndedQueue) == 0:  # The player is not playing anything
+        if player.queue.historyIsEmpty:  # The player is not playing anything
             embed.add_field(name="", value=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
             embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
             return await ctx.send(embed=embed)
@@ -624,7 +624,7 @@ class MusicGeneral(Cog):
             embed.color = Color.red()
             return await ctx.send(embed=embed)
         
-        if len(player.queue.doubleEndedQueue) == 0:  # The player is not playing anything
+        if player.queue.historyIsEmpty:  # The player is not playing anything
             embed.add_field(name="", value=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
             embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
             return await ctx.send(embed=embed)
@@ -677,7 +677,7 @@ again
             embed.color = Color.red()
             return await ctx.send(embed=embed)
 
-        if len(player.queue.doubleEndedQueue) == 0:  # The player is not playing anything
+        if player.queue.historyIsEmpty:  # The player is not playing anything
             embed.add_field(name="", value=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
             embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
             return await ctx.send(embed=embed)
@@ -728,7 +728,7 @@ again
             embed.color = Color.red()
             return await ctx.send(embed=embed)
 
-        if len(player.queue.doubleEndedQueue) == 0:  # The player is not playing anything
+        if player.queue.historyIsEmpty:  # The player is not playing anything
             embed.add_field(name="", value=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
             embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
             return await ctx.send(embed=embed)
@@ -776,7 +776,7 @@ again
             embed.color = Color.red()
             return await ctx.send(embed=embed)
 
-        if len(player.queue.doubleEndedQueue) == 0:  # The player is not playing anything
+        if player.queue.historyIsEmpty:  # The player is not playing anything
             embed.add_field(name="", value=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
             embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
             return await ctx.send(embed=embed)

@@ -23,17 +23,17 @@ class BetterQueue(Queue):
 
     Attributes
     ----------
-    doubleEndedQueue : `List[lava_lyra.Track]`
-        A double-ended queue that maintains the full history of tracks played.
+    _playbackHistory : `List[lava_lyra.Track]`
+        A list-based queue that maintains the full history of tracks played.
     
-    currentIndex : `Optional[int]`
-        The index of the current track in `doubleEndedQueue`. None means not initialized (before-first).
+    _currentIndex : `Optional[int]`
+        The index of the current track in `_playbackHistory`. None means not initialized (before-first).
 
     Methods
     -------
 
     get() -> `lava_lyra.Track`
-        Retrieves the next track from the queue and updates `currentIndex` accordingly.
+        Retrieves the next track from the queue and updates `_currentIndex` accordingly.
 
     copy() -> `BetterQueue`
         Creates a copy of the current queue including all its members.
@@ -42,8 +42,8 @@ class BetterQueue(Queue):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.doubleEndedQueue: List[Track] = []    # Full list of tracks including played ones (history-like; we never remove from this)
-        self.currentIndex: Optional[int] = None    # Position in the queue, None means before-first
+        self._playbackHistory: List[Track] = []    # Full list of tracks including played ones (history-like; we never remove from this)
+        self._currentIndex: Optional[int] = None    # Position in the queue, None means before-first
         self._qEnd: bool = False    # To track if the queue has reached the end
 
 
@@ -54,42 +54,42 @@ class BetterQueue(Queue):
         return super().__getitem__(key)
 
 
-    # Record successful enqueues into doubleEndedQueue
+    # Record successful enqueues into _playbackHistory
     def put(self, item: Track) -> None:  # type: ignore[override]
         super().put(item)
-        self.doubleEndedQueue.append(item)
+        self._playbackHistory.append(item)
 
 
     def extend(self, iterable: Iterable[Track], *, atomic: bool = True) -> None:  # type: ignore[override]
-        # super().extend will call self.put per item, which already appends to doubleEndedQueue
+        # super().extend will call self.put per item, which already appends to _playbackHistory
         super().extend(iterable, atomic=atomic)
 
 
     def put_at_index(self, index: int, item: Track) -> None:  # type: ignore[override]
         super().put_at_index(index, item)
         # Keep history with positional intent: insert at that index
-        self.doubleEndedQueue.insert(index, item)
+        self._playbackHistory.insert(index, item)
         # If inserted before or at the current item, bump the pointer to keep pointing at the same item
-        if self.currentIndex >= 0 and index <= self.currentIndex:
-            self.currentIndex += 1
+        if self._currentIndex >= 0 and index <= self._currentIndex:
+            self._currentIndex += 1
 
 
     def put_at_front(self, item: Track) -> None:  # type: ignore[override]
         super().put_at_front(item)
-        self.doubleEndedQueue.insert(0, item)
-        if self.currentIndex >= 0:
-            self.currentIndex += 1
+        self._playbackHistory.insert(0, item)
+        if self._currentIndex >= 0:
+            self._currentIndex += 1
 
 
     def get(self) -> Track:  # type: ignore[override]
         """
         Return next immediately available item in queue if any.
 
-        This also updates `currentIndex` to point to the returned item in `doubleEndedQueue`.
+        This also updates `_currentIndex` to point to the returned item in `_playbackHistory`.
 
-        If there exists any duplicated tracks in the queue, `currentIndex` will point to the first occurrence after the previous `currentIndex`.
+        If there exists any duplicated tracks in the queue, `_currentIndex` will point to the first occurrence after the previous `_currentIndex`.
 
-        `doubleEndedQueue` will not be modified after `Queue.pop()`, so the full history will be preserved.
+        `_playbackHistory` will not be modified after `Queue.pop()`, so the full history will be preserved.
 
         However, if the queue is empty, this will raise `lava_lyra.QueueEmpty` as usual.
 
@@ -106,17 +106,17 @@ class BetterQueue(Queue):
         """
 
         if self.loop_mode == LoopMode.QUEUE:
-            wrapped = not self._queue and bool(self.doubleEndedQueue)
+            wrapped = not self._queue and bool(self._playbackHistory)
             if wrapped:
-                self._queue = self.doubleEndedQueue.copy()
+                self._queue = self._playbackHistory.copy()
 
             item = self._get()
             self._current_item = item
 
-            if wrapped or self.currentIndex is None:
-                self.currentIndex = 0
+            if wrapped or self._currentIndex is None:
+                self._currentIndex = 0
             else:
-                self.currentIndex = (self.currentIndex + 1) % len(self.doubleEndedQueue)
+                self._currentIndex = (self._currentIndex + 1) % len(self._playbackHistory)
 
             return item
 
@@ -124,23 +124,23 @@ class BetterQueue(Queue):
             item = super().get()
 
         #
-        # Overrides the default behavior of lava_lyra.Queue.get() to update currentIndex
+        # Overrides the default behavior of lava_lyra.Queue.get() to update _currentIndex
         #
         
-        originalIndex = self.currentIndex if self.currentIndex is not None else 0
+        originalIndex = self._currentIndex if self._currentIndex is not None else 0
 
         try:
-            self.currentIndex = self.doubleEndedQueue.index(item, originalIndex)
+            self._currentIndex = self._playbackHistory.index(item, originalIndex)
 
         except ValueError as e:
             # This should never happen, but just in case
             raise e
 
         # If the item was found before originalIndex
-        if originalIndex > self.currentIndex:
+        if originalIndex > self._currentIndex:
             try:
                 # Checking if any duplicates exist after originalIndex
-                self.currentIndex = self.doubleEndedQueue.index(item, originalIndex + 1)
+                self._currentIndex = self._playbackHistory.index(item, originalIndex + 1)
 
             except ValueError:
                 # Don't worry, this just means no duplicates found after originalIndex, not an error
@@ -169,7 +169,7 @@ class BetterQueue(Queue):
         """
         Create a copy of the current queue including all it's members.
 
-        Same as `lava_lyra.Queue.copy()` but also maintains the state of `doubleEndedQueue` and `currentIndex`.
+        Same as `lava_lyra.Queue.copy()` but also maintains the state of `_playbackHistory` and `_currentIndex`.
         
         Returns
         -------
@@ -185,8 +185,8 @@ class BetterQueue(Queue):
         newQueue._queue = copy(self._queue)
 
         # Copy BetterQueue extras
-        newQueue.doubleEndedQueue = copy(self.doubleEndedQueue)
-        newQueue.currentIndex = copy(self.currentIndex)
+        newQueue._playbackHistory = copy(self._playbackHistory)
+        newQueue._currentIndex = copy(self._currentIndex)
 
         return newQueue
 
@@ -195,7 +195,7 @@ class BetterQueue(Queue):
         """
         Remove the first occurrence of item.
         
-        This also removes the item from `doubleEndedQueue`.
+        This also removes the item from `_playbackHistory`.
 
         Parameters
         ----------
@@ -209,14 +209,14 @@ class BetterQueue(Queue):
         """
     
         super().remove(item)
-        self.doubleEndedQueue.remove(item)
+        self._playbackHistory.remove(item)
 
 
     def clear(self) -> None:
         """
         Remove all items from the queue.
 
-        This also resets our `doubleEndedQueue` and resets `currentIndex` to None (before-first).
+        This also resets our `_playbackHistory` and resets `_currentIndex` to None (before-first).
 
         Returns
         -------
@@ -225,16 +225,61 @@ class BetterQueue(Queue):
         """
 
         super().clear()
-        self.doubleEndedQueue.clear()
-        self.currentIndex = None  # Reset to before-first
+        self._playbackHistory.clear()
+        self._currentIndex = None  # Reset to before-first
 
 
     @property
-    def getCurrentTrackIndex(self) -> int | None:
+    def playbackHistory(self) -> List[Track]:
+        """
+        Returns the full playback history as a list.
+
+        Returns
+        -------
+        List[lava_lyra.Track]
+            A list of tracks in the playback history.
+
+        """
+
+        return self._playbackHistory
+
+
+    @property
+    def historyIsEmpty(self) -> bool:
+        """
+        Check if the playback history is empty.
+
+        Returns
+        -------
+        bool
+            True if the playback history is empty, False otherwise.
+
+        """
+
+        return len(self._playbackHistory) == 0
+
+
+    @property
+    def historySize(self) -> int:
+        """
+        Returns the size of the playback history.
+
+        Returns
+        -------
+        int
+            The number of tracks in the playback history.
+
+        """
+
+        return len(self._playbackHistory)
+
+
+    @property
+    def currentTrackIndex(self) -> int | None:
         """
         Returns current track index.
 
-        Similar to `Queue.find_position()` but works with our `doubleEndedQueue` and `currentIndex`.
+        Similar to `Queue.find_position()` but works with our `_playbackHistory` and `_currentIndex`.
 
         It is highly recommended to use this property instead of `Queue.find_position()` as the latter
         
@@ -243,18 +288,18 @@ class BetterQueue(Queue):
         Returns
         -------
         int
-            Returns if `currentIndex` is a valid non-negative integer.
+            Returns the current track index if `_currentIndex` is a valid non-negative integer.
 
         None
-            The `currentIndex` has not been initialized (before-first).
+            The `_currentIndex` has not been initialized (before-first).
 
         """
 
-        return self.currentIndex if self.currentIndex is not None and self.currentIndex >= 0 else None
-    
+        return self._currentIndex if self._currentIndex is not None and self._currentIndex >= 0 else None
+
 
     @property
-    def hasReachedTheEnd(self) -> bool:
+    def isAtHistoryEnd(self) -> bool:
         """
         Check if the queue has reached the end.
 
@@ -268,9 +313,10 @@ class BetterQueue(Queue):
         """
 
         return bool(self._qEnd)
+
     
-    @hasReachedTheEnd.setter
-    def hasReachedTheEnd(self, value: bool) -> None:
+    @isAtHistoryEnd.setter
+    def isAtHistoryEnd(self, value: bool) -> None:
         """
         Set the end-of-queue status.
 
@@ -289,14 +335,15 @@ class BetterQueue(Queue):
 
         self._qEnd = value
 
+    
     @property
-    def hasReachedTheBeginning(self) -> bool:
+    def isAtHistoryStart(self) -> bool:
         """
         Check if the queue has reached the beginning.
 
-        Examaining only `currentIndex` is not sufficient, as sometimes the player has a single track only, and `currentIndex` will still be 0 even after the track has been played.
+        Examaining only `_currentIndex` is not sufficient, as sometimes the player has a single track only, and `_currentIndex` will still be 0 even after the track has been played.
         
-        This will be `True` if `currentIndex` is 0 and the queue has not reached the end.
+        This will be `True` if `_currentIndex` is 0 and the queue has not reached the end.
 
         Returns
         -------
@@ -305,11 +352,10 @@ class BetterQueue(Queue):
 
         """
 
-        return (self.currentIndex == 0 and self._qEnd is False)
+        return (self._currentIndex == 0 and self._qEnd is False)
+
 
 # Customized Player class to handle queue and history (i.e. with a modifiable queue system and previous track support)
-# Huge thanks to GPT-5 for the original implementation idea lol
-# and to cloudwithax for lava_lyra and help with the API
 
 
 class BetterPlayer(Player):
@@ -354,13 +400,13 @@ class BetterPlayer(Player):
 
         """
 
-        history = self.queue.doubleEndedQueue
-        currentIndex = self.queue.currentIndex
+        history = self.queue._playbackHistory
+        _currentIndex = self.queue._currentIndex
 
         return (
             bool(history)
-            and currentIndex is not None
-            and currentIndex >= len(history) - 1
+            and _currentIndex is not None
+            and _currentIndex >= len(history) - 1
         )
 
     # Create an embed for the currently playing track
@@ -529,7 +575,7 @@ class BetterPlayer(Player):
 
     # Lavalink client does not have a previous track function, so we implement our own.
     # This will go back to the previous track in the queue, if there is one.
-    # Please note that fast trigger on commands might causing the player to have unintended behavior, so use them gently :)
+    # Please note that fast trigger on commands might causing the player to have unintended behaviors, so use them gently :)
     # If the player is stopped (current is None), it will allow stepping "into" the last played track first.
     async def previousTrack(self, amount: int = 1) -> Optional[Track] | None:
         """
@@ -555,27 +601,27 @@ class BetterPlayer(Player):
         """
 
         # Quick guards
-        if not getattr(self.queue, "doubleEndedQueue", None):
+        if not getattr(self.queue, "_playbackHistory", None):
             return
 
         if self._isRollingBack:
             return
         
         # Calculate the target index to move back to, ensure it clamps to 0
-        targetIndex = max(self.queue.getCurrentTrackIndex - (amount - 1 if self.queue.hasReachedTheEnd else amount), 0) 
+        targetIndex = max(self.queue.currentTrackIndex - (amount - 1 if self.queue.isAtHistoryEnd else amount), 0) 
 
         # Reset the end-of-queue flag to allow normal playback operations
-        self.queue.hasReachedTheEnd = False
+        self.queue.isAtHistoryEnd = False
 
         # Replace the current queue with the remaining tracks after the target index
-        prevTrack = self.queue.doubleEndedQueue[targetIndex]
-        self.queue._queue = self.queue.doubleEndedQueue[targetIndex + 1:]
+        prevTrack = self.queue._playbackHistory[targetIndex]
+        self.queue._queue = self.queue._playbackHistory[targetIndex + 1:]
 
         # Set rollback flag to prevent on_track_end from auto-skipping
         self._isRollingBack = True
 
         await self.play(prevTrack)
-        self.queue.currentIndex = targetIndex
+        self.queue._currentIndex = targetIndex
 
         # Reset the pause flag to allow normal playback operations, just in case
         await self.set_pause(False)
@@ -600,7 +646,7 @@ class BetterPlayer(Player):
 
         If the end of the queue is reached, playback will be stopped, unlike the old logic which overflowed.
 
-        `self._isEnded` will be `True` and `self.queue.currentIndex` will be the latest added track inside `self.queue.doubleEndedQueue` in this case before returning.
+        `self._isEnded` will be `True` and `self.queue._currentIndex` will be the latest added track inside `self.queue._playbackHistory` in this case before returning.
 
         Returns
         -------
@@ -611,29 +657,29 @@ class BetterPlayer(Player):
             Returns `True` to notify the caller if we already at the end of the queue.
 
         None
-            Returns if the queue (both `self._queue` and `self.queue.doubleEndedQueue`) was completely empty. This is a very rare scenario, probably due to some uncaught errors.
+            Returns if the queue (both `self._queue` and `self.queue._playbackHistory`) was completely empty. This is a very rare scenario, probably due to some uncaught errors.
 
         """
 
         # Reset the end-of-queue flag to allow normal playback operations
-        self.queue.hasReachedTheEnd = False
+        self.queue.isAtHistoryEnd = False
 
         # Get the next track from the queue, if any
 
         try:
             nextTrack: Track = self.queue.get()
         except QueueEmpty:
-            if len(self.queue.doubleEndedQueue) == 0:
+            if len(self.queue._playbackHistory) == 0:
                 # Queue is completely empty, nothing to play.
                 # This is a very rare, nearly impossible scenario, probably due to some uncaught errors.
                 return
 
             # Otherwise, this could generally mean that we are at the end of the queue
             # Stop playback and set the isEnded flag
-            self.queue.hasReachedTheEnd = True
+            self.queue.isAtHistoryEnd = True
         
-            # Reset currentIndex to the end of the queue to prevent overflow
-            self.queue.currentIndex = len(self.queue.doubleEndedQueue) - 1
+            # Reset _currentIndex to the end of the queue to prevent overflow
+            self.queue._currentIndex = len(self.queue._playbackHistory) - 1
 
             # Update controller message if applicable
             if not self.updateController.is_running():

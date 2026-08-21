@@ -33,12 +33,12 @@ def buildPagination(player: BetterPlayer, pageSize: int) -> List[SelectOption]:
     
     """
 
-    total = len(player.queue.doubleEndedQueue)
+    total = player.queue.historySize
     if total <= 0:
         return []
 
     # Upcoming starts right after current position
-    upcomingTrackStartIndex = min(max(player.queue.currentIndex, 0) + 1, total)  # zero-based, guard -1
+    upcomingTrackStartIndex = min(max(player.queue.currentTrackIndex, 0) + 1, total)  # zero-based, guard -1
     upcomingTracksCount = max(total - upcomingTrackStartIndex, 0)
     if upcomingTracksCount <= 0:
         return []
@@ -85,8 +85,8 @@ def createQueueEmbed(player: BetterPlayer, color: Color, page: int, pageSize: in
 
     embed = Embed(title="Queue:", color=color)
 
-    # Using doubleEndedQueue to avoid potential issues if the queue is modified during iteration
-    total = len(player.queue.doubleEndedQueue)
+    # Using playbackHistory to avoid potential issues if the queue is modified during iteration
+    total = player.queue.historySize
 
     # Now playing
     if player.current is None:
@@ -97,7 +97,7 @@ def createQueueEmbed(player: BetterPlayer, color: Color, page: int, pageSize: in
         currentTrackIndex = 0
         
         if total > 0:
-            currentTrackIndex = min(max(player.queue.currentIndex, 0), total - 1)
+            currentTrackIndex = min(max(player.queue.currentTrackIndex, 0), total - 1)
         embed.add_field(
             name=f"Now Playing :notes: ({currentTrackIndex + 1}/{max(total, 1)}) :",
             value=f"> **#{currentTrackIndex + 1}** - {player.current.title} {player.current.requester.mention if player.current.requester else ''}",
@@ -105,9 +105,9 @@ def createQueueEmbed(player: BetterPlayer, color: Color, page: int, pageSize: in
         )
 
         # Upcoming section
-        upcomingTrackStartIndex = min(max(player.queue.currentIndex, 0) + 1, total)
+        upcomingTrackStartIndex = min(max(player.queue.currentTrackIndex, 0) + 1, total)
 
-        upcomingTracks = player.queue.doubleEndedQueue[upcomingTrackStartIndex:]
+        upcomingTracks = player.queue.playbackHistory[upcomingTrackStartIndex:]
         embed.add_field(
             name="Upcoming Tracks:",
             value="" if upcomingTracks else "There are no upcoming tracks will be played",
@@ -313,31 +313,31 @@ class MusicQueueSystem(Cog):
             embed.color = Color.red()
             return await ctx.send(embed=embed)
 
-        if len(player.queue.doubleEndedQueue) == 0:  # The player is not playing anything before
+        if player.queue.historyIsEmpty:  # The player is not playing anything before
             embed.add_field(name="", value=f"There are no tracks being played in history :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
             embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
             return await ctx.send(embed=embed)
 
-        if index is not None and (index < 1 or index > len(player.queue.doubleEndedQueue)):
+        if index is not None and (index < 1 or index > player.queue.historySize):
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Please enter a valid index of the track you want to remove from the queue.", inline=False)
             embed.color = Color.red()
             return await ctx.send(embed=embed)
 
         # Calculate the zero-based index, default to the last track if index is None
-        index = index - 1 if index else len(player.queue.doubleEndedQueue) - 1
+        index = index - 1 if index else player.queue.historySize - 1
 
-        if index == player.queue.currentIndex:
+        if index == player.queue.currentTrackIndex:
             embed.add_field(name="", value=f"{ctx.author.mention}, You cannot remove the **currently playing track**. Use the `skip` command instead to skip to the next track.", inline=False)
             embed.color = userColor(ctx)    # Friendly reminder, so the color won't be red
             return await ctx.send(embed=embed)
         
         try:
-            # Since the pop() method from pomice's queue does not support removing arbitrary indices, we directly manipulate the doubleEndedQueue and then rebuild the internal queue.
-            player.queue.doubleEndedQueue.pop(index)
+            # Since the pop() method from pomice's queue does not support removing arbitrary indices, we directly manipulate the playbackHistory and then rebuild the internal queue.
+            player.queue.playbackHistory.pop(index)
 
-            # Rebuild the internal queue from the doubleEndedQueue
-            player.queue._queue = player.queue.doubleEndedQueue[1 + index:]
-            player.queue.currentIndex -= 1  # Adjust current index to account for the removed track
+            # Rebuild the internal queue from the playbackHistory
+            player.queue._queue = player.queue.playbackHistory[1 + index:]
+            player.queue.currentTrackIndex -= 1  # Adjust current index to account for the removed track
 
         except ValueError as e:
             embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An error (ValueError) occurred while trying to remove the track at index **#{1 + index}** from the queue, please try again later. \n\n {e}", inline=False)
@@ -351,11 +351,11 @@ class MusicQueueSystem(Cog):
             return await ctx.send(embed=embed)
 
 
-        if player.queue.currentIndex >= index - 1:
-            player.queue.currentIndex -= 1   # Adjust position if necessary
+        if player.queue.currentTrackIndex >= index - 1:
+            player.queue.currentTrackIndex -= 1   # Adjust position if necessary
 
-        if player.queue.currentIndex < 0:
-            player.queue.currentIndex = 0
+        if player.queue.currentTrackIndex < 0:
+            player.queue.currentTrackIndex = 0
 
         embed.add_field(name="", value=f"Removed track **#{1 + index}** from the queue.", inline=False)
         embed.color = userColor(ctx)
