@@ -547,7 +547,7 @@ class BetterPlayer(Player):
         Returns
         ------- 
         None
-            Returns if the function is called while a backward process is ongoing.
+            Returns if the function is called while a backward process is ongoing, or the history is not found.
 
         Optional`[lava_lyra.Track]`
             The track being played after moving backward, if successful.
@@ -556,10 +556,10 @@ class BetterPlayer(Player):
 
         # Quick guards
         if not getattr(self.queue, "doubleEndedQueue", None):
-            return None
+            return
 
         if self._isRollingBack:
-            return None
+            return
         
         # Calculate the target index to move back to, ensure it clamps to 0
         targetIndex = max(self.queue.getCurrentTrackIndex - (amount - 1 if self.queue.hasReachedTheEnd else amount), 0) 
@@ -567,18 +567,23 @@ class BetterPlayer(Player):
         # Reset the end-of-queue flag to allow normal playback operations
         self.queue.hasReachedTheEnd = False
 
+        # This section is required for rollback only
+        # Since on_track_end will be triggered iff something was playing and the player is stopped afterwards
+        # We need to temporarily pause the player to prevent on_track_end from being triggered during the rollback operation
+        # Before resetting the pause flag as shown below
+        if self.is_playing:
+            await self.set_pause(True)
+            self._current = None
+
+        # Reset the pause flag to allow normal playback operations
+        await self.set_pause(False)
+
         # Replace the current queue with the remaining tracks after the target index
         prevTrack = self.queue.doubleEndedQueue[targetIndex]
         self.queue._queue = self.queue.doubleEndedQueue[targetIndex + 1:]
 
         # Set rollback flag to prevent on_track_end from auto-skipping
         self._isRollingBack = True
-
-        if self.is_playing:
-            # Forcefully reset current playing status to allow playback of another track without triggering on_track_end
-            await self.set_pause(True)
-            self._current = None
-            await self.set_pause(False)
 
         await self.play(prevTrack)
         self.queue.currentIndex = targetIndex
@@ -621,6 +626,9 @@ class BetterPlayer(Player):
         # Reset the end-of-queue flag to allow normal playback operations
         self.queue.hasReachedTheEnd = False
 
+        # Reset the pause flag to allow normal playback operations
+        await self.set_pause(False)
+
         # Get the next track from the queue, if any
 
         try:
@@ -652,9 +660,7 @@ class BetterPlayer(Player):
         # Update controller message if applicable
         if not self.updateController.is_running():
             self.updateController.start()
-
-        # Return the track being played
-        return nextTrack
+ 
 
 
     # Update the controller message with the current track information
@@ -709,4 +715,3 @@ class BetterPlayer(Player):
         await asyncio.sleep(0.5)
         self._isRollingBack = False
         self.rollbackFlagInitialize.cancel()
-
