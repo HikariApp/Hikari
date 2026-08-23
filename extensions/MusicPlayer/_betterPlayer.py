@@ -151,8 +151,13 @@ class BetterPlayer(Player):
             embed.add_field(name="", value="No tracks were playing in the voice channel.", inline=False)
             return embed, customArtworkFile
 
-        # We attempt to extract its metadata, if the track is not from YouTube, SoundCloud, or Spotify etc.
-        if not track.track_type in {TrackType.YOUTUBE, TrackType.SOUNDCLOUD, TrackType.SPOTIFY}:
+        # We attempt to extract its metadata, if the track is not from default sources (i.e. YouTube, SoundCloud, Spotify, Apple Music) that provided metadata already
+        if not track.track_type in {
+            TrackType.YOUTUBE,
+            TrackType.SOUNDCLOUD,
+            TrackType.SPOTIFY,
+            TrackType.APPLE_MUSIC
+        }:
             audioMetadata = AudioMetadataExtractor(track.uri, stream=True)
             embed.description = f"[{audioMetadata.title or track.title}]({track.uri})"
 
@@ -443,5 +448,4 @@ class BetterPlayer(Player):
         await asyncio.sleep(0.5)
         self._isRollingBack = False
         self.rollbackFlagInitialize.cancel()
-
 
