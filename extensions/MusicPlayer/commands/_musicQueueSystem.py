@@ -5,7 +5,7 @@ from discord.ext.commands import Bot, Cog, Context
 from discord.ui import View, Select
 from lava_lyra import LoopMode
 from typing import Optional, List
-from extensions.MusicPlayer._player import BetterPlayer
+from extensions.MusicPlayer._betterPlayer import BetterPlayer
 from extensions.MusicPlayer.commands._musicGeneral import userColor
 
 PAGE_SIZE = 10

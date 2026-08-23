@@ -5,7 +5,7 @@ from discord.app_commands import Choice, Range
 from lava_lyra import LoopMode, Playlist, QueueException, Timescale
 from lava_lyra.pool import NodePool
 from typing import cast, Optional, List
-from extensions.MusicPlayer._player import BetterPlayer
+from extensions.MusicPlayer._betterPlayer import BetterPlayer
 from errorhandling._errorHandling import *
 
 
@@ -202,7 +202,6 @@ class MusicGeneral(Cog):
 
         else:
             track = results[0]  # Get the first track from the search results, this is why we specify the autocomplete to be uri
-            #for i in range(102):
             player.queue.put(track)
             embed.add_field(name="", value=f"Added the track **{track.title}** to the queue.", inline=False)
             embed.color = userColor(ctx)

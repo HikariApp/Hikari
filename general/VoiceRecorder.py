@@ -5,7 +5,7 @@ import time
 import numpy as np
 import wave
 import tempfile
-from extensions.MusicPlayer._player import BetterPlayer
+from extensions.MusicPlayer._betterPlayer import BetterPlayer
 from discord import app_commands, Colour, Embed, Interaction
 from discord.ext import voice_recv
 from discord.ext.voice_recv import AudioSink, VoiceData, WaveSink

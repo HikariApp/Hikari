@@ -3,7 +3,7 @@ import asyncio
 import re
 import logging
 import lava_lyra
-from extensions.MusicPlayer._player import BetterPlayer
+from extensions.MusicPlayer._betterPlayer import BetterPlayer
 from discord import app_commands, Embed, Interaction, Forbidden, Member, VoiceChannel
 from discord.ext import commands, tasks
 from discord.app_commands import BotMissingPermissions
