@@ -77,7 +77,7 @@ class CustomEmbed(Cog):
             except discord.HTTPException as e:
                 if e.status == 404 and e.code == 10013:
                     # User not found
-                    return None
+                    return
 
 
     # Creates a custom embed

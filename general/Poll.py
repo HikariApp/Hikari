@@ -31,7 +31,7 @@ class PollNew(Cog):
         
         except ValueError:
             # The type of message user provided was not a valid type
-            return None
+            return
 
 
     # Creates a new poll

@@ -12,7 +12,7 @@ def set_fallback_text_channel(interation: Interaction, channel: discord.TextChan
         fallback_text_channel[interation.guild.id] = channel
         return fallback_text_channel[interation.guild.id]
     
-    return None
+    return
 
 
 def reset_music_player(guild_id):
@@ -22,7 +22,7 @@ def reset_music_player(guild_id):
     if guild_id in current_track_index:
         del current_track_index[guild_id]
 
-    return None
+    return
 
 
 # This is just a configuration for what to do when the application is disconnected from the client side. No commands.Cog are involved.

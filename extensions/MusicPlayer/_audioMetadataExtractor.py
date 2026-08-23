@@ -118,14 +118,14 @@ class AudioMetadataExtractor:
         """
 
         if not self._tag:
-            return None
+            return
 
         if not self._tag.images.any:
-            return None
+            return
 
         image_data = self._tag.images.any.data
         if not image_data:
-            return None
+            return
 
         try:
             img = Image.open(BytesIO(image_data))
@@ -133,7 +133,7 @@ class AudioMetadataExtractor:
             width, height = img.size
             desc = "front cover"
         except Exception:
-            return None
+            return
 
         return {
             "mime": mime,
@@ -510,7 +510,7 @@ def toDiscordFile(artwork: dict, filename: str = "artwork.png") -> "discord.File
     """
     
     if not artwork or not artwork.get("data"):
-        return None
+        return
 
     try:
         artworkData: bytes = artwork["data"]
@@ -531,4 +531,4 @@ def toDiscordFile(artwork: dict, filename: str = "artwork.png") -> "discord.File
     
     except Exception as e:
         print(f"Error converting artwork to Discord file: {e}")
-        return None
+        return

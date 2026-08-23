@@ -89,7 +89,7 @@ class MultiAudioImprovedWithSilenceSink(AudioSink):
             audio_data = buffer.read()
             return audio_data
         
-        return None
+        return
 
 
     def get_initial_silence_duration(self, user_id: int) -> float:
@@ -120,7 +120,7 @@ class MultiAudioImprovedWithSilenceSink(AudioSink):
                 audio_arrays.append(audio_array)
 
         if not audio_arrays:
-            return None
+            return
 
         max_length = max(len(arr) for arr in audio_arrays)
         padded_audio_arrays = [np.pad(arr, (0, max_length - len(arr)), 'constant') for arr in audio_arrays]

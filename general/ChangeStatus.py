@@ -42,7 +42,7 @@ class ChangeStatus(Cog):
         emoji=None
         """
 
-        return None    # The status has been ignored, or the user didn't select any valid option from the list.
+        return    # The status has been ignored, or the user didn't select any valid option from the list.
 
 
     # Changing the status of the bot

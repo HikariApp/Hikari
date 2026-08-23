@@ -57,7 +57,7 @@ class ReactingMessages(Cog):
         
         except ValueError:
             # The type of message user provided was not a valid type
-            return None
+            return
 
 
     # Adding reaction to a specified message
