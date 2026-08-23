@@ -7,7 +7,7 @@ from discord.ext import commands
 from discord.ext.commands import Bot, Cog, ExtensionAlreadyLoaded, ExtensionNotLoaded, NoEntryPointError, ExtensionFailed
 from datetime import datetime
 from errorhandling._errorHandling import *
-from GetDetailIPv4Info import *
+from _getIPv4Info import *
 from extensionsHandler import getAllExtensions
 
 
@@ -222,7 +222,7 @@ class OwnerOnly(Cog):
         except:
             pass
         
-        ipInfo = GetDetailIPv4Info()
+        ipInfo = IPv4info()
         # Advanced Network
         hardware_info_embed.add_field(name="Network Information (Advanced)", value=f"Hostname: {hostname}\nIPv4: {ipInfo.ip}\nIP Hostname: {ipInfo.hostname}\nCountry or district: {ipInfo.country}\nRegion: {ipInfo.region}\nCity: {ipInfo.city}\n Organization: {ipInfo.organization}\nPostal code: {ipInfo.postal}\nLocation: {ipInfo.location}", inline=True)
         

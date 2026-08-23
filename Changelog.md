@@ -891,7 +891,7 @@ A blank line will now shown and deletes immediately when the command are all fin
 
 # 20241023 (midnight)
 
-# Add **"./GetDetailIPv4Info.py"**
+# Add **"./IPv4info.py"**
 
 (+) Optimized comments and outputs
 
