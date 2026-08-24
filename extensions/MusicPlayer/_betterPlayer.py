@@ -46,7 +46,7 @@ class BetterPlayer(Player):
     previousTrack(amount: int = 1) -> `Optional[Track]` | `None`
         Move backward in the queue by the specified amount, returning the track being played after moving backward
 
-    nextTrack() -> Op``````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````tional[Track]` | `bool` | `None`
+    nextTrack() -> `Optional[Track]` | `bool` | `None`
         Move forward in the queue by the next track, returning the track being played after moving forward
     
     """
