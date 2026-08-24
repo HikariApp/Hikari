@@ -6,7 +6,7 @@ from discord.ext.commands import Bot, Cog
 from discord.utils import get
 from datetime import datetime, timedelta
 from typing import Optional
-from helpers._errorHandling import *
+from helpers.errorHandling import *
 
 most_recent_poll_message = {}
 

@@ -12,7 +12,7 @@ from datetime import datetime, timezone, timedelta
 from typing import cast, Optional, Union
 from bot.general.VoiceChannelFallbackConfig import *
 from configs.Bot._logging import setupLogger
-from helpers._errorHandling import *
+from helpers.errorHandling import *
 
 recording_vc = {}
 logger = setupLogger('discord_bot', 'bot.log', logging.INFO)

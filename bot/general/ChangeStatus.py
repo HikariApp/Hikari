@@ -1,7 +1,7 @@
 from discord import app_commands, Embed, Interaction, Activity, ActivityType, CustomActivity, Status
 from discord.ext.commands import Bot, Cog
 from typing import Optional
-from helpers._errorHandling import *
+from helpers.errorHandling import *
 
 class ChangeStatus(Cog):
     def __init__(self, bot: Bot):

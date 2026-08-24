@@ -14,7 +14,7 @@ from hypercorn.config import Config
 from quart import Quart
 from helpers.extensionsHandler import getAllExtensions
 from configs.Bot._logging import setupLogger
-from helpers._errorHandling import *
+from helpers.errorHandling import *
 
 
 load_dotenv()
