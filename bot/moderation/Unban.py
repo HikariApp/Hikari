@@ -1,7 +1,7 @@
 from discord import Color, Embed, Forbidden, User
 from discord.ext import commands
 from discord.ext.commands import Bot, Cog, Context, CommandInvokeError, MissingPermissions, MissingRequiredArgument, BotMissingPermissions, UserNotFound
-from moderation.Ban import isBanned
+from bot.moderation.Ban import isBanned
 from typing import Any, Optional
 
 

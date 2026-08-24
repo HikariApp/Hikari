@@ -12,9 +12,9 @@ from dotenv import load_dotenv
 from hypercorn.asyncio import serve
 from hypercorn.config import Config
 from quart import Quart
-from extensionsHandler import getAllExtensions
+from helpers.extensionsHandler import getAllExtensions
 from configs.Bot._logging import setupLogger
-from errorhandling._errorHandling import *
+from helpers._errorHandling import *
 
 
 load_dotenv()

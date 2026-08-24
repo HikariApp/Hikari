@@ -2,7 +2,7 @@ import discord
 from discord import app_commands, Interaction
 from discord.ext.commands import Bot, Cog, CommandError, Context
 from discord.ext.commands.errors import MessageNotFound
-from errorhandling._errorHandling import *
+from helpers._errorHandling import *
 
 # Main cog
 class ReactingMessages(Cog):

@@ -13,7 +13,7 @@ from discord.ui import Modal, TextInput
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 from typing import Optional, List, Dict, Any
-from errorhandling._errorHandling import NotBotOwnerError
+from helpers._errorHandling import NotBotOwnerError
 
 # Load environment variables
 load_dotenv()

@@ -5,8 +5,8 @@ from discord.app_commands import Choice, Range
 from lava_lyra import LoopMode, Playlist, QueueException, Timescale
 from lava_lyra.pool import NodePool
 from typing import cast, Optional, List
-from extensions.MusicPlayer._betterPlayer import BetterPlayer
-from errorhandling._errorHandling import *
+from bot.extensions.MusicPlayer._betterPlayer import BetterPlayer
+from helpers._errorHandling import *
 
 
 # Helper function to get the color of the user who invoked the command

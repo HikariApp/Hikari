@@ -6,9 +6,9 @@ import socket
 from discord.ext import commands
 from discord.ext.commands import Bot, Cog, ExtensionAlreadyLoaded, ExtensionNotLoaded, NoEntryPointError, ExtensionFailed
 from datetime import datetime
-from errorhandling._errorHandling import *
-from _getIPv4Info import *
-from extensionsHandler import getAllExtensions
+from helpers._errorHandling import *
+from helpers._getIPv4Info import *
+from helpers.extensionsHandler import getAllExtensions
 
 
 class OwnerOnly(Cog):

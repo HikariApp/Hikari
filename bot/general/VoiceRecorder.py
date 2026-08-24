@@ -5,7 +5,7 @@ import time
 import numpy as np
 import wave
 import tempfile
-from extensions.MusicPlayer._betterPlayer import BetterPlayer
+from bot.extensions.MusicPlayer._betterPlayer import BetterPlayer
 from discord import app_commands, Colour, Embed, Interaction
 from discord.ext import voice_recv
 from discord.ext.voice_recv import AudioSink, VoiceData, WaveSink
@@ -14,8 +14,8 @@ from dotenv import load_dotenv
 from datetime import datetime
 from typing import Dict, Optional
 from pydub import AudioSegment
-from general.VoiceChannelFallbackConfig import *
-from errorhandling._errorHandling import *
+from bot.general.VoiceChannelFallbackConfig import *
+from helpers._errorHandling import *
 
 load_dotenv()
 

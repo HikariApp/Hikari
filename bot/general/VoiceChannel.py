@@ -3,16 +3,16 @@ import asyncio
 import re
 import logging
 import lava_lyra
-from extensions.MusicPlayer._betterPlayer import BetterPlayer
+from bot.extensions.MusicPlayer._betterPlayer import BetterPlayer
 from discord import app_commands, Embed, Interaction, Forbidden, Member, VoiceChannel
 from discord.ext import commands, tasks
 from discord.app_commands import BotMissingPermissions
 from discord.app_commands.errors import MissingPermissions
 from datetime import datetime, timezone, timedelta
 from typing import cast, Optional, Union
-from general.VoiceChannelFallbackConfig import *
+from bot.general.VoiceChannelFallbackConfig import *
 from configs.Bot._logging import setupLogger
-from errorhandling._errorHandling import *
+from helpers._errorHandling import *
 
 recording_vc = {}
 logger = setupLogger('discord_bot', 'bot.log', logging.INFO)

@@ -1,7 +1,7 @@
 import logging
 import asyncio
-from extensions.MusicPlayer._betterQueue import BetterQueue
-from extensions.MusicPlayer._audioMetadataExtractor import *
+from bot.extensions.MusicPlayer._betterQueue import BetterQueue
+from bot.extensions.MusicPlayer._audioMetadataExtractor import *
 from contextlib import suppress
 from datetime import timedelta
 from typing import Optional

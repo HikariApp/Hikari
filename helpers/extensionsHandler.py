@@ -1,15 +1,15 @@
 import os
 import asyncio
 
-extensions_folders = ['general', 'moderation', 'ownerOnly', 'extensions', 'errorhandling', 'configs']
+bot_folder = "./bot"
+extensions_folders = ['general', 'moderation', 'ownerOnly', 'extensions']
 
 # Getting all extensions from the extensions folders
-# UPDATE 17-10-2025: Rewrited with asyncio.to_thread and os.walk to support subdirectories, and you can name a file starts with `_` to prevent loading
 async def getAllExtensions():
     """
     This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
-    Getting all extensions from the extensions folders ends with `.py` and not starts with `_`, see Note below for more details.
+    Getting all extensions from the extensions folders ends with `.py` and not starts with `_` inside the `./bot/` directory, see Note below for more details.
 
     Note
     ----------
@@ -27,7 +27,7 @@ async def getAllExtensions():
 
     # Use asyncio.to_thread to perform blocking I/O in a separate thread
     for folder in extensions_folders:
-        folder_path = f"./{folder}"
+        folder_path = f"{bot_folder}/{folder}"
         if not os.path.exists(folder_path):
             continue
 
@@ -41,14 +41,10 @@ async def getAllExtensions():
                     relative_path = os.path.relpath(os.path.join(root, filename), ".").replace(os.sep, ".")
                     extension = relative_path[:-3]  # Remove .py extension
                     
-                    # Conditional loading based on environment variables
-                    if extension == "general.ChatGPT" and os.getenv("ENABLE_AI") == "False":
-                        continue
-
-                    if extension == "extensions.MusicPlayer.Music" and os.getenv("ENABLE_MUSIC") == "False":
+                    # Check if the extension was disabled by environment variable
+                    if bool(os.getenv(extension)):
                         continue
 
                     extensions.append(extension)
 
     return extensions
-
