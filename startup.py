@@ -1,7 +1,8 @@
 import os
 import logging
-
+import asyncio
 import discord
+from signal import SIGINT, SIGTERM
 from discord.ext.commands import Bot
 from discord.errors import LoginFailure, HTTPException
 from dotenv import load_dotenv
@@ -81,6 +82,8 @@ class MyBot(Bot):
         You may use this to set up any dependencies required for the bot to run.
         In our case, this establishes the MongoDB connection and loads the extensions,
         with a minimal web server for monitoring purpose.
+
+        `SIGINT` and `SIGTERM` signals are also handled properly to ensure a graceful shutdown.
         
         Returns
         ----------
@@ -110,6 +113,21 @@ class MyBot(Bot):
 
         # And finally start the web server for monitoring endpoints
         await self.startWebServer()
+
+        # Register signal handlers for graceful shutdown, if supported by the platform (e.g. Docker Compose)
+        loop = asyncio.get_running_loop()
+
+        def _graceful_stop():
+            # Schedule close on the loop; unwinds bot.run() cleanly.
+            asyncio.create_task(self.close())
+
+        for sig in (SIGTERM, SIGINT):
+            try:
+                loop.add_signal_handler(sig, _graceful_stop)
+            
+            except NotImplementedError:
+                # add_signal_handler isn't supported on Windows; harmless there.
+                pass
 
 
     async def loadInitialExtensions(self) -> None:
@@ -385,3 +403,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
