@@ -8,6 +8,7 @@ from discord.ext.commands import Bot, Cog, ExtensionAlreadyLoaded, ExtensionNotL
 from datetime import datetime
 from helpers.errorHandling import *
 from helpers.getIPv4Info import *
+from helpers.restarter import restarter
 from helpers.extensionsHandler import getAllExtensions
 
 
@@ -15,7 +16,6 @@ class OwnerOnly(Cog):
     def __init__(self, bot: Bot):
         self.bot = bot
         self.db = self.bot.getMongoClusterDB()
-        self.queue = self.bot.getQueue()
 
 
     # This is a migrated cog from startup.py for owner only commands
@@ -249,12 +249,23 @@ class OwnerOnly(Cog):
         if not await self.bot.is_owner(ctx.author):
             return await ctx.reply(NotBotOwnerError())
         await self.bot.close()
-        await self.queue.put("shutdown")
+
+    # Restart the bot and the server
+    @commands.command(hidden=True)
+    async def selfrestart(self, ctx):
+        """
+        This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
+
+        Restart the bot and the server
+
+        """
+        
+        if not await self.bot.is_owner(ctx.author):
+            return await ctx.reply(NotBotOwnerError())
+        restarter.request(reason=f"Restart requested by bot owner.", delay=0.0)
+        await self.bot.close()
 
 
 async def setup(bot):
     await bot.add_cog(OwnerOnly(bot))
-
-
-
 
