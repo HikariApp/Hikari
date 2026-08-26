@@ -1,8 +1,7 @@
-import discord
-import asyncio
 import psutil
 import netifaces
 import socket
+from discord import Embed
 from discord.ext import commands
 from discord.ext.commands import Bot, Cog, Context, ExtensionAlreadyLoaded, ExtensionNotLoaded, NoEntryPointError, ExtensionFailed
 from datetime import datetime
@@ -10,12 +9,20 @@ from helpers.errorHandling import *
 from helpers.getIPv4Info import *
 from helpers.restarter import restarter
 from helpers.extensionsHandler import getAllExtensions
+from helpers.respondEmbed import respondEmbed
 
 
 class OwnerOnly(Cog):
     def __init__(self, bot: Bot):
         self.bot = bot
+        self.logger = self.bot.getLogger()
         self.db = self.bot.getMongoClusterDB()
+
+
+    # Cog-level error listener for unhandled errors
+    async def cog_on_command_error(self, ctx: Context, error: Exception):
+        self.logger.exception(f"Uncaught error in {ctx.cog.__cog_name__}:", exc_info=error)
+        raise error
 
 
     # This is a migrated cog from startup.py for owner only commands
@@ -32,14 +39,10 @@ class OwnerOnly(Cog):
         """
 
         if not await self.bot.is_owner(ctx.author):
-            return await ctx.reply(NotBotOwnerError())
+            return await respondEmbed(ctx, NotBotOwnerError(), error=True, isReply=True)
         
         synced = await self.bot.tree.sync()
-        msg = await ctx.reply(f"Synced {len(synced)} command(s).")
-
-        await asyncio.sleep(5)
-        await msg.delete()
-        await ctx.message.delete()
+        await respondEmbed(ctx, f"Synced {len(synced)} command(s).", title="Sync Successful", isReply=True, deleteAfter=5)
 
 
     # Loading a cog manually
@@ -57,28 +60,25 @@ class OwnerOnly(Cog):
         """
 
         if not await self.bot.is_owner(ctx.author):
-            return await ctx.reply(NotBotOwnerError())
+            return await respondEmbed(ctx, NotBotOwnerError(), error=True, isReply=True)
         
         extensions = await getAllExtensions()
         if cog_name not in extensions:  # Front check if the cog was in the valid cog list or not
-            return await ctx.reply(ExtensionNotFoundError(cog=cog_name))
+            return await respondEmbed(ctx, ExtensionNotFoundError(cog=cog_name), error=True, isReply=True)
         
         try:
             await self.bot.load_extension(cog_name)
             await self.bot.tree.sync()
-            msg = await ctx.reply(f"Cog `{cog_name}` has been loaded.")
-            await asyncio.sleep(1)
-            await msg.delete()
-            await ctx.message.delete()
+            await respondEmbed(ctx, f"Cog `{cog_name}` has been loaded.", title="Load Successful", isReply=True, deleteAfter=2)
             
         except ExtensionAlreadyLoaded:
-            return await ctx.reply(f"Cog `{cog_name}` has been already loaded!")
+            return await respondEmbed(ctx, f"Cog `{cog_name}` has been already loaded!", error=True, isReply=True)
         
         except NoEntryPointError:
-            return await ctx.reply(ReturnNoEntryPointError(cog=cog_name))
+            return await respondEmbed(ctx, ReturnNoEntryPointError(cog=cog_name), error=True, isReply=True)
         
         except ExtensionFailed:
-            return await ctx.reply(ExtensionFailedError(cog=cog_name))
+            return await respondEmbed(ctx, ExtensionFailedError(cog=cog_name), error=True, isReply=True)
 
 
     @commands.command(hidden=True)
@@ -95,28 +95,25 @@ class OwnerOnly(Cog):
         """
 
         if not await self.bot.is_owner(ctx.author):
-            return await ctx.reply(NotBotOwnerError())
+            return await respondEmbed(ctx, NotBotOwnerError(), error=True, isReply=True)
 
         if cog_name not in await getAllExtensions():  # Front check if the cog was in the valid cog list or not
-            return await ctx.reply(ExtensionNotFoundError(cog=cog_name))
+            return await respondEmbed(ctx, ExtensionNotFoundError(cog=cog_name), error=True, isReply=True)
         
         try:
             await self.bot.unload_extension(cog_name)
             await self.bot.tree.sync()
-            msg = await ctx.reply(f"Cog `{cog_name}` has been unloaded.")
-            await asyncio.sleep(2)
-            await msg.delete()
-            await ctx.message.delete()
+            await respondEmbed(ctx, f"Cog `{cog_name}` has been unloaded.", title="Unload Successful", isReply=True, deleteAfter=2)
 
         except ExtensionNotLoaded:
-            return await ctx.reply(f"Cog `{cog_name}` has been already unloaded!")
+            return await respondEmbed(ctx, f"Cog `{cog_name}` has been already unloaded!", error=True, isReply=True)
         
         except NoEntryPointError:
-            return await ctx.reply(ReturnNoEntryPointError(cog=cog_name))
-        
+            return await respondEmbed(ctx, ReturnNoEntryPointError(cog=cog_name), error=True, isReply=True)
+
         except ExtensionFailed:
-            return await ctx.reply(ExtensionFailedError(cog=cog_name))
-        
+            return await respondEmbed(ctx, ExtensionFailedError(cog=cog_name), error=True, isReply=True)
+
 
     @commands.command(hidden=True)
     async def reload(self, ctx: Context, cog_name: str) -> None:
@@ -132,27 +129,24 @@ class OwnerOnly(Cog):
         """
 
         if not await self.bot.is_owner(ctx.author):
-            return await ctx.reply(NotBotOwnerError())
+            return await respondEmbed(ctx, NotBotOwnerError(), error=True, isReply=True)
         
         if cog_name not in await getAllExtensions():  # Front check if the cog was in the valid cog list or not
-            return await ctx.reply(ExtensionNotFoundError(cog=cog_name))
+            return await respondEmbed(ctx, ExtensionNotFoundError(cog=cog_name), error=True, isReply=True)
         
         try:
             await self.bot.reload_extension(cog_name)
             await self.bot.tree.sync()
-            msg = await ctx.reply(f"Cog `{cog_name}` has been reloaded.")
-            await asyncio.sleep(2)
-            await msg.delete()
-            await ctx.message.delete()
+            await respondEmbed(ctx, f"Cog `{cog_name}` has been reloaded.", title="Reload Successful", isReply=True, deleteAfter=2)
 
         except ExtensionNotLoaded:
-            return await ctx.send(f"Cog `{cog_name}` has not been loaded.")
-        
+            return await respondEmbed(ctx, f"Cog `{cog_name}` has not been loaded.", error=True, isReply=True)
+
         except NoEntryPointError:
-            return await ctx.reply(ReturnNoEntryPointError(cog=cog_name))
-        
+            return await respondEmbed(ctx, ReturnNoEntryPointError(cog=cog_name), error=True, isReply=True)
+
         except ExtensionFailed:
-            return await ctx.reply(ExtensionFailedError(cog=cog_name))
+            return await respondEmbed(ctx, ExtensionFailedError(cog=cog_name), error=True, isReply=True)
 
 
     @commands.command(hidden=True)
@@ -164,7 +158,7 @@ class OwnerOnly(Cog):
         """
 
         if not await self.bot.is_owner(ctx.author):
-            return await ctx.reply(NotBotOwnerError())
+            return await respondEmbed(ctx, NotBotOwnerError(), error=True, isReply=True)
         
         def convert_to_GB(raw):
             return round(raw / 1024 ** 3, 2)
@@ -192,7 +186,7 @@ class OwnerOnly(Cog):
         network = psutil.net_io_counters()
 
         # Returning system info as embed
-        hardware_info_embed = discord.Embed(title="Resource Usage (For reference only):", description='\u200b', timestamp=datetime.now(), color=ctx.author.colour)
+        hardware_info_embed = Embed(title="Resource Usage (For reference only):", description='\u200b', timestamp=datetime.now(), color=ctx.author.color)
 
         # CPU
         hardware_info_embed.add_field(name="CPU", value=f"CPU utilization: {cpuPercentage}%\nNumber of system cores: {numberOfSystemCores}\nNumber of logical cores: {numberOfLogicalCores}", inline=True)
@@ -237,12 +231,13 @@ class OwnerOnly(Cog):
         """
         
         if not await self.bot.is_owner(ctx.author):
-            return await ctx.reply(NotBotOwnerError())
+            return await respondEmbed(ctx, NotBotOwnerError(), error=True, isReply=True)
+        
         await self.bot.close()
 
     # Restart the bot and the server
     @commands.command(hidden=True)
-    async def selfrestart(self, ctx):
+    async def selfrestart(self, ctx: Context) -> None:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
@@ -250,7 +245,8 @@ class OwnerOnly(Cog):
         """
         
         if not await self.bot.is_owner(ctx.author):
-            return await ctx.reply(NotBotOwnerError())
+            return await respondEmbed(ctx, NotBotOwnerError(), error=True, isReply=True)
+        
         restarter.request(reason=f"Restart requested by bot owner.", delay=0.0)
         await self.bot.close()
 
