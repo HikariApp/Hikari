@@ -7,6 +7,7 @@ from lava_lyra import LoopMode
 from typing import Optional, List
 from bot.extensions.MusicPlayer._betterPlayer import BetterPlayer
 from bot.extensions.MusicPlayer.commands._musicGeneral import userColor
+from helpers.respondEmbed import respondEmbed
 
 PAGE_SIZE = 10
 
@@ -266,9 +267,7 @@ class MusicQueueSystem(Cog):
         player: BetterPlayer = ctx.voice_client
 
         if player is None:
-            embed = Embed(title="", color=Color.red())
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"I'm not in a voice channel, either or the player is not connected to a node.", error=True)
 
         color = userColor(ctx)
 
@@ -305,22 +304,15 @@ class MusicQueueSystem(Cog):
         """
 
         player: BetterPlayer = ctx.voice_client
-        embed = Embed(title="")
 
         if player is None:
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"I'm not in a voice channel, either or the player is not connected to a node.", error=True)
 
         if player.queue.historyIsEmpty:  # The player is not playing anything before
-            embed.add_field(name="", value=f"There are no tracks being played in history :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
-            embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"There are no tracks being played in history :thinking: ... Perhaps try to play something first, {ctx.author.mention}?")
 
         if index is not None and (index < 0 or index > player.queue.historySize):
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Please enter a valid index of the track you want to remove from the queue.", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"Please enter a valid index of the track you want to remove from the queue.", error=True)
 
         # Disable loop mode when removing tracks
         if player.queue.is_looping:
@@ -330,16 +322,12 @@ class MusicQueueSystem(Cog):
         index = (index - 1) % player.queue.historySize
 
         if index == player.queue.currentTrackIndex:
-            embed.add_field(name="", value=f"{ctx.author.mention}, You cannot remove the **currently playing track**. Use the `skip` command instead to skip to the next track.", inline=False)
-            embed.color = userColor(ctx)    # Friendly reminder, so the color won't be red
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"{ctx.author.mention}, You cannot remove the **currently playing track**. Use the `skip` command instead to skip to the next track.")
         
         try:
             newCurrentIndex = player.queue.currentTrackIndex
             if newCurrentIndex is None:
-                embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't determine the current playback position. Please try again.", inline=False)
-                embed.color = Color.red()
-                return await ctx.send(embed=embed)
+                return await respondEmbed(ctx, message=f"I couldn't determine the current playback position. Please try again.", error=True)
 
             # Remove from history first.
             player.queue.playbackHistory.pop(index)
@@ -354,16 +342,10 @@ class MusicQueueSystem(Cog):
             player.queue._queue = player.queue.playbackHistory[newCurrentIndex + 1:]
 
         except (ValueError, IndexError) as e:
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An error occurred while trying to remove the track at index **#{1 + index}** from the queue, please try again later. \n\n {e}", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"An error occurred while trying to remove the track at index **#{1 + index}** from the queue, please try again later. \n\n {e}", error=True)
         
         except Exception as e:
             # Catch-all for any other exceptions
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying to remove the track at index **#{1 + index}** from the queue, please try again later. \n\n {e}", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying to remove the track at index **#{1 + index}** from the queue, please try again later. \n\n {e}", error=True)
 
-        embed.add_field(name="", value=f"Removed track **#{1 + index}** from the queue.", inline=False)
-        embed.color = userColor(ctx)
-        await ctx.send(embed=embed)
+        await respondEmbed(ctx, message=f"Removed track **#{1 + index}** from the queue.")

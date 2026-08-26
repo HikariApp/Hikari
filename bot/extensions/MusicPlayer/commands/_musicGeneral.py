@@ -7,6 +7,7 @@ from lava_lyra.pool import NodePool
 from typing import cast, Optional, List
 from bot.extensions.MusicPlayer._betterPlayer import BetterPlayer
 from helpers.errorHandling import *
+from helpers.respondEmbed import respondEmbed
 
 
 # Helper function to get the color of the user who invoked the command
@@ -58,7 +59,7 @@ class MusicGeneral(Cog):
 
         except Exception as e:
             if player.context:
-                return await player.context.send(embed=Embed(title="", description=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", color=Color.red()))
+                return await respondEmbed(player.context, message=f"An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", error=True)
             
             # If there was an error and the context is not available, we just simply ignore this action.
             return
@@ -71,7 +72,7 @@ class MusicGeneral(Cog):
 
         except Exception as e:
             if player.context:
-                return await player.context.send(embed=Embed(title="", description=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", color=Color.red()))
+                return await respondEmbed(player.context, message=f"An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", error=True)
             
             # If there was an error and the context is not available, we just simply ignore this action.
             return
@@ -84,7 +85,7 @@ class MusicGeneral(Cog):
 
         except Exception as e:
             if player.context:
-                return await player.context.send(embed=Embed(title="", description=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", color=Color.red()))
+                return await respondEmbed(player.context, message=f"An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", error=True)
             
             # If there was an error and the context is not available, we just simply ignore this action.
             return
@@ -155,7 +156,6 @@ class MusicGeneral(Cog):
         """
 
         await ctx.interaction.response.defer() if ctx.interaction else None
-        embed = Embed(title="")
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
 
         if player is None:
@@ -167,45 +167,31 @@ class MusicGeneral(Cog):
 
             except AttributeError:
                 # The author is not in a voice channel
-                embed.add_field(name="", value=f"{ctx.author.mention} Join a voice channel plz :pleading_face:  I don't think I can stay there without you :pensive: ...", inline=False)
-                embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
-                return await ctx.send(embed=embed)
+                return await respondEmbed(ctx, message=f"{ctx.author.mention} Join a voice channel plz :pleading_face:  I don't think I can stay there without you :pensive: ...")
             
             except Exception as e:
-                embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I was unable to join {ctx.author.voice.channel} due to an unexpected error. Please try again later. \n\n {e}", inline=False)
-                embed.color = Color.red()
-                return await ctx.send(embed=embed)
-            
+                return await respondEmbed(ctx, message=f"I was unable to join {ctx.author.voice.channel} due to an unexpected error. Please try again later. \n\n {e}", error=True)
+
         if not search:
-            embed.add_field(name="", value=f"Looks like you've been specified searching online for the audio source, but haven't specified the track you would like to play :thinking: ...\nJust curious to know, what should I play right now, {ctx.author.mention}?", inline=False)
-            embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"Looks like you've been specified searching online for the audio source, but haven't specified the track you would like to play :thinking: ...\nJust curious to know, what should I play right now, {ctx.author.mention}?")
 
         try:
             results = await player.get_tracks(search, ctx=ctx)
 
         except Exception as e:
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying to search for the track. \n\n {e}", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"An unexpected error occurred while trying to search for the track. \n\n {e}", error=True)
 
         if results is None or (isinstance(results, list) and len(results) == 0):
-            embed.add_field(name="No results", value=f"I couldn't find any tracks with that query you entered :thinking: ... Perhaps try to search something else and gave me a chance to play it, {ctx.author.mention}?", inline=False)
-            embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
-            return await ctx.send(embed=embed)
-
+            return await respondEmbed(ctx, message=f"I couldn't find any tracks with that query you entered :thinking: ... Perhaps try to search something else and gave me a chance to play it, {ctx.author.mention}?")
+        
         if isinstance(results, Playlist):
             player.queue.put(results)
-            embed.add_field(name="", value=f"Added the playlist **{results.name}** (**{len(results.tracks)}** songs) to the queue.", inline=False)
-            embed.color = userColor(ctx)
-            await ctx.send(embed=embed)
+            await respondEmbed(ctx, message=f"Added the playlist **{results.name}** (**{len(results.tracks)}** songs) to the queue.")
 
         else:
             track = results[0]  # Get the first track from the search results, this is why we specify the autocomplete to be uri
             player.queue.put(track)
-            embed.add_field(name="", value=f"Added the track **{track.title}** to the queue.", inline=False)
-            embed.color = userColor(ctx)
-            await ctx.send(embed=embed)
+            await respondEmbed(ctx, message=f"Added the track **{track.title}** to the queue.")
 
         if player.current is None:
             await player.nextTrack()   # Start playing if nothing is currently playing
@@ -232,42 +218,34 @@ class MusicGeneral(Cog):
         """
 
         await ctx.interaction.response.defer() if ctx.interaction else None
-        embed = Embed(title="")
+        messageLines: List[str] = []
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
 
         if player is None:
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"{ctx.author.mention} I'm not in a voice channel, either or the player is not connected to a node.", error=True)
 
         if player.queue.historyIsEmpty:  # The player is not playing anything before
-            embed.add_field(name="", value=f"There are no tracks being played in history :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
-            embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"There are no tracks being played in history :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", error=True)
         
         if amount < 1:  # Invalid amount
-            embed.add_field(name="", value=f"The amount of tracks to skip must be at least 1 :thinking: ...", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"The amount of tracks to skip must be at least 1 :thinking: ...", error=True)
         
         if player.queue.isAtHistoryEnd:  # The author has already skipped all tracks in the queue
-            embed.add_field(name="", value=f"{ctx.author.mention}, you are already **gone through all tracks** in the queue.", inline=False)
-            embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"{ctx.author.mention}, you are already **gone through all tracks** in the queue.", error=True)
 
         if player.isFinalTrack:  # The author just skipped the final track
-            embed.add_field(name="", value=f"Skipped the **final track**. There are **no upcoming tracks** to be played unless you **add more tracks to the queue** or **looping** is enabled.", inline=False)
+            messageLines.append(f"Skipped the **final track**. There are **no upcoming tracks** to be played unless you **add more tracks to the queue** or **looping** is enabled.")
             amount = 1  # Set amount to 1 since they are at the final track
 
         elif amount == player.queue.size:  # The author just skipped to the last track
-            embed.add_field(name="", value=f"Skipping to the **final track** in the queue...", inline=False)
+            messageLines.append(f"Skipping to the **final track** in the queue...")
         
         elif amount > player.queue.size:  # The author tried to skip more tracks than available in the queue
             amount = player.queue.size  # Set amount to the size of the queue
-            embed.add_field(name="", value=f"The amount of tracks you tried to skip **exceeded** the **total number of available tracks** in the queue. Automatically **skipping to the last track** in the queue...", inline=False)
+            messageLines.append(f"The amount of tracks you tried to skip **exceeded** the **total number of available tracks** in the queue. Automatically **skipping to the last track** in the queue...")
 
         else:   # Normal skip
-            embed.add_field(name="", value=f"Skipping **{amount}** track(s)...", inline=False)
+            messageLines.append(f"Skipping **{amount}** track(s)...")
 
         # We keep the skipping logic here minimal, and let the player API handle the rest
         # This is the most resource efficient way to skip multiple tracks at once, without having to call nextTrack multiple times
@@ -276,7 +254,7 @@ class MusicGeneral(Cog):
         # Disable the loop mode if it's set to TRACK as the API breaks with this condition
         if player.queue.loop_mode == LoopMode.TRACK:
             player.queue.disable_loop()
-            embed.add_field(name="", value=f"Note: Repeat-One will be **disabled** to skip the track(s), please **re-enable it afterwards** if you need it.", inline=False)
+            messageLines.append(f"Note: Repeat-One will be **disabled** to skip the track(s), please **re-enable it afterwards** if you need it.")
 
         if not (player.queue.loop_mode == LoopMode.QUEUE and player.isFinalTrack):
             # Replace the current queue with the remaining tracks after skipping          
@@ -286,9 +264,9 @@ class MusicGeneral(Cog):
 
 
         await player.stop()
-    
-        embed.color = userColor(ctx)
-        await ctx.send(embed=embed)
+
+        # Respond with the message lines
+        await respondEmbed(ctx, message="\n".join(messageLines))
 
 
     @commands.hybrid_command(aliases=["prev", "back"])
@@ -312,50 +290,39 @@ class MusicGeneral(Cog):
 
         await ctx.interaction.response.defer() if ctx.interaction else None
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
-        embed = Embed(title="")
+        messageLines = []
 
         if player is None:
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"{ctx.author.mention} I'm not in a voice channel, either or the player is not connected to a node.", error=True)
 
-        
         if player.queue.historyIsEmpty:  # The player is not playing anything
-            embed.add_field(name="", value=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
-            embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", error=True)
         
         if amount < 1:  # Invalid amount
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> The amount of tracks to rollback must be at least 1 :thinking: ...", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"The amount of tracks to rollback must be at least 1 :thinking: ...", error=True)
 
         if player.queue.isAtHistoryStart:  # The author is already at the first track
-            embed.add_field(name="", value=f"{ctx.author.mention}, you are already at the **first track** in the history.", inline=False)
-            embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"{ctx.author.mention}, you are already at the **first track** in the history.")
 
         if amount == max(player.queue.currentTrackIndex, player.queue.currentTrackIndex + int(player.queue.isAtHistoryEnd)):    # The author just rolled back to the first track
-            embed.add_field(name="", value=f"Rolling back to the **first track**...", inline=False)
+            messageLines.append("Rolling back to the **first track**...")
 
         elif amount > player.queue.currentTrackIndex:  # The author tried to rollback more tracks than available in history
-            embed.add_field(name="", value=f"The amount of tracks you tried to rollback **exceeded** the **total number of previous tracks** in the history. Automatically **rolling back to the first track** in the history...", inline=False)
+            messageLines.append(f"The amount of tracks you tried to rollback **exceeded** the **total number of previous tracks** in the history. Automatically **rolling back to the first track** in the history...")
             amount = 1 + player.queue.currentTrackIndex  # Set amount to the current position
 
         else:  # The author is rolling back to a previous track
-            embed.add_field(name="", value=f"Rolling back **{amount}** track(s)...", inline=False)
+            messageLines.append(f"Rolling back **{amount}** track(s)...")
 
         # Rollback the track(s)
         prev_track = await player.previousTrack(amount)
 
         # Post check if the previous track is valid
         if not prev_track:
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying to rollback the track(s).", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
+            messageLines.append(f"An unexpected error occurred while trying to rollback the track(s).")
+            return await respondEmbed(ctx, message="\n".join(messageLines), error=True)
         
-        embed.color = userColor(ctx)
-        await ctx.send(embed=embed)
+        await respondEmbed(ctx, message="\n".join(messageLines))
 
 
     @commands.hybrid_command(aliases=["pau", "break"])
@@ -375,34 +342,23 @@ class MusicGeneral(Cog):
         """
 
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
-        embed = Embed(title="")
 
         if player is None:
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"I'm not in a voice channel, either or the player is not connected to a node.", error=True)
         
         if player.queue.historyIsEmpty:  # The player is not playing anything
-            embed.add_field(name="", value=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
-            embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?")
         
         if player.is_paused:
-            embed.add_field(name="", value=f"{ctx.author.mention}, the track has been already paused!", inline=False)
-            embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"{ctx.author.mention}, the track has been already paused!")
 
         try:
             await player.set_pause(pause=True)
 
         except Exception as e:
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying to pause the track. \n\n {e}", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"An unexpected error occurred while trying to pause the track. \n\n {e}", error=True)
             
-        embed.add_field(name="", value="The track has been paused.", inline=False)
-        embed.color = userColor(ctx)
-        await ctx.send(embed=embed)
+        await respondEmbed(ctx, message="The track has been paused.")
 
 
     @commands.hybrid_command(aliases=["resu", "continue"])
@@ -412,7 +368,7 @@ class MusicGeneral(Cog):
 
         Parameters
         ----------
-        ctx: `Context`24 
+        ctx: `Context`
             The context of the command invocation.
         
         Returns
@@ -422,34 +378,24 @@ class MusicGeneral(Cog):
         """
 
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
-        embed = Embed(title="")
 
         if player is None:
-            embed.add_field(name="", value=f"I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"I'm not in a voice channel, either or the player is not connected to a node.", error=True)
         
         if player.queue.historyIsEmpty:  # The player is not playing anything
-            embed.add_field(name="", value=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
-            embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?")
         
         if not player.is_paused:
-            embed.add_field(name="", value=f"{ctx.author.mention}, the track has not been paused.", inline=False)
-            embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"{ctx.author.mention}, the track has not been paused.")
 
         try:
             await player.set_pause(pause=False)
 
         except Exception as e:
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying to resume the track. \n\n {e}", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"An unexpected error occurred while trying to resume the track. \n\n {e}", error=True)
 
-        embed.add_field(name="", value="The track has been resumed.", inline=False)
-        embed.color = userColor(ctx)
-        await ctx.send(embed=embed)
+        await respondEmbed(ctx, message="The track has been resumed.")
+
 
     @commands.hybrid_command(aliases=["now"])
     async def nowplaying(self, ctx: Context) -> None:
@@ -473,24 +419,19 @@ class MusicGeneral(Cog):
             await ctx.interaction.response.defer()
 
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
-        embed = Embed(title="")
 
         if player is None:
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"I'm not in a voice channel, either or the player is not connected to a node.", error=True)
         
         if player.queue.historyIsEmpty:  # The player is not playing anything
-            embed.add_field(name="", value=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
-            embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?")
 
-        embed, customArtworkFile = await player.nowPlayingEmbed(player.current)  # Get the now playing embed from the player from _player.py
-        embed.color = userColor(ctx)
+        nowPlayingEmbed, customArtworkFile = await player.nowPlayingEmbed(player.current)  # Get the now playing embed from the player from _player.py
+        nowPlayingEmbed.color = userColor(ctx)
 
         if customArtworkFile is None:
-            return await ctx.send(embed=embed)
-        await ctx.send(embed=embed, file=customArtworkFile)
+            return await ctx.send(embed=nowPlayingEmbed)
+        await ctx.send(embed=nowPlayingEmbed, file=customArtworkFile)
 
 
     @commands.hybrid_command(aliases=["rep", "r"])
@@ -510,30 +451,21 @@ class MusicGeneral(Cog):
         """
 
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
-        embed = Embed(title="")
 
         if player is None:
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"{ctx.author.mention} I'm not in a voice channel, either or the player is not connected to a node.", error=True)
         
         if player.queue.historyIsEmpty:  # The player is not playing anything
-            embed.add_field(name="", value=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
-            embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?")
         
         # Replay the track
         try:
             await player.seek(0)
 
         except Exception as e:
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An error occurred while trying to replay the track. \n\n {e}", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
-        
-        embed.add_field(name="", value=f"Replaying the current track...", inline=False)
-        embed.color = userColor(ctx)
-        await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"An error occurred while trying to replay the track. \n\n {e}", error=True)
+
+        await respondEmbed(ctx, message=f"Replaying the current track...")
 
 
     @commands.hybrid_group(name="repeat", help="Toggle repeat for the current track or the entire queue.")
@@ -541,10 +473,7 @@ class MusicGeneral(Cog):
         # This is the main command group for repeat
         # We won't implement any logic here, as the subcommands will handle the functionality
         # If no subcommand is invoked, return an error message
-        embed = Embed(title="")
-        embed.add_field(name="", value=f"{ctx.author.mention}, you need to specify a subcommand: `one` or `all`.", inline=False)
-        embed.color = Color.red()
-        await ctx.send(embed=embed)
+        await respondEmbed(ctx, message=f"{ctx.author.mention}, you need to specify a subcommand: `one` or `all`.", error=True)
     
 
     @repeat.command()
@@ -563,40 +492,31 @@ class MusicGeneral(Cog):
 
         """
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
-        embed = Embed(title="")
+        messageLines: List[str] = []
 
         if player is None:
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"{ctx.author.mention} I'm not in a voice channel, either or the player is not connected to a node.", error=True)
         
         if player.queue.historyIsEmpty:  # The player is not playing anything
-            embed.add_field(name="", value=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
-            embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?")
                 
         if player.queue.loop_mode == LoopMode.TRACK:
-            embed.add_field(name="", value=f"Disabling repeat for the current track...", inline=False)
+            messageLines.append(f"Disabling repeat for the current track...")
 
             try:
                 player.queue.disable_loop()
 
             except QueueException as e:
-                embed.add_field(name="", value=f"The repeat mode is **already disabled** for the current track. \n\n {e}", inline=False)
-                embed.color = userColor(ctx)    # Friendly reminder, so the color won't be red
-                return await ctx.send(embed=embed)
+                messageLines.append(f"The repeat mode is **already disabled** for the current track. \n\n {e}")
+                return await respondEmbed(ctx, message="\n".join(messageLines), error=True)
             
             except Exception as e:
-                embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An error occurred while trying to disable repeat for the current track. \n\n {e}", inline=False)
-                embed.color = Color.red()
-                return await ctx.send(embed=embed)
-            
-        else:
-            embed.add_field(name="", value=f"Repeating the current track...", inline=False)
-            player.queue.set_loop_mode(LoopMode.TRACK)
+                messageLines.append(f"An error occurred while trying to disable repeat for the current track. \n\n {e}")
+                return await respondEmbed(ctx, message="\n".join(messageLines), error=True)
 
-        embed.color = userColor(ctx)
-        await ctx.send(embed=embed)
+        else:
+            await respondEmbed(ctx, message=f"Repeating the current track...")
+            player.queue.set_loop_mode(LoopMode.TRACK)
 
 
     @repeat.command()
@@ -616,47 +536,38 @@ class MusicGeneral(Cog):
         """
 
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
-        embed = Embed(title="")
+        messageLines: List[str] = []
 
         if player is None:
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"{ctx.author.mention} I'm not in a voice channel, either or the player is not connected to a node.", error=True)
         
         if player.queue.historyIsEmpty:  # The player is not playing anything
-            embed.add_field(name="", value=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
-            embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
-            return await ctx.send(embed=embed)
-        
-        if player.queue.loop_mode == LoopMode.QUEUE:
-            embed.add_field(name="", value=f"Disabling repeat for the entire queue...", inline=False)
+            return await respondEmbed(ctx, message=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?")
+                
+        if player.queue.loop_mode == LoopMode.TRACK:
+            messageLines.append(f"Disabling repeat for the entire queue...")
 
             try:
                 player.queue.disable_loop()
 
             except QueueException as e:
-                embed.add_field(name="", value=f"The repeat mode is **already disabled** for the entire queue. \n\n {e}", inline=False)
-                embed.color = userColor(ctx)    # Friendly reminder, so the color won't be red
-                return await ctx.send(embed=embed)
+                messageLines.append(f"The repeat mode is **already disabled** for the entire queue. \n\n {e}")
+                return await respondEmbed(ctx, message="\n".join(messageLines), error=True)
             
             except Exception as e:
-                embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An error occurred while trying to disable repeat for the entire queue. \n\n {e}", inline=False)
-                embed.color = Color.red()
-                return await ctx.send(embed=embed)
+                messageLines.append(f"An error occurred while trying to disable repeat for the entire queue. \n\n {e}")
+                return await respondEmbed(ctx, message="\n".join(messageLines), error=True)
 
         else:
-            embed.add_field(name="", value=f"Repeating the entire queue...", inline=False)
+            await respondEmbed(ctx, message=f"Repeating the entire queue...")
             player.queue.set_loop_mode(LoopMode.QUEUE)
-
-        embed.color = userColor(ctx)
-        await ctx.send(embed=embed)
 
 
     @commands.hybrid_command(aliases=["halt", "st"])
     async def stop(self, ctx: Context):
         """
         Stops the current track being played in voice channel and clears the queue.
-again
+
         Parameters
         ----------
         ctx: `Context`
@@ -669,17 +580,12 @@ again
         """
 
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
-        embed = Embed(title="")
 
         if player is None:
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"I'm not in a voice channel, either or the player is not connected to a node.", error=True)
 
         if player.queue.historyIsEmpty:  # The player is not playing anything
-            embed.add_field(name="", value=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
-            embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?")
 
         try:
             if player.queue.is_looping:
@@ -691,13 +597,9 @@ again
             player.updateController.start()
 
         except Exception as e:
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An error occurred while trying to stop the track. \n\n {e}", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"An error occurred while trying to stop the track. \n\n {e}", error=True)
         
-        embed.add_field(name="", value="Stopped the current track and cleared the queue.", inline=False)
-        embed.color = userColor(ctx)
-        await ctx.send(embed=embed)
+        await respondEmbed(ctx, message=f"Stopped the current track and cleared the queue.")
 
 
     @commands.hybrid_command(aliases=["vol", "v"])
@@ -720,34 +622,24 @@ again
         """
 
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
-        embed = Embed(title="")
 
         if player is None:
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"I'm not in a voice channel, either or the player is not connected to a node.", error=True)
 
         if player.queue.historyIsEmpty:  # The player is not playing anything
-            embed.add_field(name="", value=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
-            embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?")
 
         if value < 0 or value > 500:  # Invalid volume
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> The volume must be between **0** and **500** :thinking: ...\n Generally, **60** is already good enough, **100** is considered as very loud, and **200** will blow your eardrums out lol.", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"The volume must be between **0** and **500** :thinking: ...\n Generally, **60** is already good enough, **100** is considered as very loud, and **200** will blow your eardrums out lol.", error=True)
 
         # Set the volume
         try:
             await player.set_volume(value)
 
         except Exception as e:
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> An error occurred while trying to change the volume. \n\n {e}", inline=False)
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"An error occurred while trying to change the volume. \n\n {e}", error=True)
         
-        embed.add_field(name="", value=f"Changed volume to **{value}%**", inline=False)
-        embed.color = userColor(ctx)
-        await ctx.send(embed=embed)
+        await respondEmbed(ctx, message=f"Changed volume to **{value}%**")
 
 
     @commands.hybrid_command(aliases=["nig"])
@@ -768,26 +660,18 @@ again
 
         # Set the filter to a nightcore style. We have to use pomice.Timescale to adjust the pitch and speed.
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
-        embed = Embed(title="")
         
         if player is None:
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm not in a voice channel, either or the player is not connected to a node.", inline=False)
-            embed.color = Color.red()
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"I'm not in a voice channel, either or the player is not connected to a node.", error=True)
 
         if player.queue.historyIsEmpty:  # The player is not playing anything
-            embed.add_field(name="", value=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", inline=False)
-            embed.color = userColor(ctx)   # Friendly reminder, so the color won't be red
-            return await ctx.send(embed=embed)
+            return await respondEmbed(ctx, message=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?")
 
         if player.filters.empty:
             await player.add_filter(Timescale.nightcore(), fast_apply=True)
-            embed.add_field(name="", value=f"**Activating** nightcore mode...", inline=False)
+            await respondEmbed(ctx, message=f"**Activating** nightcore mode... The track may be briefly interrupted.")
         
         else:
             await player.reset_filters(fast_apply=True)
-            embed.add_field(name="", value=f"**Deactivating** nightcore mode... The track may be briefly interrupted.", inline=False)
-        
-        embed.color = userColor(ctx)
-        await ctx.send(embed=embed)
+            await respondEmbed(ctx, message=f"**Deactivating** nightcore mode... The track may be briefly interrupted.")
 
