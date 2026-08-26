@@ -13,17 +13,15 @@ async def createAvatarEmbed(user: User, avatarURL: str) -> Embed:
 
     Parameters
     ----------
-    user : `discord.User`
+    user : discord.User
         The user whose avatar is to be displayed.
-
-    avatarURL : `str`
+    avatarURL : str
         The URL of the avatar image.
 
     Returns
     ----------
     embed : `discord.Embed`
         An embed object containing the user's avatar.
-    
     """
 
     embed = Embed()
@@ -65,7 +63,6 @@ class DisplayUserInfo(Cog):
 
 
     # Displaying the avatar of you or a specfied user to everyone
-    # UPTATE 18-10-2025: This command has been heavily rewritten to include more info and better formatting, see Note below
     @commands.hybrid_command(aliases=["ava"])
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
@@ -73,26 +70,17 @@ class DisplayUserInfo(Cog):
         """
         Displays your avatar or someone else's avatar to everyone.
 
-        Parameters 
-        
+        Parameters
         ----------
-        ctx : `Context`
-            The context in which the command was invoked.
-
         user : `Optional[discord.User]`
             The user to get the avatar for. Leave this blank if you want to get your own avatar.
 
-        Returns
-        ----------
-        None
-
-        Note
-        ----------
+        Notes
+        -----
         This command has been heavily rewritten to provide a more comprehensive overview of the user's information.
         - It now includes a dropdown menu to select between the user's global avatar and server-specific avatar (if applicable).
         - The embed now displays the avatar in a larger format for better visibility.
         - The formatting of the embed has been improved for clarity.
-
         """
         
         user = user or ctx.author
@@ -110,7 +98,6 @@ class DisplayUserInfo(Cog):
 
 
     # Displaing the info of you or a specfied user to everyone
-    # UPTATE 17-10-2025: This command has been heavily rewritten to include more info and better formatting, see Note below
     @commands.hybrid_command(aliases=["user", "whois"])
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
@@ -120,25 +107,17 @@ class DisplayUserInfo(Cog):
 
         Parameters
         ----------
-        ctx : `Context`
-            The context in which the command was invoked.
-
         user : `Optional[discord.User]`
             The user to get info about. Leave this blank if you want to get your own info.
 
-        Returns
-        ----------
-        None
-
-        Note
-        ----------
+        Notes
+        -----
         This command has been heavily rewritten to provide a more comprehensive overview of the user's information.
 
         - It now includes the user's global name (if set) and indicates if they are the server owner with a crown emoji.
         - The embed now displays the user's roles in the server (if applicable) and their accent color.
         - The formatting of dates has been improved to show both the exact date and a relative time.
         - If the user has a banner, it will be displayed in the embed.
-
         """
 
         user = user or ctx.author

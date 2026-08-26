@@ -72,20 +72,12 @@ class ChangeStatus(Cog):
         ----------
         status : app_commands.Choice[str]
             Status of the bot
-
         activity_type : Optional[app_commands.Choice[str]]
             The type you would like to display. Choose '(Ignore)' if you want to leave it blank.
-
         activity_name : Optional[app_commands.Choice[str]]
             The text you would like the bot to display on bio
-
         url : Optional[str]
             The URL you want to redirect (For streaming only)
-
-        Returns
-        -------
-        None
-
         """
 
         embed = Embed(title="", color=interaction.user.color)

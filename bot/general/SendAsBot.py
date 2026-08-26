@@ -81,19 +81,10 @@ class SendAsBot(Cog):
 
         Parameters
         ----------
-        interaction : `discord.Interaction`
-            The discord.Interaction object from the user.
-
         silent : bool
             Send it as a silent message?
-
         attachment : `Optional[discord.Attachment]`
             The attachment you would like to send. Leave this empty if you want to send the message only.
-
-        Returns
-        ----------
-        None
-
         """
         # Converts the attachment to a discord.File() object
         file = await attachment.to_file() if attachment else None

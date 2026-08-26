@@ -35,8 +35,16 @@ class AIMongoDB:
         self.server_access_collection = self.database["server_access"]
     
     
-    async def initialize_assistants(self):
-        """Create and ensure assistants exist in the database"""
+    async def initialize_assistants(self) -> None:
+        """
+        This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
+
+        Create and ensure assistants exist in the database
+        
+        Returns
+        -------
+        None
+        """
         assistants = {
             "premium": {
                 "name": "Premium Assistant",
@@ -112,10 +120,8 @@ class AIMongoDB:
         ----------
         client: Client
             The client object from Discord.
-
         user_id: int
             The user's ID.
-
         guild_id: int
             The guild's ID.
 
@@ -123,8 +129,8 @@ class AIMongoDB:
         -------
         str:
             The maximum access level of user / guild.
-        
         """
+
         try:
             user = await client.fetch_user(user_id)    # Fetch the user from Discord API
         
@@ -165,16 +171,17 @@ class AIMongoDB:
             The level returned from `get_access_level()`, can be either "premium", "basic" or "trial".
 
         Returns
-        ----------
+        -------
         int:
             The access level represented in ingeter, Higher value means higher priority.
-
         """
+
         priority = {
             "trial": 0,
             "basic": 1,
             "premium": 2
         }
+
         return priority.get(level.lower(), 0)      # Default to 0 if the level is unknown.
     
 
@@ -192,17 +199,18 @@ class AIMongoDB:
             The level returned from `access_level_priority()`.
         
         Returns
-        ----------
+        -------
         int:
             The corresponding assistant ID based on user's / server access level.
 
         Raises
-        ----------
+        ------
         ValueError:
             Assistant ID were not found in the database for user's / server access level.
-
         """
+
         assistant = await self.assistants_collection.find_one({"access_level": access_level})
+
         if assistant:
             return assistant["assistant_id"]
         
@@ -220,20 +228,19 @@ class AIMongoDB:
         ----------
         channel_id: int
             The channel ID.
-
         guild_id: int
             The guild ID.
-        
         is_thread: bool
             Checks if the channel is a thread or not.
 
         Returns
-        ----------
+        -------
         dict:
             The entry dictionary of a channel.
-
         """
+
         entry = await self.channels_collection.find_one({"channel_id": channel_id})
+
         if not entry:
             openai_thread = await openai_client.beta.threads.create()
             entry = {
@@ -246,7 +253,9 @@ class AIMongoDB:
                 "attachments": [],
                 "created_at": datetime.now()
             }
+
             await self.channels_collection.insert_one(entry)
+
         return entry
     
 
@@ -260,15 +269,14 @@ class AIMongoDB:
         ----------
         channel_id: int
             The channel ID.
-
         message: dict
             The message dictionary containing role and content.
 
         Returns
-        ----------
+        -------
         None
-
         """
+
         await self.channels_collection.update_one(
             {"channel_id": channel_id}, 
             {"$push": {"messages": message}}
@@ -285,15 +293,14 @@ class AIMongoDB:
         ----------
         channel_id: int
             The channel ID.
-        
         file_data: dict
             The file data dictionary containing filename, local path and file ID.
 
         Returns
-        ----------
+        -------
         None
-        
         """
+
         await self.files_collection.insert_one(file_data)
         await self.channels_collection.update_one(
             {"channel_id": channel_id},
@@ -314,10 +321,10 @@ class AIMongoDB:
             The channel ID.
 
         Returns
-        ----------
+        -------
         None
-        
         """
+
         query = {"channel_id": channel_id}
         await self.channels_collection.delete_one(query)
     
@@ -334,10 +341,10 @@ class AIMongoDB:
             The guild ID.
 
         Returns
-        ----------
+        -------
         None
-        
         """
+
         await self.channels_collection.delete_many({"guild_id": guild_id})
     
     async def reset_all_chats(self) -> None:
@@ -347,10 +354,10 @@ class AIMongoDB:
         Delete all conversation histories
         
         Returns
-        ----------
+        -------
         None
-        
         """
+
         await self.channels_collection.delete_many({})
 
 
@@ -371,30 +378,26 @@ class AIServiceAPI:
         ----------
         callback: discord.Message | Interaction
             The callback object. Can be either a `Message` or `Interaction` object from Discord.
-        
         content: str
             The content of the message to be sent.
-
         entry: dict
             The entry dictionary of a channel.
-
         openai_thread_id: str
             The OpenAI thread ID.
-
         assistant_id: str
             The assistant ID.
 
         Returns
-        ----------
+        -------
         str:
             The assistant's reply.
         
         Raises
-        ----------
+        ------
         Exception:
             An unexpected error occurred while sending the message to OpenAI.
-        
         """
+
         try:
             # System prompt
             await openai_client.beta.threads.messages.create(
@@ -402,6 +405,7 @@ class AIServiceAPI:
                 role="assistant",
                 content=f"Refer the user as {callback.author.mention if hasattr(callback, 'author') else callback.user.mention}, and yourself {prompt_character_name}.",
             )
+
             # Create message in OpenAI thread
             await openai_client.beta.threads.messages.create(
                 thread_id=openai_thread_id,
@@ -410,8 +414,10 @@ class AIServiceAPI:
                 attachments=[{"file_id": attachment["file_id"], "tools": [{"type": "file_search"}]} 
                         for attachment in entry.get("attachments", [])] or None
             )
+
             # Save system prompt to database
             await self.ai_repository.add_message(callback.channel.id, {"role": "assistant", "content": f"Refer the user as {callback.author.mention if hasattr(callback, 'author') else callback.user.mention}, and yourself {prompt_character_name}."})
+
             # Save message to database
             await self.ai_repository.add_message(callback.channel.id, {"role": "user", "content": content})
             
@@ -494,18 +500,20 @@ class ChatBotModal(Modal):
             The interaction objejct from Discord.
         
         Returns
-        ----------
+        -------
         None
 
         Raises
-        ----------
+        ------
         ValueError:
             The assistant ID was not found in the database for user's / server access level.
-
         """
+
         await interaction.response.defer(thinking=True)
+
         submission_error_embed = Embed(title="", color=discord.Colour.red())
         is_thread = isinstance(interaction.channel, discord.Thread)
+
         try:
             # Determine access level
             access_level = await self.ai_repository.get_access_level(interaction.client, interaction.user.id, interaction.guild.id if interaction.guild else None)
@@ -585,13 +593,12 @@ def discord_message_formatter(content: str, limit: Optional[int] = 2000) -> List
     content : str
         The message to be formatted and split. Can contain any language, including mixed content
         and markdown formatting.
-
-    limit : `Optional[int]`
+    limit : Optional[int]
         Maximum number of characters per chunk (default is 2000, Discord's message limit)
 
     Returns
     -------
-    `List[str]`
+    List[str]
         A list of formatted strings from the message, each no longer than the specified limit.
 
     Examples
@@ -611,7 +618,6 @@ def discord_message_formatter(content: str, limit: Optional[int] = 2000) -> List
     >>> chunks = discord_message_formatter(text)
     >>> all(len(chunk) <= 2000 for chunk in chunks)
     True
-
     """
     content = content.replace("######", "###").replace("#####", "###").replace("####", "###")
 
@@ -678,17 +684,14 @@ async def openai_error_embed_handler(e, title):
     ----------
     channel: `discord.TextChannel`
         The text channel object from Discord.
-
     e: `sys.stderr`
         Error parameter from OpenAI API
-    
     title: str
         The title of the embed
     
     Returns
-    ----------
+    -------
     None
-
     """
     error_embed = discord.Embed(
         title=title,
@@ -748,12 +751,11 @@ async def save_attachment_temporarily(attachment):
     ----------
     attachment: discord.Attachment
         The file attachment to be saved.
-
     extension: str
         The extension for the temporary file (e.g., '.txt', '.pdf').
 
     Returns
-    ----------
+    -------
     str:
         The path to the saved temporary file.
 
@@ -761,7 +763,6 @@ async def save_attachment_temporarily(attachment):
     ----------
     ValueError:
         The file extension was not supported.
-
     """
     extension = f".{attachment.filename.split('.')[-1]}" if '.' in attachment.filename else ''
     if extension not in ['.txt', '.pdf', '.csv', '.json', '.png', '.jpg', '.mp4']:
@@ -784,10 +785,9 @@ async def upload_file_to_openai(local_path):
         The file path from local device.
     
     Returns
-    ----------
-    `Files`:
+    -------
+    openai.FileObject:
         An uploaded OpenAI file object.
-
     """
     with open(local_path, "rb") as file:
         return await openai_client.files.create(file=file, purpose="assistants")
@@ -813,29 +813,25 @@ class ChatBot(Cog):
         ----------
         attachment: discord.Attachment
             The file attachment to be handled.
-
         channel_id: int
             The channel ID.
-        
         user_id: int
             The user ID of the message sender.
-
         guild_id: int
             The guild ID of the server.
-        
         is_thread: bool
             Checks if the channel is a thread or not.
 
         Returns
-        ----------
+        -------
         None
 
         Raises
-        ----------
+        ------
         Exception:
             An unexpected error occurred while handling the attachment.
-        
         """
+
         # Determine access level
         access_level = await self.ai_repository.get_access_level(self.bot, user_id, guild_id)
         assistant_id = await self.ai_repository.get_assistant_by_access_level(access_level)
@@ -884,16 +880,8 @@ class ChatBot(Cog):
 
         Parameters
         ----------
-        interaction: discord.Interaction
-            The interaction object from Discord.
-
         attachment: Optional[discord.Attachment]
             The file attachment to be sent along with the message.
-
-        Returns
-        ----------
-        None
-
         """
 
         chatbot_error_embed = Embed(title="", color=discord.Colour.red())
@@ -993,16 +981,8 @@ class ChatBot(Cog):
 
         Parameters
         ----------
-        interaction: discord.Interaction
-            The interaction object from Discord.
-
         type: app_commands.Choice[str]
             The reset options choice.
-
-        Returns
-        ----------
-        None
-        
         """
         
         if not await self.bot.is_owner(interaction.user) and type.value == "all":

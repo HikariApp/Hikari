@@ -1,7 +1,7 @@
 """
 The MIT License (MIT)
 
-Copyright (c) 2024-2026 Hoshino Yuki
+Copyright (c) 2024-2026 Hoshino Yuki  
 Copyright (c) 2026 Hikari
 
 Permission is hereby granted, free of charge, to any person obtaining a

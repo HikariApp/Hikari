@@ -129,11 +129,6 @@ class HelpCommand(Cog):
         ----------
         command_or_group : `Optional[str]`
             The command or group to get help for.
-
-        Returns
-        ----------
-        None
-
         """
         if ctx.interaction:
             embed = Embed(title="", description="Here's some help coming your way...", color=ctx.author.color)
