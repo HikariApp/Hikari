@@ -3,7 +3,7 @@ from copy import copy
 from typing import List, Optional, Iterable
 from lava_lyra import LoopMode, Queue, Track
 
-logger = logging.getLogger("music_v2")
+logger = logging.getLogger(__name__)
 
 class BetterQueue(Queue):
     """
@@ -13,21 +13,17 @@ class BetterQueue(Queue):
 
     Attributes
     ----------
-    _playbackHistory : `List[lava_lyra.Track]`
+    _playbackHistory : List[lava_lyra.Track]
         A list-based queue that maintains the full history of tracks played.
-    
-    _currentIndex : `Optional[int]`
+    _currentIndex : Optional[int]
         The index of the current track in `_playbackHistory`. None means not initialized (before-first).
 
     Methods
     -------
-
-    get() -> `lava_lyra.Track`
+    get()
         Retrieves the next track from the queue and updates `_currentIndex` accordingly.
-
-    copy() -> `BetterQueue`
+    copy()
         Creates a copy of the current queue including all its members.
-
     """
 
     def __init__(self, *args, **kwargs):
@@ -84,15 +80,14 @@ class BetterQueue(Queue):
         However, if the queue is empty, this will raise `lava_lyra.QueueEmpty` as usual.
 
         Returns
-        ----------
+        -------
         lava_lyra.Track
             The next track in the queue.
 
         Raises 
-        ----------
+        ------
         lava_lyra.QueueEmpty
             Raised if no items in queue.
-
         """
 
         if self.loop_mode == LoopMode.QUEUE:
@@ -165,7 +160,6 @@ class BetterQueue(Queue):
         -------
         BetterQueue
             A new instance of `BetterQueue` with the same contents and state as the original.
-
         """
 
         # Preserve constructor options (max_size, overflow)
@@ -191,11 +185,10 @@ class BetterQueue(Queue):
         ----------
         item : lava_lyra.Track
             The track to remove from the queue.
-        
+
         Returns
         -------
         None
-
         """
     
         super().remove(item)
@@ -211,7 +204,6 @@ class BetterQueue(Queue):
         Returns
         -------
         None
-
         """
 
         super().clear()
@@ -228,7 +220,6 @@ class BetterQueue(Queue):
         -------
         List[lava_lyra.Track]
             A list of tracks in the playback history.
-
         """
 
         return self._playbackHistory
@@ -243,7 +234,6 @@ class BetterQueue(Queue):
         -------
         bool
             True if the playback history is empty, False otherwise.
-
         """
 
         return len(self._playbackHistory) == 0
@@ -258,7 +248,6 @@ class BetterQueue(Queue):
         -------
         int
             The number of tracks in the playback history.
-
         """
 
         return len(self._playbackHistory)
@@ -282,7 +271,6 @@ class BetterQueue(Queue):
 
         None
             The `_currentIndex` has not been initialized (before-first).
-
         """
 
         return self._currentIndex if self._currentIndex is not None and self._currentIndex >= 0 else None
@@ -301,7 +289,6 @@ class BetterQueue(Queue):
         Returns
         -------
         None
-
         """
 
         if value is None:
@@ -322,7 +309,6 @@ class BetterQueue(Queue):
         -------
         bool
             `True` if the queue has reached the end, `False` otherwise.
-
         """
 
         return bool(self._qEnd)
@@ -343,7 +329,6 @@ class BetterQueue(Queue):
         Returns
         -------
         None
-
         """
 
         self._qEnd = value
@@ -362,7 +347,6 @@ class BetterQueue(Queue):
         -------
         bool
             `True` if the queue has reached the beginning, `False` otherwise.
-
         """
 
         return (self._currentIndex == 0 and self._qEnd is False)

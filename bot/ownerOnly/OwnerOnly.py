@@ -4,7 +4,7 @@ import psutil
 import netifaces
 import socket
 from discord.ext import commands
-from discord.ext.commands import Bot, Cog, ExtensionAlreadyLoaded, ExtensionNotLoaded, NoEntryPointError, ExtensionFailed
+from discord.ext.commands import Bot, Cog, Context, ExtensionAlreadyLoaded, ExtensionNotLoaded, NoEntryPointError, ExtensionFailed
 from datetime import datetime
 from helpers.errorHandling import *
 from helpers.getIPv4Info import *
@@ -24,12 +24,11 @@ class OwnerOnly(Cog):
 
     # Sync all cogs for latest changes 
     @commands.command(hidden=True)
-    async def sync(self, ctx):
+    async def sync(self, ctx) -> None:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
         Sync all cogs for latest changes
-
         """
 
         if not await self.bot.is_owner(ctx.author):
@@ -45,7 +44,7 @@ class OwnerOnly(Cog):
 
     # Loading a cog manually
     @commands.command(hidden=True)
-    async def load(self, ctx, cog_name):
+    async def load(self, ctx: Context, cog_name: str) -> None:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
@@ -55,7 +54,6 @@ class OwnerOnly(Cog):
         ----------
         cog_name: str
             The name to load.
-
         """
 
         if not await self.bot.is_owner(ctx.author):
@@ -84,7 +82,7 @@ class OwnerOnly(Cog):
 
 
     @commands.command(hidden=True)
-    async def unload(self, ctx, cog_name):
+    async def unload(self, ctx: Context, cog_name: str) -> None:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
         
@@ -94,7 +92,6 @@ class OwnerOnly(Cog):
         ----------
         cog_name: str
             The name to unload.
-        
         """
 
         if not await self.bot.is_owner(ctx.author):
@@ -122,7 +119,7 @@ class OwnerOnly(Cog):
         
 
     @commands.command(hidden=True)
-    async def reload(self, ctx, cog_name):
+    async def reload(self, ctx: Context, cog_name: str) -> None:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
@@ -132,7 +129,6 @@ class OwnerOnly(Cog):
         ----------
         cog_name: str
             The name to reload.
-        
         """
 
         if not await self.bot.is_owner(ctx.author):
@@ -160,16 +156,11 @@ class OwnerOnly(Cog):
 
 
     @commands.command(hidden=True)
-    async def systeminfo(self, ctx) -> None:
+    async def systeminfo(self, ctx: Context) -> None:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
         Retrieving system info from the bot
-
-        Returns
-        ----------
-        None
-
         """
 
         if not await self.bot.is_owner(ctx.author):
@@ -236,14 +227,13 @@ class OwnerOnly(Cog):
 
     # Shutdown the bot and the server
     @commands.command(hidden=True)
-    async def selfshutdown(self, ctx):
+    async def selfshutdown(self, ctx: Context) -> None:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
         Shut down the bot and the server (SELF DESTRUCT)
 
         However, this command does NOT shut down the entire machine/server in docker or VPS hosting environments.
-
         """
         
         if not await self.bot.is_owner(ctx.author):
@@ -257,7 +247,6 @@ class OwnerOnly(Cog):
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
         Restart the bot and the server
-
         """
         
         if not await self.bot.is_owner(ctx.author):
@@ -268,4 +257,3 @@ class OwnerOnly(Cog):
 
 async def setup(bot):
     await bot.add_cog(OwnerOnly(bot))
-

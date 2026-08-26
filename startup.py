@@ -16,7 +16,7 @@ from helpers.extensionsHandler import getAllExtensions
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("app")
+logger = logging.getLogger(__name__)
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -37,29 +37,23 @@ class MyBot(Bot):
 
     Attributes
     ----------
-    mongoClient : `motor.AsyncIOMotorClient`
+    mongoClient : motor.AsyncIOMotorClient
         The motor client for MongoDB operations, initialized in `setup_hook`.
-
-    logger : `logging.Logger`
+    logger : logging.Logger
         The logger instance for logging bot activities.
-
-    webRunner : `aiohttp.web.AppRunner`
+    webRunner : aiohttp.web.AppRunner
         The aiohttp AppRunner for the monitoring web server, initialized in `setup_hook`.
 
     Methods
-    ----------
-    setup_hook() -> None
-        Coroutine that sets up the bot's dependencies, including MongoDB connection, loading extensions, and starting the web server.
-
-    getMongoClusterDB() -> `motor.AsyncIOMotorClient`
+    -------
+    setup_hook()
+        Coroutine that sets up the bot's dependencies, including MongoDB connection, loading extensions and starting the web server.
+    getMongoClusterDB()
         Returns the motor client for MongoDB operations.
-
-    getLogger() -> `logging.Logger`
+    getLogger()
         Returns the logger instance for logging bot activities.
-
-    close() -> None
+    close()
         Coroutine that closes all connections and shuts down the bot, including the web server, Lavalink node pool, and MongoDB client.
-
     """
 
     def __init__(self):
@@ -86,9 +80,8 @@ class MyBot(Bot):
         `SIGINT` and `SIGTERM` signals are also handled properly to ensure a graceful shutdown.
         
         Returns
-        ----------
+        -------
         None
-
         """
 
         # We establish the MongoDB connection first
@@ -137,9 +130,8 @@ class MyBot(Bot):
         Load extensions from the extensions folder.
 
         Returns
-        ----------
+        -------
         None
-
         """
 
         logger.info("Getting extensions...")
@@ -168,10 +160,9 @@ class MyBot(Bot):
         Checks if the bot is alive and responding.
         
         Returns
-        ----------
-        `web.Response`
+        -------
+        web.Response
             The response object containing the health status in JSON format.
-        
         """
 
         return web.json_response({"status": "ok"})
@@ -188,10 +179,9 @@ class MyBot(Bot):
         to see if there are any connetion issues.
 
         Returns
-        ----------
-        `web.Response`
+        -------
+        web.Response
             The response object, containing the status report in JSON format.
-
         """
 
         mongoOk = False
@@ -227,9 +217,8 @@ class MyBot(Bot):
         Starts a minimal web server and site for monitoring endpoints.
 
         Returns
-        ----------
+        -------
         None
-
         """
 
         app = web.Application()
@@ -253,8 +242,8 @@ class MyBot(Bot):
         Retrieve the motor client for all cogs.
         
         Returns
-        ----------
-        `motor.AsyncIOMotorClient`
+        -------
+        motor.AsyncIOMotorClient
             The motor client instance for MongoDB operations.
         """
 
@@ -266,10 +255,9 @@ class MyBot(Bot):
         Retrieve the logger instance for the bot.
         
         Returns
-        ----------
-        `logging.Logger`:
+        -------
+        logging.Logger
             The logger instance for logging bot activities.
-
         """
 
         return self.logger
@@ -286,10 +274,10 @@ class MyBot(Bot):
         parent class's close method to clean up discord.py resources.
 
         Returns
-        ----------
+        -------
         None
-
         """
+
         logger.info("close() called — shutting down cleanly.")
 
         # We stop the web server first
@@ -329,9 +317,8 @@ async def on_ready() -> None:
     Displaying startup info.
 
     Returns
-    ----------
+    -------
     None
-
     """
 
     logger.info(

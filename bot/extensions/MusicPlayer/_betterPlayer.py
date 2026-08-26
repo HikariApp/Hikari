@@ -10,7 +10,7 @@ from discord import Color, Embed, Message, HTTPException
 from discord.ext import tasks
 from discord.ext.commands import Context
 
-logger = logging.getLogger("music_v2")
+logger = logging.getLogger(__name__)
 
 # Customized Player class to handle queue and history (i.e. with a modifiable queue system and previous track support)
 
@@ -20,35 +20,27 @@ class BetterPlayer(Player):
 
     Attributes
     ----------
-    queue : `BetterQueue`
+    queue : BetterQueue
         The playback queue, i.e. an instance of `BetterQueue` that supports advanced queue operations
-
-    _isRollingBack : `bool`
+    _isRollingBack : bool
         A flag to indicate if a rollback operation is in progress, used to prevent auto-skipping
-
-    controller : `Message`
+    controller : Message
         The message containing the playback controls (if any), used to update the controller message with current track information
-
-    context : `Context`
+    context : Context
         The `discord.py` command context, for sending messages later (e.g., embeds for now playing)
 
     Methods
-    ----------
-    setContext(ctx: Context) -> `None`
+    -------
+    setContext(ctx)
         Store the command context on the player for later use (e.g., sending embeds).
-
-    isFinalTrack() -> `bool`
+    isFinalTrack()
         Check if the current track is the final track in the queue.
-
-    nowPlayingEmbed(track: Optional[Track] = None) -> `tuple[Embed, object | None]`
+    nowPlayingEmbed(track=None)
         Create an embed for the currently playing track, including metadata if available.
-
-    previousTrack(amount: int = 1) -> `Optional[Track]` | `None`
+    previousTrack(amount=1)
         Move backward in the queue by the specified amount, returning the track being played after moving backward
-
-    nextTrack() -> `Optional[Track]` | `bool` | `None`
+    nextTrack()
         Move forward in the queue by the next track, returning the track being played after moving forward
-    
     """
 
     def __init__(self, *args, **kwargs):
@@ -67,11 +59,10 @@ class BetterPlayer(Player):
         ----------
         ctx : Context
             The command context to store.
-            
+        
         Returns
         -------
         None
-
         """
 
         self.context = ctx        
@@ -85,7 +76,6 @@ class BetterPlayer(Player):
         Returns
         -------
         bool
-
         """
 
         history = self.queue._playbackHistory
@@ -98,25 +88,26 @@ class BetterPlayer(Player):
         )
 
     # Create an embed for the currently playing track
-    # UPDATE 17-10-2025: This function has been heavily modified and it returns a tuple now, see the Notes section below
     async def nowPlayingEmbed(self, track: Optional[Track] = None) -> tuple[Embed, object | None]:
         """
+        This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
+
         Create an embed for the currently playing track.
 
-        Updates the embed with detailed information about the track, including metadata if available.
+        Detailed metadata about the track would be provided if available.
 
         Parameters
         ----------
-        track: Optional`[lava_lyra.Track]`
+        track: Optional[lava_lyra.Track]
             The track that is currently playing. Leave it empty if no track is playing.
 
         Returns
-        ----------
+        -------
         tuple[Embed, object | None]:
             A tuple containing a Discord embed with information about the currently playing track, and the custom artwork file (if any).
 
         Examples
-        ----------
+        --------
         ```python
         # Example usage in a command, you should call this with unpacked values in order to avoid errors
         embed, customArtworkFile = await player.nowPlayingEmbed(player.current)
@@ -131,9 +122,8 @@ class BetterPlayer(Player):
         ```
 
         Notes
-        ----------
+        -----
         This function has been heavily modified since the second rewrite and it returns a tuple now, please be aware of that if you are calling it somewhere else to avoid potential issues.
-
         """
 
         embed = Embed(
@@ -288,9 +278,8 @@ class BetterPlayer(Player):
         None
             Returns if the function is called while a backward process is ongoing, or the history was not found.
 
-        Optional`[lava_lyra.Track]`
+        Optional[lava_lyra.Track]
             The track being played after moving backward, if successful.
-
         """
 
         # Quick guards
@@ -343,15 +332,12 @@ class BetterPlayer(Player):
 
         Returns
         -------
-        Optional`[lava_lyra.Track]`
+        Optional[lava_lyra.Track]
             The track being played after moving forward, if successful.
-
         bool: True
             Returns `True` to notify the caller if we already at the end of the queue.
-
         None
             Returns if the queue (both `self._queue` and `self.queue._playbackHistory`) was completely empty. This is a very rare scenario, probably due to some uncaught errors.
-
         """
 
         # Reset the end-of-queue flag to allow normal playback operations
@@ -409,7 +395,6 @@ class BetterPlayer(Player):
         Returns
         -------
         None
-
         """
 
         try:
@@ -442,10 +427,8 @@ class BetterPlayer(Player):
         Returns
         -------
         None
-
         """
 
         await asyncio.sleep(0.5)
         self._isRollingBack = False
         self.rollbackFlagInitialize.cancel()
-

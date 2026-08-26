@@ -1,3 +1,28 @@
+"""
+The MIT License (MIT)
+
+Copyright (c) 2025-2026 Hoshino Yuki  
+Copyright (c) 2026 Hikari
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the "Software"),
+to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+"""
+
 import io
 import os
 import tempfile
@@ -19,36 +44,91 @@ class AudioMetadataExtractor:
 
     All properties return `None` if the tag is missing.
 
+    Attributes
+    ----------
+    title : str | None
+        The title of the audio track.
+    artist : str | None
+        The artist of the audio track.
+    album : str | None
+        The album of the audio track.
+    albumArtist : str | None
+        The album artist of the audio track.
+    duration : str | None
+        The duration of the audio track in HH:MM:SS format.
+    genre : str | None
+        The genre of the audio track.
+    releaseDate : str | None
+        The release date of the audio track.
+    year : int | None
+        The release year of the audio track.
+    samplingRate : int | None
+        The sampling rate of the audio track in Hz.
+    bitRate : float | None
+        The bit rate of the audio track in kbps.
+    bitDepth : int | None
+        The bit depth of the audio track.
+    channels : int | None
+        The number of channels in the audio track.
+    trackNumber : int | None
+        The track number of the audio track.
+    trackTotal : int | None
+        The total number of tracks in the audio album.
+    discNumber : int | None
+        The disc number of the audio track.
+    discTotal : int | None
+        The total number of discs for the audio track.
+    label : str | None
+        The record label of the audio track.
+    copyright : str | None
+        The copyright information of the audio track.
+    lyrics : str | None
+        The lyrics of the audio track.
+    comment : str | None
+        The comment of the audio track.
+    composer : str | None
+        The composer of the audio track.
+    publisher : str | None
+        The publisher of the audio track.
+    coverArt : dict | None
+        The embedded cover art of the audio track, if available. Returns a dictionary with keys:
+        - mime: MIME type of the image (e.g., "image/jpeg").
+        - width: Width of the image in pixels.
+        - height: Height of the image in pixels.
+        - desc: Description of the image (e.g., "front cover").
+        - data: Raw bytes of the image.
+    others(tag: str) : str | None
+        Return other metadata fields by tag name. Returns the value of the specified tag, or None if not available.
+    
+
     Parameters
     ----------
     source : str | bytes | io.BytesIO
         Local file path, remote URL, or in-memory audio bytes.
-
     stream : bool, optional
         If True, performs a partial HTTP Range request for URL sources.
-
     bytesRange : int, optional
-        Number of bytes to fetch if streaming. Defaults to 20 MB.
-
+        Number of bytes to fetch if streaming. Defaults to 20 MB.  
         WARNING: Failure to do so may lead to missing metadata fields.
 
     Examples
     --------
-    >>> # For local file source (please ensure the filename without any spaces)
-    >>> extractor = AudioMetadataExtractor("path/to/audio.mp3")
-    >>> print(extractor.title)
-    >>> print(extractor.duration)
+    ```python
+    # For local file source (please ensure the filename without any spaces)
+    extractor = AudioMetadataExtractor("path/to/audio.mp3")
+    print(extractor.title)
+    print(extractor.duration)
 
-    >>> # For URL source with streaming
-    >>> url_extractor = AudioMetadataExtractor("https://example.com/audio.flac", stream=True)
-    >>> print(url_extractor.artist)
-
+    # For URL source with streaming
+    url_extractor = AudioMetadataExtractor("https://example.com/audio.flac", stream=True)
+    print(url_extractor.artist)
+    ```
     """
 
     def __init__(self, source: str | bytes | io.BytesIO, stream: bool = False, bytesRange: int = 20 * 1048576):
         self._tag = self._loadAudio(source, stream, bytesRange)
 
-
+    
     def _loadAudio(self, source: str | bytes | io.BytesIO, stream: bool, bytesRange: int) -> TinyTag:
         """Load from file, URL, or byte source via temporary file."""
         if isinstance(source, (bytes, io.BytesIO)):
@@ -79,10 +159,7 @@ class AudioMetadataExtractor:
                 pass
         return tag
 
-    # -------------------------------------------------------
-    # Metadata Extraction
-    # -------------------------------------------------------
-
+    
     def getMetadata(self) -> dict:
         """
         Return structured metadata dictionary.
@@ -93,7 +170,6 @@ class AudioMetadataExtractor:
         -------
         dict
             Dictionary of metadata fields.
-        
         """
 
         t = self._tag
@@ -103,8 +179,8 @@ class AudioMetadataExtractor:
         basicInfo = t.__dict__.copy()
         basicInfo.update(t.other)
         return basicInfo
-    
 
+    
     def getCoverArt(self) -> dict | None:
         """
         Returns embedded artwork info, if available.
@@ -112,9 +188,7 @@ class AudioMetadataExtractor:
         Returns
         -------
         dict | None
-            Dictionary with keys: mime, width, height, desc, data.
-            Returns None if no artwork is found.
-
+            Dictionary with keys: mime, width, height, desc, data. Returns None if no artwork is found.
         """
 
         if not self._tag:
@@ -143,11 +217,7 @@ class AudioMetadataExtractor:
             "data": image_data,
         }
 
-    # -------------------------------------------------------
-    # Convenience Properties
-    # -------------------------------------------------------
-
-
+    
     @property
     def title(self) -> str | None:
         """
@@ -157,11 +227,11 @@ class AudioMetadataExtractor:
         -------
         str | None
             Title of the track, or None if not available.
-
         """
 
         return self.getMetadata().get("title")
 
+    
     @property
     def artist(self) -> str | None:
         """
@@ -171,11 +241,11 @@ class AudioMetadataExtractor:
         -------
         str | None
             Artist of the track, or None if not available.
-
         """
 
         return self.getMetadata().get("artist")
 
+    
     @property
     def album(self) -> str | None:
         """
@@ -185,11 +255,11 @@ class AudioMetadataExtractor:
         -------
         str | None
             Album of the track, or None if not available.
-
         """
 
         return self.getMetadata().get("album")
 
+    
     @property
     def albumArtist(self) -> str | None:
         """
@@ -199,11 +269,11 @@ class AudioMetadataExtractor:
         -------
         str | None
             Album artist of the track, or None if not available.
-
         """
 
         return self.getMetadata().get("albumartist")
 
+    
     @property
     def duration(self) -> str | None:
         """
@@ -212,11 +282,11 @@ class AudioMetadataExtractor:
         -------
         str | None
             Duration of the track as a string, or None if not available.
-
         """
 
         return str(timedelta(seconds=floor(self.getMetadata().get("duration")))) if self.getMetadata().get("duration") else None
 
+    
     @property
     def genre(self) -> str | None:
         """
@@ -226,11 +296,11 @@ class AudioMetadataExtractor:
         -------
         str | None
             Genre of the track, or None if not available.
-
         """
 
         return self.getMetadata().get("genre")
 
+    
     @property
     def releaseDate(self) -> str | None:
         """
@@ -240,11 +310,11 @@ class AudioMetadataExtractor:
         -------
         str | None
             Release date of the track, or None if not available.
-
         """
 
         return (self.getMetadata().get("releasetime")[0] if self.getMetadata().get("releasetime") else None) or self.getMetadata().get("year")
 
+    
     @property
     def year(self) -> int | None:
         """
@@ -254,11 +324,11 @@ class AudioMetadataExtractor:
         -------
         int | None
             Release year of the track, or None if not available.
-
         """
 
         return (self.getMetadata().get("_year")[0] if self.getMetadata().get("_year") else None) or (str(self.getMetadata().get("year")).split('-')[0] if self.getMetadata().get("year") else None)
 
+    
     @property
     def samplingRate(self) -> int | None:
         """
@@ -268,11 +338,11 @@ class AudioMetadataExtractor:
         -------
         int | None
             Sampling rate in Hz, or None if not available.
-
         """
 
         return self.getMetadata().get("samplerate")
 
+    
     @property
     def bitRate(self) -> float | None:
         """
@@ -282,10 +352,10 @@ class AudioMetadataExtractor:
         -------
         float | None
             Bit rate in kbps, or None if not available.
-
         """
 
         return round(float(self.getMetadata().get("bitrate")), 3) if self.getMetadata().get("bitrate") else None
+
     
     @property
     def bitDepth(self) -> int | None:
@@ -296,11 +366,11 @@ class AudioMetadataExtractor:
         -------
         int | None
             Bit depth, or None if not available.
-
         """
 
         return self.getMetadata().get("bitdepth")
 
+    
     @property
     def channels(self) -> int | None:
         """
@@ -310,10 +380,10 @@ class AudioMetadataExtractor:
         -------
         int | None
             Number of channels, or None if not available.
-
         """
 
         return self.getMetadata().get("channels")
+
     
     @property
     def trackNumber(self) -> int | None:
@@ -324,10 +394,10 @@ class AudioMetadataExtractor:
         -------
         int | None
             Track number, or None if not available.
-
         """
 
         return self.getMetadata().get("track")
+
     
     @property
     def trackTotal(self) -> int | None:
@@ -338,10 +408,10 @@ class AudioMetadataExtractor:
         -------
         int | None
             Total number of tracks, or None if not available.
-
         """
 
         return self.getMetadata().get("track_total")
+
     
     @property
     def discNumber(self) -> int | None:
@@ -352,11 +422,11 @@ class AudioMetadataExtractor:
         -------
         int | None
             Disc number, or None if not available.
-
         """
 
         return self.getMetadata().get("disc")
 
+    
     @property
     def discTotal(self) -> int | None:
         """
@@ -366,11 +436,11 @@ class AudioMetadataExtractor:
         -------
         int | None
             Total number of discs, or None if not available.
-
         """
 
         return self.getMetadata().get("discs")
 
+    
     @property
     def label(self) -> str | None:
         """
@@ -380,10 +450,10 @@ class AudioMetadataExtractor:
         -------
         str | None
             Record label, or None if not available.
-
         """
 
         return self.getMetadata().get("label")[0] if self.getMetadata().get("label") else None
+
     
     @property
     def copyright(self) -> str | None:
@@ -394,10 +464,10 @@ class AudioMetadataExtractor:
         -------
         str | None
             Copyright information, or None if not available.
-
         """
 
         return (self.getMetadata().get("copyright")[0] if self.getMetadata().get("copyright") else None) or self.getMetadata().get("license")
+
     
     @property
     def lyrics(self) -> str | None:
@@ -408,11 +478,11 @@ class AudioMetadataExtractor:
         -------
         str | None
             Lyrics of the track, or None if not available.
-
         """
 
         return (self.getMetadata().get("lyrics")[0] if self.getMetadata().get("lyrics") else None)
 
+    
     @property
     def comment(self) -> str | None:
         """
@@ -422,11 +492,11 @@ class AudioMetadataExtractor:
         -------
         str | None
             Comment of the track, or None if not available.
-
         """
 
         return (self.getMetadata().get("comment")[0] if self.getMetadata().get("comment") else None)
 
+    
     @property
     def composer(self) -> str | None:
         """
@@ -436,11 +506,11 @@ class AudioMetadataExtractor:
         -------
         str | None
             Composer of the track, or None if not available.
-
         """
 
         return (self.getMetadata().get("composer")[0] if self.getMetadata().get("composer") else None)
 
+    
     @property
     def publisher(self) -> str | None:
         """
@@ -450,10 +520,10 @@ class AudioMetadataExtractor:
         -------
         str | None
             Publisher of the track, or None if not available.
-
         """
         
         return (self.getMetadata().get("publisher")[0] if self.getMetadata().get("publisher") else None)
+
     
     @property
     def coverArt(self) -> dict | None:
@@ -463,13 +533,12 @@ class AudioMetadataExtractor:
         Returns
         -------
         dict | None
-            Dictionary with keys: mime, width, height, desc, data.
-            Returns None if no artwork is found.
-
+            Dictionary with keys: mime, width, height, desc, data. Returns None if no artwork is found.
         """
 
         return self.getCoverArt()
 
+    
     @property
     def others(self, tag: str) -> str | None:
         """
@@ -484,7 +553,6 @@ class AudioMetadataExtractor:
         -------
         str | None
             Value of the specified tag, or None if not available.
-
         """
 
         return (self.getMetadata().get(tag)[0] if self.getMetadata().get(tag) else None) or self.getMetadata().get(tag)
@@ -506,7 +574,6 @@ def toDiscordFile(artwork: dict, filename: str = "artwork.png") -> "discord.File
     -------
     discord.File | None
         A discord.File object if artwork is present, otherwise None.
-    
     """
     
     if not artwork or not artwork.get("data"):
@@ -530,5 +597,5 @@ def toDiscordFile(artwork: dict, filename: str = "artwork.png") -> "discord.File
         return discord.File(buffer, filename=filename)
     
     except Exception as e:
-        print(f"Error converting artwork to Discord file: {e}")
+        print(f"Error occurred while converting artwork to Discord file: {e}")
         return

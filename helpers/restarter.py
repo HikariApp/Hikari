@@ -1,3 +1,28 @@
+"""
+The MIT License (MIT)
+
+Copyright (c) 2023-2026 Hoshino Yuki  
+Copyright (c) 2026 Hikari
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the "Software"),
+to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+"""
+
 import os
 import sys
 import time
@@ -18,30 +43,30 @@ class Restarter:
     Support both command invokes from `discord.py` (!restart)
     and triggers from some of the exceptions (e.g. HTTP 429).
 
-    Methods
+    Attributes
     ----------
-    request(reason, delay) -> None
-        Request a restart with a specified reason and optional delay.
+    requested : bool
+        Check if a restart has been requested (read-only property).
 
-    perform() -> None
+    Methods
+    -------
+    request(reason, delay=0.0)
+        Request a restart with a specified reason and optional delay.
+    perform()
         Perform the restart if one has been requested.
 
-    Properties
-    ----------
-    requested
-        Check if a restart has been requested.
-
     Notes
-    ----------
+    -----
     Please be aware that you should request a restart first before closing the bot,
     otherwise the restart will not be performed.
-
     """
+
 
     def __init__(self) -> None:
         self._requested = False
         self._delay = 0.0
         self._reason = None
+
 
     def request(self, reason: str, delay: float = 0.0) -> None:
         """
@@ -53,14 +78,12 @@ class Restarter:
         ----------
         reason : str
             The reason for the restart request. This will be logged for informational purposes.
-
         delay : float
             The delay in seconds before the restart is performed. Defaults to 0.0 if unspecified (no delay).
 
         Returns
         ----------
         None
-
         """
 
         if self._requested:
@@ -84,12 +107,11 @@ class Restarter:
         -------
         bool
             True if a restart has been requested, False otherwise.
-        
         """
 
         return self._requested
 
-
+    
     def perform(self) -> None:
         """
         Perform the restart if one has been requested.
@@ -100,15 +122,14 @@ class Restarter:
         If no restart has been requested, this method has nothing to do at all.
 
         Returns
-        ----------
+        -------
         None
 
-        Note
-        ----------
+        Notes
+        -----
         Do not call this method directly unless you have requested 
         a restart first by calling `request()`, otherwise it would be
         caught by the safety guard and do nothing.
-
         """
         
         if not self._requested:
@@ -124,4 +145,7 @@ class Restarter:
 
 
 restarter = Restarter()
+"""
+A singleton instance of the `Restarter` class. Can be used throughout the application to manage restart requests.
+"""
 
