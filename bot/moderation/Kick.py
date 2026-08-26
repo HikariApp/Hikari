@@ -14,7 +14,6 @@ class Kick(Cog):
         raise error
 
     # Kicks a member
-    # UPDATE 25-10-2025: This command has been heavily rewritten to support hybrid commands, see Note for more details.
     @commands.hybrid_command(name="kick", help="Kicks a member")
     @commands.has_permissions(kick_members=True)
     @commands.bot_has_permissions(kick_members=True)
@@ -25,18 +24,13 @@ class Kick(Cog):
 
         Parameters
         ----------
-        member : `Union[discord.Member, discord.User]`
+        member : Union[discord.Member, discord.User]
             The member to kick.
-        
-        reason : `Optional[str]`
+        reason : Optional[str]
             The reason for the kick.
-        
-        Returns
-        ----------
-        None
-        
-        Note
-        ----------
+
+        Notes
+        -----
         This command has been heavily rewritten to support hybrid commands.
 
         For the `member` argument, it now accepts both `discord.Member` and `discord.User` types.
@@ -44,7 +38,6 @@ class Kick(Cog):
         If a `discord.User` object is provided, the bot will check if they are a member of the guild before attempting to kick them.
 
         If the specified user is not a member of the guild, an appropriate message will be sent.
-
         """
 
         embed = Embed(title="")

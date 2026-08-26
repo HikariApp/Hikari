@@ -13,17 +13,15 @@ async def isBanned(ctx: Context, user: User) -> bool:
 
     Parameters
     ----------
-    ctx : `discord.ext.commands.Context`
+    ctx : discord.ext.commands.Context
         The context of the command invocation.
-    
-    user : `discord.User`
+    user : discord.User
         The user to check.
 
     Returns
-    ----------
+    -------
     bool
         Returns `True` if the user is already banned, `False` otherwise.
-
     """
 
     async for entry in ctx.guild.bans():
@@ -57,22 +55,16 @@ class Ban(Cog):
         ----------
         user : discord.User
             The user to ban (Enter the User ID e.g. 529872483195806124)
-        
         reason : Optional[str]
             The reason for the ban.
-        
-        Returns
-        ----------
-        None
-        
-        Note
-        ----------
+
+        Notes
+        -----
         This command has been heavily rewritten to support hybrid commands, and it now combines both guild ban and member ban functionalities for simplicity.
 
         If the user is not in the server, it will ban them from the guild using their user ID, otherwise, it will ban them as a member.
 
         As same as before, only the server owner (or bot owner) has privileges to ban admins.
-
         """
 
         embed = Embed(title="")

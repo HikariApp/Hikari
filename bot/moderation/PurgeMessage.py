@@ -28,7 +28,6 @@ class PurgeMessage(commands.Cog):
             purgeEmbed = discord.Embed(title="Message Purge", description=f"You have successfully purged {amount} messages.", color=0x00ff00)
             await interaction.channel.purge(limit=amount, check=not_pinned)
         
-        purgeEmbed.set_image(url="https://media.discordapp.net/attachments/737732516588290110/1084510457387307048/presto-purge.png")
         msg = await interaction.followup.send(embed=purgeEmbed, ephemeral=True, silent=True)
         
         await asyncio.sleep(1.5)

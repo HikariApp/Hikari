@@ -82,7 +82,7 @@ class Restarter:
             The delay in seconds before the restart is performed. Defaults to 0.0 if unspecified (no delay).
 
         Returns
-        ----------
+        -------
         None
         """
 

@@ -25,16 +25,10 @@ class Unban(Cog):
         Parameters
         ----------
         
-        user : `discord.User`
+        user : discord.User
             The user to unban (Enter the User ID e.g. 529872483195806124)
-        
-        reason : `Optional[str]`
+        reason : Optional[str]
             Reason for unban.
-            
-        Returns
-        ----------
-        None
-        
         """
         
         embed = Embed(title="")
