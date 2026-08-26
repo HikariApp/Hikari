@@ -1,25 +1,33 @@
 import discord
-import asyncio
 import re
 from datetime import datetime, timezone, timedelta
-from discord import app_commands, Embed, Interaction, Forbidden, Permissions
+from discord import Color, Embed, Forbidden, Member, Permissions
 from discord.ext import commands, tasks
-from discord.app_commands import BotMissingPermissions
-from discord.app_commands.errors import MissingPermissions
-from typing import Optional, Union
+from discord.ext.commands import BadUnionArgument, Bot, Cog, Context, CommandInvokeError, MissingPermissions, MissingRequiredArgument, MemberNotFound, BotMissingPermissions, UserNotFound
+from typing import Any, Optional, Union
+from helpers.respondEmbed import respondEmbed
 
 
-class Mute(commands.Cog):
+class Mute(Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.logger = self.bot.getLogger()
         self.db = self.bot.getMongoClusterDB()
         self.unmute_text_task.start()
+
+
+    # Cog-level error listener for unhandled errors
+    async def cog_on_command_error(self, ctx: Context, error: Exception):
+        self.logger.exception(f"Uncaught error in {ctx.cog.__cog_name__}:", exc_info=error)
+        raise error
+
 
     def cog_unload(self):
         self.unmute_text_task.cancel()  # Stop the task when the cog is unloaded
 
+
     # Convert time string to seconds and detailed duration breakdown
-    def parse_duration(self, duration_str: str) -> Union[dict, str]:
+    def parseDurationForMute(self, duration_str: str) -> Union[dict, str]:
         units = {
             "s": 1,        # seconds
             "m": 60,       # minutes
@@ -35,8 +43,8 @@ class Mute(commands.Cog):
         if not matches:
             return "error_improper_format"
 
-        total_seconds = 0
-        duration_breakdown = {
+        totalSeconds = 0
+        durationBreakdown = {
             "years": 0,
             "months": 0,
             "weeks": 0,
@@ -49,8 +57,8 @@ class Mute(commands.Cog):
         for amount, unit in matches:
         
             if unit in units:
-                total_seconds += int(amount) * units[unit]
-                duration_breakdown[{
+                totalSeconds += int(amount) * units[unit]
+                durationBreakdown[{
                     "y": "years",
                     "mo": "months",
                     "w": "weeks",
@@ -60,35 +68,31 @@ class Mute(commands.Cog):
                     "s": "seconds"
                 }[unit]] += int(amount)
 
-        duration_breakdown["total_seconds"] = total_seconds
-        return duration_breakdown
+        durationBreakdown["total_seconds"] = totalSeconds
+        return durationBreakdown
+
 
     # Function of mutes a member from text channel
-    async def mute_text(self, interaction: Interaction, member: discord.Member, duration_str: str | None, reason: str | None):
+    async def applyMute(self, ctx: Context, member: Member, durationStr: str | None, reason: str | None):
         database = self.db.moderation_mute
         mute_text_collection = database["mute_text"]
-        mute_embed = Embed(title="", color=interaction.user.color)
-        mute_error_embed = Embed(title="", color=discord.Colour.red())
         
         try:
-            muted = discord.utils.get(interaction.guild.roles, name="Muted")
+            muted = discord.utils.get(ctx.guild.roles, name="Muted")
             
-            if duration_str is not None:  # For time-based mute only
-                total_duration = self.parse_duration(duration_str)
+            if durationStr is not None:  # For time-based mute only
+                totalDuration = self.parseDurationForMute(durationStr)
                 
-                if total_duration == "error_improper_format":
-                    mute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Looks like the time fomrmat you entered it's not vaild :thinking: ... Perhaps enter again and gave me a chance to handle it, {interaction.user.mention} :pleading_face:?", inline=False)
-                    mute_error_embed.add_field(name="Supported time format:", value=f"**1**s = **1** second | **2**m = **2** minutes | **5**h = **5** hours | **10**d = **10** days | **3**w = **3** weeks | **6**y = **6** years.", inline=False)
-                    return await interaction.response.send_message(embed=mute_error_embed)
+                if totalDuration == "error_improper_format":
+                    return await respondEmbed(ctx, message=f"Looks like the time format you entered is not valid :thinking: ... Perhaps enter again and give me a chance to handle it, {ctx.author.mention} :pleading_face:?\n\n**Supported time format:**\n**1**s = **1** second | **2**m = **2** minutes | **5**h = **5** hours | **10**d = **10** days | **3**w = **3** weeks | **6**y = **6** years.", error=True)
             
             if muted is None:
-                muted = await interaction.guild.create_role("Muted", permissions=Permissions(send_messages=False))
+                muted = await ctx.guild.create_role("Muted", permissions=Permissions(send_messages=False))
             
             if muted in member.roles:
-                mute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {member.mention} is already muted!")
-                return await interaction.response.send_message(embed=mute_error_embed, ephemeral=True)
+                return await respondEmbed(ctx, message=f"{member.mention} is already muted!", error=True)
             
-            duration_message = "for " + " and ".join(", ".join([f"**{value}** {unit[:-1]}" + ("s" if value > 1 else "") for unit, value in total_duration.items() if unit != "total_seconds" and value != 0]).rsplit(", ", 1)) + " " if duration_str is not None else ""
+            duration_message = "for " + " and ".join(", ".join([f"**{value}** {unit[:-1]}" + ("s" if value > 1 else "") for unit, value in totalDuration.items() if unit != "total_seconds" and value != 0]).rsplit(", ", 1)) + " " if durationStr is not None else ""
             reason_message =  f"\nReason: **{reason}**" if reason is not None else ""
             
             if reason is not None:
@@ -96,20 +100,19 @@ class Mute(commands.Cog):
             
             else:
                 await member.add_roles(muted)
-            
-            mute_embed.add_field(name="", value=f":white_check_mark: {member.mention} has been **muted** {duration_message}:zipper_mouth:{reason_message}")
-            await interaction.response.send_message(embed=mute_embed)
+
+            await respondEmbed(ctx, message=f":white_check_mark: {member.mention} has been **muted** {duration_message}:zipper_mouth:{reason_message}")
             
             # Save mute info to the database
-            if duration_str is not None:
-                mute_end_time = datetime.now(timezone.utc) + timedelta(seconds=total_duration["total_seconds"])    # For time-based mute only
+            if durationStr is not None:
+                mute_end_time = datetime.now(timezone.utc) + timedelta(seconds=totalDuration["total_seconds"])    # For time-based mute only
             else:
                 mute_end_time = None
             await mute_text_collection.insert_one({
-                "guild_id": interaction.guild.id,
+                "guild_id": ctx.guild.id,
                 "user_id": member.id,
                 "role_id": muted.id,
-                "time_based": True if duration_str is not None else False,
+                "time_based": True if durationStr is not None else False,
                 "mute_end_time": mute_end_time,
                 "reason": reason
             })
@@ -117,11 +120,10 @@ class Mute(commands.Cog):
         except Forbidden as e:
             if e.status == 403 and e.code == 50013:
                 # Handling rare forbidden case
-                mute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **mute** that user by changing the user's roles. Please **double-check** my **permissions** and **role position**.")
-                await interaction.response.send_message(embed=mute_error_embed)
+                return await respondEmbed(ctx, message=f"I couldn't **mute** that user by changing the user's roles. Please **double-check** my **permissions** and **role position**.", error=True)
             
             else:
-                raise e
+                raise
             
 
     # Background task to handle only time-based unmutes
@@ -156,6 +158,7 @@ class Mute(commands.Cog):
             # Remove the Muted role from the member
             try:
                 await member.remove_roles(role, reason="Mute duration expired")
+            
             except discord.Forbidden:
                 # If the bot lacks the permissions to remove the role, skip this member
                 continue
@@ -165,48 +168,95 @@ class Mute(commands.Cog):
 
 
     # Mutes a member from text for a specified amount of time
-    @app_commands.command(description="Mutes a member from text channels")
-    @app_commands.checks.has_permissions(moderate_members=True)
-    @app_commands.checks.bot_has_permissions(moderate_members=True)
-    @app_commands.describe(member="Member to mute")
-    @app_commands.describe(reason="Reason for mute")
-    @app_commands.describe(duration="Duration for mute (e.g. 1s = 1 second | 2m = 2 minutes | 5h = 5 hours | 10d = 10 days | 3w = 3 weeks | 6y = 6 years)")
-    async def mute(self, interaction: Interaction, member: discord.Member, duration: Optional[str] = None, reason: Optional[str] = None):
-        mute_error_embed = Embed(title="", color=discord.Colour.red())
+    @commands.hybrid_command(name="mute", help="Mutes a member from text channels")
+    @commands.has_permissions(moderate_members=True)
+    @commands.bot_has_permissions(moderate_members=True)
+    async def mute(self, ctx: Context, member: Member, duration: Optional[str] = None, *, reason: Optional[str] = None):
+        """
+        Mutes a member from text channels.
+
+        Parameters
+        ----------
+        member : Union[discord.Member, discord.User]
+            The member to mute.
+        duration : Optional[str]
+            Duration for mute (e.g. 1s = 1 second | 2m = 2 minutes | 5h = 5 hours | 10d = 10 days | 3w = 3 weeks | 6y = 6 years)
+        reason : Optional[str]
+            Reason for mute.
+
+        Notes
+        -----
+        This command has been heavily rewritten to support hybrid commands.
+
+        As same as before, only the server owner (or bot owner) has privileges to mute admins.
+        """
+
+        # Defer the interaction response if invoked as a slash command, in case of long processing time.
+        if ctx.interaction:
+            await ctx.interaction.response.defer()
+
+        # Basic checks
+        # Error handling will be done by the error handler below
+        if (member.id == ctx.author.id):
+            return await respondEmbed(ctx, message=f"{ctx.author.mention}, You can't **mute yourself**!", error=True)
         
-        if member == interaction.user:
-            mute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {interaction.user.mention}, You can't **mute yourself**!")
-            return await interaction.response.send_message(embed=mute_error_embed)
+        if (member.id == self.bot.user.id):
+            return await respondEmbed(ctx, message=f"{ctx.author.mention}, I can't **mute myself**!", error=True)
         
-        if member.guild_permissions.administrator and interaction.user != interaction.guild.owner:
-            
-            if not await self.bot.is_owner(interaction.user):
-                mute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Stop trying to **mute an admin**! :rolling_eyes:")
-                return await interaction.response.send_message(embed=mute_error_embed)
+        if ctx.guild.get_member(member.id) is None:
+            # The specified user exists, but could not be found as a member of the guild
+            return await respondEmbed(ctx, message=f"Looks like {member.mention} is not in the server, {ctx.author.mention} :thinking: ...", error=True)
         
-        if member == self.bot.user:
-            mute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {interaction.user.mention}, I can't **mute myself**!")
-            return await interaction.response.send_message(embed=mute_error_embed)
+        # As stated above, only the server owner (or bot owner) has privileges to mute admins
+        if member.guild_permissions.administrator and (ctx.author.id != ctx.guild.owner.id or not await self.bot.is_owner(ctx.author)):
+            return await respondEmbed(ctx, message=f"{ctx.author.mention}, I know you're trying to **mute an admin**, but I can't let you do that... :rolling_eyes:", error=True)
         
-        await self.mute_text(interaction, member, duration, reason)
+        if member and member.top_role >= ctx.guild.get_member(self.bot.user.id).top_role:
+            return await respondEmbed(ctx, message=f"{ctx.author.mention}, I can't **mute** {member.mention} because their **top role is higher than mine**.", error=True)
+        
+        await self.applyMute(ctx, member, duration, reason)
 
 
+    # Error handling, for both commands and slash commands
     @mute.error
-    async def mute_error(self, interaction: Interaction, error):
-        mute_error_embed = Embed(title="", color=discord.Colour.red())
+    async def mute_error(self, ctx: Context, error: Any):
+        embed = Embed(title="")
+        embed.color = Color.red()
+
+        if isinstance(error, MissingRequiredArgument) and error.param.name == "member":
+            # The command invoker doesn't provide the member argument
+            # A special case to return a more user-friendly message
+            return await respondEmbed(ctx, message=f"Looks like you want me to **mute someone**, but **haven't specified** the user you would like to mute :thinking:  ...\nJust curious to know, **who** should I mute for now, {ctx.author.mention}?", error=True)
+
+        if isinstance(error, BadUnionArgument) or isinstance(error, UserNotFound):
+            # The member argument couldn't be converted to either User or Member
+            # This includes the case where a User is provided but does not exist
+            # A special case to return a more user-friendly message
+            return await respondEmbed(ctx, message=f"I couldn't find **the user you wanted to mute** :thinking: ... Perhaps check if that user really **exists** on Discord, {ctx.author.mention}?", error=True)
         
+        if isinstance(error, MemberNotFound):
+            # The specified member could not be found
+            # This will unlikely be triggered since we are using Union[User, Member] for the member argument, but we add it here just in case
+            return await respondEmbed(ctx, message=f"{error.argument} is not in the server, {ctx.author.mention} :thinking: ...", error=True)
+
+        if isinstance(error, MissingRequiredArgument):
+            # Missing argument(s)
+            return await respondEmbed(ctx, message=f"Missing argument: `{error.param.name}`. Please provide all required arguments, {ctx.author.mention}.", error=True)
+
         if isinstance(error, MissingPermissions):
-            mute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `moderate members` permission, and you probably **don't have** it, {interaction.user.mention}.")
-            await interaction.response.send_message(embed=mute_error_embed)
-        
-        elif isinstance(error, BotMissingPermissions):
-            mute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **mute** that user by changing the user's roles. Please **double-check** my **permissions** and **role position**.")
-            await interaction.response.send_message(embed=mute_error_embed)
-        
-        else:
-            raise error
+            # The command invoker doesn't have permissions
+            return await respondEmbed(ctx, message=f"This command **requires** `moderate_members` permission, and you probably **don't have** it, {ctx.author.mention}.", error=True)
+
+        if (
+            isinstance(error, BotMissingPermissions) or
+            (isinstance(error, CommandInvokeError) and isinstance(error.original, Forbidden))    # Sometimes the application might throw a CommandInvokeError which caused by Forbidden, which is basically the same concept
+        ):
+            # The application doesn't have permissions to do so
+            return await respondEmbed(ctx, message=f"I couldn't **mute** that member. Please **double-check** my **permissions** and **role position**.", error=True)
+
+        # If the error is not handled, forward to the cog-level listener, or even bot-level if unhandled here
+        await self.cog_on_command_error(ctx, error)
         
 
 async def setup(bot):
     await bot.add_cog(Mute(bot))
-
