@@ -1,8 +1,7 @@
 """
 The MIT License (MIT)
 
-Copyright (c) 2024-2025 Hoshino Yuki  
-Copyright (c) 2026 Hikari
+Copyright (c) 2024-present Hoshino Yuki
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),
@@ -22,6 +21,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
+
+# SPDX-License-Identifier: MIT
 
 import json
 import urllib3
