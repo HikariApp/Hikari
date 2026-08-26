@@ -28,6 +28,11 @@ import os
 from lava_lyra import NodePool
 from discord.ext.commands import Bot
 
+ENV_TRUTHY_VALUES = {"1", "true", "yes"}
+
+def customBoolCheck(str: str) -> bool:
+    """Check if the string is a truthy value."""
+    return str.strip().lower() in ENV_TRUTHY_VALUES
 
 class NodeManager:
     def __init__(self, bot: Bot):
@@ -43,7 +48,7 @@ class NodeManager:
                 bot=self.bot,
                 host=os.getenv("LAVALINK_HOST"),
                 port=int(os.getenv("LAVALINK_PORT")),
-                secure=os.getenv("LAVALINK_IS_SECURE").lower() == "true",
+                secure=customBoolCheck(os.getenv("LAVALINK_IS_SECURE")),
                 password=os.getenv("LAVALINK_PASSWORD"),
                 identifier="MAIN",
             )
