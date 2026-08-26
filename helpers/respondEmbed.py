@@ -26,6 +26,7 @@ DEALINGS IN THE SOFTWARE.
 
 from discord import Embed, Color
 from discord.ext import commands
+from typing import Optional
 
 CROSS_RED = "<a:crossred:1356353067024515266>"
 
@@ -36,6 +37,9 @@ async def respondEmbed(
     *,
     error: bool = False,
     title: str = "",
+    isPrivate: bool = False,
+    isReply: bool = False,
+    deleteAfter: Optional[float] = None,
 ) -> None:
     """
     This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
@@ -52,18 +56,40 @@ async def respondEmbed(
         Whether the embed should be displayed in red (for errors).
     title : str, optional
         The title of the embed.
+    isPrivate : bool, optional
+        Whether the embed should be sent as a private message.
+    isReply : bool, optional
+        Whether the embed should be sent as a reply to the original message.
+    deleteAfter : Optional[float], optional
+        The time in seconds after which the message should be deleted.
+        If it is None, the message will not be deleted.
 
     Returns
     -------
     None
+
+    Raises
+    ------
+    ValueError
+        If both `isPrivate` and `isReply` are set to `True`, as a message cannot be both private and a reply.
     """
     
     if error:
         message = f"{CROSS_RED} {message}"
+
     embed = Embed(
         title=title,
         description=message,
         color=Color.red() if error else ctx.author.color,
     )
-    return await ctx.send(embed=embed)
 
+    if isPrivate and isReply:
+        raise ValueError("Cannot send a private reply. Choose either isPrivate or isReply.")
+
+    # Determine the correct send method
+    send_method = ctx.author.send if isPrivate else (ctx.reply if isReply else ctx.send)
+
+    # Pass delete_after only if it is provided
+    kwargs = {"delete_after": deleteAfter} if deleteAfter else {}
+
+    return await send_method(embed=embed, **kwargs)
