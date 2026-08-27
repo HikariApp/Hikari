@@ -9,7 +9,7 @@ from helpers.errorHandling import *
 from helpers.getIPv4Info import *
 from helpers.restarter import restarter
 from helpers.extensionsHandler import getAllExtensions
-from helpers.respondEmbed import respondEmbed
+from helpers.respondEmbed import respondEmbed, ResponseTarget
 
 
 class OwnerOnly(Cog):
@@ -39,10 +39,10 @@ class OwnerOnly(Cog):
         """
 
         if not await self.bot.is_owner(ctx.author):
-            return await respondEmbed(ctx, NotBotOwnerError(), error=True, isReply=True)
+            return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
         
         synced = await self.bot.tree.sync()
-        await respondEmbed(ctx, f"Synced {len(synced)} command(s).", title="Sync Successful", isReply=True, deleteAfter=5)
+        await respondEmbed(ctx, f"Synced {len(synced)} command(s).", title="Sync Successful", target=ResponseTarget.REPLY, deleteAfter=5)
 
 
     # Loading a cog manually
@@ -60,25 +60,25 @@ class OwnerOnly(Cog):
         """
 
         if not await self.bot.is_owner(ctx.author):
-            return await respondEmbed(ctx, NotBotOwnerError(), error=True, isReply=True)
+            return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
         
         extensions = await getAllExtensions()
         if cog_name not in extensions:  # Front check if the cog was in the valid cog list or not
-            return await respondEmbed(ctx, ExtensionNotFoundError(cog=cog_name), error=True, isReply=True)
+            return await respondEmbed(ctx, ExtensionNotFoundError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
         
         try:
             await self.bot.load_extension(cog_name)
             await self.bot.tree.sync()
-            await respondEmbed(ctx, f"Cog `{cog_name}` has been loaded.", title="Load Successful", isReply=True, deleteAfter=2)
+            await respondEmbed(ctx, f"Cog `{cog_name}` has been loaded.", title="Load Successful", target=ResponseTarget.REPLY, deleteAfter=2)
             
         except ExtensionAlreadyLoaded:
-            return await respondEmbed(ctx, f"Cog `{cog_name}` has been already loaded!", error=True, isReply=True)
+            return await respondEmbed(ctx, f"Cog `{cog_name}` has been already loaded!", error=True, target=ResponseTarget.REPLY)
         
         except NoEntryPointError:
-            return await respondEmbed(ctx, ReturnNoEntryPointError(cog=cog_name), error=True, isReply=True)
+            return await respondEmbed(ctx, ReturnNoEntryPointError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
         
         except ExtensionFailed:
-            return await respondEmbed(ctx, ExtensionFailedError(cog=cog_name), error=True, isReply=True)
+            return await respondEmbed(ctx, ExtensionFailedError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
 
 
     @commands.command(hidden=True)
@@ -95,24 +95,24 @@ class OwnerOnly(Cog):
         """
 
         if not await self.bot.is_owner(ctx.author):
-            return await respondEmbed(ctx, NotBotOwnerError(), error=True, isReply=True)
+            return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
 
         if cog_name not in await getAllExtensions():  # Front check if the cog was in the valid cog list or not
-            return await respondEmbed(ctx, ExtensionNotFoundError(cog=cog_name), error=True, isReply=True)
+            return await respondEmbed(ctx, ExtensionNotFoundError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
         
         try:
             await self.bot.unload_extension(cog_name)
             await self.bot.tree.sync()
-            await respondEmbed(ctx, f"Cog `{cog_name}` has been unloaded.", title="Unload Successful", isReply=True, deleteAfter=2)
+            await respondEmbed(ctx, f"Cog `{cog_name}` has been unloaded.", title="Unload Successful", target=ResponseTarget.REPLY, deleteAfter=2)
 
         except ExtensionNotLoaded:
-            return await respondEmbed(ctx, f"Cog `{cog_name}` has been already unloaded!", error=True, isReply=True)
+            return await respondEmbed(ctx, f"Cog `{cog_name}` has been already unloaded!", error=True, target=ResponseTarget.REPLY)
         
         except NoEntryPointError:
-            return await respondEmbed(ctx, ReturnNoEntryPointError(cog=cog_name), error=True, isReply=True)
+            return await respondEmbed(ctx, ReturnNoEntryPointError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
 
         except ExtensionFailed:
-            return await respondEmbed(ctx, ExtensionFailedError(cog=cog_name), error=True, isReply=True)
+            return await respondEmbed(ctx, ExtensionFailedError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
 
 
     @commands.command(hidden=True)
@@ -129,24 +129,24 @@ class OwnerOnly(Cog):
         """
 
         if not await self.bot.is_owner(ctx.author):
-            return await respondEmbed(ctx, NotBotOwnerError(), error=True, isReply=True)
+            return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
         
         if cog_name not in await getAllExtensions():  # Front check if the cog was in the valid cog list or not
-            return await respondEmbed(ctx, ExtensionNotFoundError(cog=cog_name), error=True, isReply=True)
+            return await respondEmbed(ctx, ExtensionNotFoundError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
         
         try:
             await self.bot.reload_extension(cog_name)
             await self.bot.tree.sync()
-            await respondEmbed(ctx, f"Cog `{cog_name}` has been reloaded.", title="Reload Successful", isReply=True, deleteAfter=2)
+            await respondEmbed(ctx, f"Cog `{cog_name}` has been reloaded.", title="Reload Successful", target=ResponseTarget.REPLY, deleteAfter=2)
 
         except ExtensionNotLoaded:
-            return await respondEmbed(ctx, f"Cog `{cog_name}` has not been loaded.", error=True, isReply=True)
+            return await respondEmbed(ctx, f"Cog `{cog_name}` has not been loaded.", error=True, target=ResponseTarget.REPLY)
 
         except NoEntryPointError:
-            return await respondEmbed(ctx, ReturnNoEntryPointError(cog=cog_name), error=True, isReply=True)
+            return await respondEmbed(ctx, ReturnNoEntryPointError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
 
         except ExtensionFailed:
-            return await respondEmbed(ctx, ExtensionFailedError(cog=cog_name), error=True, isReply=True)
+            return await respondEmbed(ctx, ExtensionFailedError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
 
 
     @commands.command(hidden=True)
@@ -158,7 +158,7 @@ class OwnerOnly(Cog):
         """
 
         if not await self.bot.is_owner(ctx.author):
-            return await respondEmbed(ctx, NotBotOwnerError(), error=True, isReply=True)
+            return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
         
         def convert_to_GB(raw):
             return round(raw / 1024 ** 3, 2)
@@ -231,7 +231,7 @@ class OwnerOnly(Cog):
         """
         
         if not await self.bot.is_owner(ctx.author):
-            return await respondEmbed(ctx, NotBotOwnerError(), error=True, isReply=True)
+            return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
         
         await self.bot.close()
 
@@ -245,7 +245,7 @@ class OwnerOnly(Cog):
         """
         
         if not await self.bot.is_owner(ctx.author):
-            return await respondEmbed(ctx, NotBotOwnerError(), error=True, isReply=True)
+            return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
         
         restarter.request(reason=f"Restart requested by bot owner.", delay=0.0)
         await self.bot.close()
