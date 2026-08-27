@@ -1,37 +1,35 @@
-from discord import app_commands, Color, Embed
+from discord import app_commands, Color
 from discord.ext import commands
-from discord.ext.commands import Bot, Cog, Context
-from discord.app_commands import Choice, Range
+from discord.ext.commands import Cog, Context, Range
+from discord.app_commands import Choice
 from lava_lyra import LoopMode, Playlist, QueueException, Timescale
 from lava_lyra.pool import NodePool
 from typing import cast, Optional, List
+from startup import MyBot
 from bot.extensions.MusicPlayer._betterPlayer import BetterPlayer
+from bot.extensions.MusicPlayer.commands._playerHelper import ensurePlayable
 from helpers.errorHandling import *
 from helpers.respondEmbed import respondEmbed
 
 
-# Helper function to get the color of the user who invoked the command
-def userColor(ctx: Context) -> Color:
-    """
-    Get the color of the user who invoked the command.
-
-    Parameters
-    ----------
-    ctx : `Context`
-        The context of the command invocation.
-
-    Returns
-    -------
-    Color
-        The color of the user who invoked the command.
-
-    """
-    return ctx.interaction.user.color if ctx.interaction else ctx.author.color
-
-
 class MusicGeneral(Cog):
-    def __init__(self, bot: Bot):
+    def __init__(self, bot: MyBot):
         self.bot = bot
+        self.logger = self.bot.getLogger()
+
+
+    async def _advanceOrReport(self, player: BetterPlayer):
+        try:
+            await player.nextTrack()
+
+        except Exception as e:
+            if player.context:
+                self.logger.error(f"An unexpected error occurred while trying to play the upcoming track: {e}")
+                return await respondEmbed(player.context, message=f"An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again.", error=True)
+            
+            # If there was an error and the context is not available, we just simply ignore this action.
+            return
+
 
     # The following are events from lava_lyra.events
     # We are using these so that if the track either stops or errors,
@@ -39,7 +37,6 @@ class MusicGeneral(Cog):
 
     # Of course, you can modify this to do whatever you like
 
-    
     # General event listener for when a track ends or stops
     @commands.Cog.listener()
     async def on_lyra_track_end(self, player: BetterPlayer, track, _):
@@ -54,41 +51,17 @@ class MusicGeneral(Cog):
             #
             return
         
-        try:
-            await player.nextTrack()
-
-        except Exception as e:
-            if player.context:
-                return await respondEmbed(player.context, message=f"An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", error=True)
-            
-            # If there was an error and the context is not available, we just simply ignore this action.
-            return
+        await self._advanceOrReport(player)
 
 
     @commands.Cog.listener()
     async def on_lyra_track_stuck(self, player: BetterPlayer, track, _):
-        try:
-            await player.nextTrack()
-
-        except Exception as e:
-            if player.context:
-                return await respondEmbed(player.context, message=f"An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", error=True)
-            
-            # If there was an error and the context is not available, we just simply ignore this action.
-            return
+        await self._advanceOrReport(player)
 
 
     @commands.Cog.listener()
     async def on_lyra_track_exception(self, player: BetterPlayer, track, _):
-        try:
-            await player.nextTrack()
-
-        except Exception as e:
-            if player.context:
-                return await respondEmbed(player.context, message=f"An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again. \n\n {e}", error=True)
-            
-            # If there was an error and the context is not available, we just simply ignore this action.
-            return
+        await self._advanceOrReport(player)
 
 
     # Discord Autocomplete for Web search, rewrited for discord.py, and now for lava_lyra
@@ -110,7 +83,6 @@ class MusicGeneral(Cog):
         -------
         List`[app_commands.Choice[str]]`
             A list of autocomplete choices based on the search query. Limited to 25 choices.
-        
         """
 
         node = NodePool.get_node()
@@ -143,16 +115,16 @@ class MusicGeneral(Cog):
 
         Parameters
         ----------
-        ctx: `Context`
-            The context of the command invocation.
-
         search: str
             Link or keywords of the track you want to play.
 
         Returns
         -------
-        Context | None
-
+        commands.Context
+            The context of the command invocation, if the command was successful.
+        
+        None
+            If the command failed due to an error or invalid state.
         """
 
         await ctx.interaction.response.defer() if ctx.interaction else None
@@ -170,7 +142,8 @@ class MusicGeneral(Cog):
                 return await respondEmbed(ctx, message=f"{ctx.author.mention} Join a voice channel plz :pleading_face:  I don't think I can stay there without you :pensive: ...")
             
             except Exception as e:
-                return await respondEmbed(ctx, message=f"I was unable to join {ctx.author.voice.channel} due to an unexpected error. Please try again later. \n\n {e}", error=True)
+                self.logger.error(f"An unexpected error occurred while trying to join the voice channel: {e}")
+                return await respondEmbed(ctx, message=f"I was unable to join {ctx.author.voice.channel} due to an unexpected error. Please try again later.", error=True)
 
         if not search:
             return await respondEmbed(ctx, message=f"Looks like you've been specified searching online for the audio source, but haven't specified the track you would like to play :thinking: ...\nJust curious to know, what should I play right now, {ctx.author.mention}?")
@@ -179,7 +152,8 @@ class MusicGeneral(Cog):
             results = await player.get_tracks(search, ctx=ctx)
 
         except Exception as e:
-            return await respondEmbed(ctx, message=f"An unexpected error occurred while trying to search for the track. \n\n {e}", error=True)
+            self.logger.error(f"An unexpected error occurred while trying to search for the track: {e}")
+            return await respondEmbed(ctx, message=f"An unexpected error occurred while trying to search for the track.", error=True)
 
         if results is None or (isinstance(results, list) and len(results) == 0):
             return await respondEmbed(ctx, message=f"I couldn't find any tracks with that query you entered :thinking: ... Perhaps try to search something else and gave me a chance to play it, {ctx.author.mention}?")
@@ -204,29 +178,17 @@ class MusicGeneral(Cog):
 
         Parameters
         ----------
-        ctx: `Context`
-            The context of the command invocation.
-
         amount: Optional`[int]` = 1
             Number of track to skip. Leave this blank if you want to skip the current track only.
-
-        Returns
-        -------
-        None
-
-
         """
 
         await ctx.interaction.response.defer() if ctx.interaction else None
         messageLines: List[str] = []
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
 
-        if player is None:
-            return await respondEmbed(ctx, message=f"{ctx.author.mention} I'm not in a voice channel, either or the player is not connected to a node.", error=True)
+        if not await ensurePlayable(ctx, player):  # Ensure the player is in a playable state
+            return
 
-        if player.queue.historyIsEmpty:  # The player is not playing anything before
-            return await respondEmbed(ctx, message=f"There are no tracks being played in history :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", error=True)
-        
         if amount < 1:  # Invalid amount
             return await respondEmbed(ctx, message=f"The amount of tracks to skip must be at least 1 :thinking: ...", error=True)
         
@@ -276,28 +238,17 @@ class MusicGeneral(Cog):
 
         Parameters
         ----------
-        ctx: `Context`
-            The context of the command invocation.
-
         amount: Optional`[int]` = 1
             Number of tracks to rollback. Leave this blank if you want to rollback to the previous track only.
-        
-        Returns
-        -------
-        None
-
         """
 
         await ctx.interaction.response.defer() if ctx.interaction else None
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
         messageLines = []
 
-        if player is None:
-            return await respondEmbed(ctx, message=f"{ctx.author.mention} I'm not in a voice channel, either or the player is not connected to a node.", error=True)
+        if not await ensurePlayable(ctx, player):  # Ensure the player is in a playable state
+            return
 
-        if player.queue.historyIsEmpty:  # The player is not playing anything
-            return await respondEmbed(ctx, message=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?", error=True)
-        
         if amount < 1:  # Invalid amount
             return await respondEmbed(ctx, message=f"The amount of tracks to rollback must be at least 1 :thinking: ...", error=True)
 
@@ -319,6 +270,7 @@ class MusicGeneral(Cog):
 
         # Post check if the previous track is valid
         if not prev_track:
+            self.logger.error(f"An unexpected error occurred while trying to rollback the track(s). The previous track is None.")
             messageLines.append(f"An unexpected error occurred while trying to rollback the track(s).")
             return await respondEmbed(ctx, message="\n".join(messageLines), error=True)
         
@@ -329,26 +281,13 @@ class MusicGeneral(Cog):
     async def pause(self, ctx: Context):
         """
         Pauses the current track being played in voice channel
-
-        Parameters
-        ----------
-        ctx: `Context`
-            The context of the command invocation.
-        
-        Returns
-        -------
-        None
-
         """
 
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
 
-        if player is None:
-            return await respondEmbed(ctx, message=f"I'm not in a voice channel, either or the player is not connected to a node.", error=True)
-        
-        if player.queue.historyIsEmpty:  # The player is not playing anything
-            return await respondEmbed(ctx, message=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?")
-        
+        if not await ensurePlayable(ctx, player):  # Ensure the player is in a playable state
+            return
+
         if player.is_paused:
             return await respondEmbed(ctx, message=f"{ctx.author.mention}, the track has been already paused!")
 
@@ -356,7 +295,8 @@ class MusicGeneral(Cog):
             await player.set_pause(pause=True)
 
         except Exception as e:
-            return await respondEmbed(ctx, message=f"An unexpected error occurred while trying to pause the track. \n\n {e}", error=True)
+            self.logger.error(f"An unexpected error occurred while trying to pause the track: {e}")
+            return await respondEmbed(ctx, message=f"An unexpected error occurred while trying to pause the track.", error=True)
             
         await respondEmbed(ctx, message="The track has been paused.")
 
@@ -365,26 +305,13 @@ class MusicGeneral(Cog):
     async def resume(self, ctx: Context):
         """
         Resumes the current track which is paused in voice channel
-
-        Parameters
-        ----------
-        ctx: `Context`
-            The context of the command invocation.
-        
-        Returns
-        -------
-        None
-
         """
 
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
 
-        if player is None:
-            return await respondEmbed(ctx, message=f"I'm not in a voice channel, either or the player is not connected to a node.", error=True)
-        
-        if player.queue.historyIsEmpty:  # The player is not playing anything
-            return await respondEmbed(ctx, message=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?")
-        
+        if not await ensurePlayable(ctx, player):  # Ensure the player is in a playable state
+            return
+
         if not player.is_paused:
             return await respondEmbed(ctx, message=f"{ctx.author.mention}, the track has not been paused.")
 
@@ -392,7 +319,8 @@ class MusicGeneral(Cog):
             await player.set_pause(pause=False)
 
         except Exception as e:
-            return await respondEmbed(ctx, message=f"An unexpected error occurred while trying to resume the track. \n\n {e}", error=True)
+            self.logger.error(f"An unexpected error occurred while trying to resume the track: {e}")
+            return await respondEmbed(ctx, message=f"An unexpected error occurred while trying to resume the track.", error=True)
 
         await respondEmbed(ctx, message="The track has been resumed.")
 
@@ -401,18 +329,6 @@ class MusicGeneral(Cog):
     async def nowplaying(self, ctx: Context) -> None:
         """
         Display the current track being played in voice channel
-
-        Parameters
-        ----------
-        ctx: `Context`
-            The context of the command invocation.
-
-
-        Returns
-        -------
-        None
-
-
         """
 
         if ctx.interaction:
@@ -420,17 +336,15 @@ class MusicGeneral(Cog):
 
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
 
-        if player is None:
-            return await respondEmbed(ctx, message=f"I'm not in a voice channel, either or the player is not connected to a node.", error=True)
-        
-        if player.queue.historyIsEmpty:  # The player is not playing anything
-            return await respondEmbed(ctx, message=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?")
+        if not await ensurePlayable(ctx, player):  # Ensure the player is in a playable state
+            return
 
         nowPlayingEmbed, customArtworkFile = await player.nowPlayingEmbed(player.current)  # Get the now playing embed from the player from _player.py
-        nowPlayingEmbed.color = userColor(ctx)
+        nowPlayingEmbed.color = getattr(ctx.author, "color", Color.default())
 
         if customArtworkFile is None:
             return await ctx.send(embed=nowPlayingEmbed)
+        
         await ctx.send(embed=nowPlayingEmbed, file=customArtworkFile)
 
 
@@ -438,32 +352,20 @@ class MusicGeneral(Cog):
     async def replay(self, ctx: Context):
         """
         Replay the current track.
-
-        Parameters
-        ----------
-        ctx: `Context`
-            The context of the command invocation.
-
-        Returns
-        -------
-        None
-
         """
 
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
 
-        if player is None:
-            return await respondEmbed(ctx, message=f"{ctx.author.mention} I'm not in a voice channel, either or the player is not connected to a node.", error=True)
-        
-        if player.queue.historyIsEmpty:  # The player is not playing anything
-            return await respondEmbed(ctx, message=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?")
-        
+        if not await ensurePlayable(ctx, player):  # Ensure the player is in a playable state
+            return
+
         # Replay the track
         try:
             await player.seek(0)
 
         except Exception as e:
-            return await respondEmbed(ctx, message=f"An error occurred while trying to replay the track. \n\n {e}", error=True)
+            self.logger.error(f"An error occurred while trying to replay the track: {e}")
+            return await respondEmbed(ctx, message=f"An error occurred while trying to replay the track.", error=True)
 
         await respondEmbed(ctx, message=f"Replaying the current track...")
 
@@ -480,26 +382,14 @@ class MusicGeneral(Cog):
     async def one(self, ctx: Context):
         """
         Toggle repeat for the current track.
-
-        Parameters
-        ----------
-        ctx: `Context`
-            The context of the command invocation.
-
-        Returns
-        -------
-        None
-
         """
+
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
         messageLines: List[str] = []
 
-        if player is None:
-            return await respondEmbed(ctx, message=f"{ctx.author.mention} I'm not in a voice channel, either or the player is not connected to a node.", error=True)
-        
-        if player.queue.historyIsEmpty:  # The player is not playing anything
-            return await respondEmbed(ctx, message=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?")
-                
+        if not await ensurePlayable(ctx, player):  # Ensure the player is in a playable state
+            return
+
         if player.queue.loop_mode == LoopMode.TRACK:
             messageLines.append(f"Disabling repeat for the current track...")
 
@@ -511,7 +401,8 @@ class MusicGeneral(Cog):
                 return await respondEmbed(ctx, message="\n".join(messageLines), error=True)
             
             except Exception as e:
-                messageLines.append(f"An error occurred while trying to disable repeat for the current track. \n\n {e}")
+                self.logger.error(f"An error occurred while trying to disable repeat for the current track: {e}")
+                messageLines.append(f"An error occurred while trying to disable repeat for the current track.")
                 return await respondEmbed(ctx, message="\n".join(messageLines), error=True)
 
             await respondEmbed(ctx, message="\n".join(messageLines))
@@ -525,27 +416,14 @@ class MusicGeneral(Cog):
     async def all(self, ctx: Context):
         """
         Toggle repeat for the entire queue.
-
-        Parameters
-        ----------
-        ctx: `Context`
-            The context of the command invocation.
-
-        Returns
-        -------
-        None
-
         """
 
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
         messageLines: List[str] = []
 
-        if player is None:
-            return await respondEmbed(ctx, message=f"{ctx.author.mention} I'm not in a voice channel, either or the player is not connected to a node.", error=True)
-        
-        if player.queue.historyIsEmpty:  # The player is not playing anything
-            return await respondEmbed(ctx, message=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?")
-                
+        if not await ensurePlayable(ctx, player):  # Ensure the player is in a playable state
+            return
+
         if player.queue.loop_mode == LoopMode.QUEUE:
             messageLines.append(f"Disabling repeat for the entire queue...")
 
@@ -557,7 +435,8 @@ class MusicGeneral(Cog):
                 return await respondEmbed(ctx, message="\n".join(messageLines), error=True)
             
             except Exception as e:
-                messageLines.append(f"An error occurred while trying to disable repeat for the entire queue. \n\n {e}")
+                self.logger.error(f"An error occurred while trying to disable repeat for the entire queue: {e}")
+                messageLines.append(f"An error occurred while trying to disable repeat for the entire queue.")
                 return await respondEmbed(ctx, message="\n".join(messageLines), error=True)
 
             await respondEmbed(ctx, message="\n".join(messageLines))
@@ -571,29 +450,17 @@ class MusicGeneral(Cog):
     async def stop(self, ctx: Context):
         """
         Stops the current track being played in voice channel and clears the queue.
-
-        Parameters
-        ----------
-        ctx: `Context`
-            The context of the command invocation.
-
-        Returns
-        -------
-        None
-
         """
 
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
 
-        if player is None:
-            return await respondEmbed(ctx, message=f"I'm not in a voice channel, either or the player is not connected to a node.", error=True)
-
-        if player.queue.historyIsEmpty:  # The player is not playing anything
-            return await respondEmbed(ctx, message=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?")
+        if not await ensurePlayable(ctx, player):  # Ensure the player is in a playable state
+            return
 
         try:
             if player.queue.is_looping:
                 player.queue.disable_loop()  # Disable looping if it's enabled
+            
             player.queue.clear()  # Clear the queue
             await player.stop()   # Stop the current track
             
@@ -601,37 +468,27 @@ class MusicGeneral(Cog):
             player.updateController.start()
 
         except Exception as e:
-            return await respondEmbed(ctx, message=f"An error occurred while trying to stop the track. \n\n {e}", error=True)
+            self.logger.error(f"An error occurred while trying to stop the track: {e}")
+            return await respondEmbed(ctx, message=f"An error occurred while trying to stop the track.", error=True)
         
         await respondEmbed(ctx, message=f"Stopped the current track and cleared the queue.")
 
 
     @commands.hybrid_command(aliases=["vol", "v"])
-    async def volume(self, ctx: Context, *, value: Optional[app_commands.Range[int, 0, 500]] = 60) -> None:
+    async def volume(self, ctx: Context, *, value: Optional[Range[int, 0, 500]] = 60) -> None:
         """
         Change the volume of the music player
 
         Parameters
         ----------
-        ctx: `Context`
-            The context of the command invocation.
-
         value: Optional`[int]` = 30
             The new volume to set. Leave this blank if you want to set it as default.
-        
-        Returns
-        -------
-        None
-
         """
 
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
 
-        if player is None:
-            return await respondEmbed(ctx, message=f"I'm not in a voice channel, either or the player is not connected to a node.", error=True)
-
-        if player.queue.historyIsEmpty:  # The player is not playing anything
-            return await respondEmbed(ctx, message=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?")
+        if not await ensurePlayable(ctx, player):  # Ensure the player is in a playable state
+            return
 
         if value < 0 or value > 500:  # Invalid volume
             return await respondEmbed(ctx, message=f"The volume must be between **0** and **500** :thinking: ...\n Generally, **60** is already good enough, **100** is considered as very loud, and **200** will blow your eardrums out lol.", error=True)
@@ -641,7 +498,8 @@ class MusicGeneral(Cog):
             await player.set_volume(value)
 
         except Exception as e:
-            return await respondEmbed(ctx, message=f"An error occurred while trying to change the volume. \n\n {e}", error=True)
+            self.logger.error(f"An error occurred while trying to change the volume: {e}")
+            return await respondEmbed(ctx, message=f"An error occurred while trying to change the volume.", error=True)
         
         await respondEmbed(ctx, message=f"Changed volume to **{value}%**")
 
@@ -650,26 +508,13 @@ class MusicGeneral(Cog):
     async def nightcore(self, ctx: Context):
         """
         Toggle nightcore mode on the player.
-
-        Parameters
-        ----------
-        ctx: `Context`
-            The context of the command invocation.
-
-        Returns
-        -------
-        None
-
         """
 
         # Set the filter to a nightcore style. We have to use pomice.Timescale to adjust the pitch and speed.
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
         
-        if player is None:
-            return await respondEmbed(ctx, message=f"I'm not in a voice channel, either or the player is not connected to a node.", error=True)
-
-        if player.queue.historyIsEmpty:  # The player is not playing anything
-            return await respondEmbed(ctx, message=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?")
+        if not await ensurePlayable(ctx, player):  # Ensure the player is in a playable state
+            return
 
         if player.filters.empty:
             await player.add_filter(Timescale.nightcore(), fast_apply=True)
@@ -678,4 +523,5 @@ class MusicGeneral(Cog):
         else:
             await player.reset_filters(fast_apply=True)
             await respondEmbed(ctx, message=f"**Deactivating** nightcore mode... The track may be briefly interrupted.")
+
 

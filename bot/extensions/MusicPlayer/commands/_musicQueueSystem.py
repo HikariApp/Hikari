@@ -1,13 +1,14 @@
 import math
 from discord import Color, Embed, Interaction, SelectOption
 from discord.ext import commands
-from discord.ext.commands import Bot, Cog, Context
+from discord.ext.commands import Bot, Cog, Context, Range
 from discord.ui import View, Select
 from lava_lyra import LoopMode
 from typing import Optional, List
 from bot.extensions.MusicPlayer._betterPlayer import BetterPlayer
-from bot.extensions.MusicPlayer.commands._musicGeneral import userColor
+from bot.extensions.MusicPlayer.commands._playerHelper import ensurePlayable
 from helpers.respondEmbed import respondEmbed
+
 
 PAGE_SIZE = 10
 
@@ -252,27 +253,15 @@ class MusicQueueSystem(Cog):
     async def queue(self, ctx: Context) -> None:
         """
         Show the music queue with pagination in the current guild.
-
-        Parameters
-        ----------
-        ctx : Context
-            The context of the command invocation.
-
-        Returns
-        -------
-        None
-
         """
 
         player: BetterPlayer = ctx.voice_client
 
-        if player is None:
-            return await respondEmbed(ctx, message=f"I'm not in a voice channel, either or the player is not connected to a node.", error=True)
-
-        color = userColor(ctx)
+        if not await ensurePlayable(ctx, player):  # Ensure the player is in a playable state
+            return
 
         # Build embed
-        embed = createQueueEmbed(player=player, color=color, page=1, pageSize=PAGE_SIZE)
+        embed = createQueueEmbed(player=player, color=getattr(ctx.author, "color", Color.default()), page=1, pageSize=PAGE_SIZE)
 
         # Build view only if we have upcoming tracks in the queue
         options = buildPagination(player, PAGE_SIZE)
@@ -285,31 +274,24 @@ class MusicQueueSystem(Cog):
 
 
     @commands.hybrid_command(aliases=["rm", "pop"])
-    async def remove(self, ctx: Context, index: Optional[int] = 0) -> None:
+    async def remove(self, ctx: Context, index: Optional[Range[int, 0]] = 0) -> None:
         """
         Remove a track from the queue by its index.
 
         Parameters
         ----------
-        ctx : Context
-            The context of the command invocation.
-
         index : Optional[int]
             The index of the track to remove. Leave this blank or pass 0 to remove the last track in the queue.
 
         Returns
         -------
         None
-
         """
 
         player: BetterPlayer = ctx.voice_client
 
-        if player is None:
-            return await respondEmbed(ctx, message=f"I'm not in a voice channel, either or the player is not connected to a node.", error=True)
-
-        if player.queue.historyIsEmpty:  # The player is not playing anything before
-            return await respondEmbed(ctx, message=f"There are no tracks being played in history :thinking: ... Perhaps try to play something first, {ctx.author.mention}?")
+        if not await ensurePlayable(ctx, player):  # Ensure the player is in a playable state
+            return
 
         if index is not None and (index < 0 or index > player.queue.historySize):
             return await respondEmbed(ctx, message=f"Please enter a valid index of the track you want to remove from the queue.", error=True)
@@ -333,7 +315,8 @@ class MusicQueueSystem(Cog):
             player.queue.playbackHistory.pop(index)
 
             # If we removed a track before the current one, shift current left once.
-            newCurrentIndex -= 1 if index < newCurrentIndex else newCurrentIndex
+            if index < newCurrentIndex:
+                newCurrentIndex -= 1
 
             player.queue.currentTrackIndex = newCurrentIndex
 
@@ -342,10 +325,13 @@ class MusicQueueSystem(Cog):
             player.queue._queue = player.queue.playbackHistory[newCurrentIndex + 1:]
 
         except (ValueError, IndexError) as e:
-            return await respondEmbed(ctx, message=f"An error occurred while trying to remove the track at index **#{1 + index}** from the queue, please try again later. \n\n {e}", error=True)
+            self.bot.logger.error(f"Error while removing track at index {index} from queue: {e}")
+            return await respondEmbed(ctx, message=f"An error occurred while trying to remove the track at index **#{1 + index}** from the queue. This could be due to an invalid index or an issue with the queue itself.", error=True)
         
         except Exception as e:
             # Catch-all for any other exceptions
-            return await respondEmbed(ctx, message=f"<a:crossred:1356353067024515266> An unexpected error occurred while trying to remove the track at index **#{1 + index}** from the queue, please try again later. \n\n {e}", error=True)
+            self.bot.logger.error(f"Unexpected error while removing track at index {index} from queue: {e}")
+            return await respondEmbed(ctx, message=f"An unexpected error occurred while trying to remove the track at index **#{1 + index}** from the queue. Please try again later.", error=True)
 
         await respondEmbed(ctx, message=f"Removed track **#{1 + index}** from the queue.")
+
