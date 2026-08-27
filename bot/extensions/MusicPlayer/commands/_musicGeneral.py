@@ -514,6 +514,8 @@ class MusicGeneral(Cog):
                 messageLines.append(f"An error occurred while trying to disable repeat for the current track. \n\n {e}")
                 return await respondEmbed(ctx, message="\n".join(messageLines), error=True)
 
+            await respondEmbed(ctx, message="\n".join(messageLines))
+
         else:
             await respondEmbed(ctx, message=f"Repeating the current track...")
             player.queue.set_loop_mode(LoopMode.TRACK)
@@ -544,7 +546,7 @@ class MusicGeneral(Cog):
         if player.queue.historyIsEmpty:  # The player is not playing anything
             return await respondEmbed(ctx, message=f"There is no track currently playing :thinking: ... Perhaps try to play something first, {ctx.author.mention}?")
                 
-        if player.queue.loop_mode == LoopMode.TRACK:
+        if player.queue.loop_mode == LoopMode.QUEUE:
             messageLines.append(f"Disabling repeat for the entire queue...")
 
             try:
@@ -557,6 +559,8 @@ class MusicGeneral(Cog):
             except Exception as e:
                 messageLines.append(f"An error occurred while trying to disable repeat for the entire queue. \n\n {e}")
                 return await respondEmbed(ctx, message="\n".join(messageLines), error=True)
+
+            await respondEmbed(ctx, message="\n".join(messageLines))
 
         else:
             await respondEmbed(ctx, message=f"Repeating the entire queue...")
