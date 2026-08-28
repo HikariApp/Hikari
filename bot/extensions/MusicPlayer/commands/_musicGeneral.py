@@ -1,13 +1,13 @@
 from discord import app_commands, Color
 from discord.ext import commands
-from discord.ext.commands import Cog, Context, Range
+from discord.ext.commands import Cog, Context, Range, CommandError, BadArgument, RangeError, MissingRequiredArgument
 from discord.app_commands import Choice
 from lava_lyra import LoopMode, Playlist, QueueException, Timescale
 from lava_lyra.pool import NodePool
 from typing import cast, Optional, List
 from startup import MyBot
 from bot.extensions.MusicPlayer._betterPlayer import BetterPlayer
-from bot.extensions.MusicPlayer.commands._playerHelper import ensurePlayable
+from bot.extensions.MusicPlayer.commands._playerHelper import ensurePlayable, ConfirmView
 from helpers.errorHandling import *
 from helpers.respondEmbed import respondEmbed
 
@@ -17,6 +17,10 @@ class MusicGeneral(Cog):
         self.bot = bot
         self.logger = self.bot.getLogger()
 
+    # Cog-level error listener for unhandled errors
+    async def cog_on_command_error(self, ctx: Context, error: Exception):
+        self.logger.exception(f"Uncaught error in {ctx.cog.__cog_name__}:", exc_info=error)
+        raise error
 
     async def _advanceOrReport(self, player: BetterPlayer):
         try:
@@ -475,14 +479,14 @@ class MusicGeneral(Cog):
 
 
     @commands.hybrid_command(aliases=["vol", "v"])
-    async def volume(self, ctx: Context, *, value: Optional[Range[int, 0, 500]] = 60) -> None:
+    async def volume(self, ctx: Context, *, value: Range[int, 0, 500]) -> None:
         """
         Change the volume of the music player
 
         Parameters
         ----------
-        value: Optional`[int]` = 30
-            The new volume to set. Leave this blank if you want to set it as default.
+        value: int
+            The new volume to set, between 0 and 500.
         """
 
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
@@ -490,8 +494,26 @@ class MusicGeneral(Cog):
         if not await ensurePlayable(ctx, player):  # Ensure the player is in a playable state
             return
 
-        if value < 0 or value > 500:  # Invalid volume
-            return await respondEmbed(ctx, message=f"The volume must be between **0** and **500** :thinking: ...\n Generally, **60** is already good enough, **100** is considered as very loud, and **200** will blow your eardrums out lol.", error=True)
+        # Check if the volume is above 125%, and if so, prompt the user for confirmation
+        if value > 125:
+            view = ConfirmView(ctx.author, cancelMessage="Volume change aborted.")
+            view.message = await respondEmbed(
+                ctx,
+                message=(
+                    f"You're seeing this message because you are about to set the player volume to a **excessively high level (above 125%)**, "
+                    f"which may cause **severe or permanent ear damage** if not being **proceed with caution**.\n\n"
+                    f"Generally, **60-80** is already good enough, **100** is considered as very loud, "
+                    f"and anything **200 or above** will most likely cause significant audio "
+                    f"distortion (and possibly blow your eardrums lol).\n\n"
+                    f"Click **Yes, proceed** to confirm, or **Cancel** to abort."
+                ),
+                title=f"Are you sure you **want to proceed** with **{value}%** :thinking: ?",
+                view=view,
+            )
+            await view.wait()
+
+            if not view.value:  # cancelled or timed out, prompt already edited in place
+                return
 
         # Set the volume
         try:
@@ -502,6 +524,26 @@ class MusicGeneral(Cog):
             return await respondEmbed(ctx, message=f"An error occurred while trying to change the volume.", error=True)
         
         await respondEmbed(ctx, message=f"Changed volume to **{value}%**")
+
+
+    # Error handling, for both commands and slash commands
+    @volume.error
+    async def volume_error(self, ctx: Context, error: CommandError):
+        if isinstance(error, MissingRequiredArgument):
+            # The command invoker doesn't provide the value argument
+            # A special case to return a more user-friendly message
+            return await respondEmbed(ctx, message=f"Looks like you want me to **change the volume** for the player, but **haven't specified** the value you would like to set :thinking:  ...\nJust curious to know, **what** should I set the volume to the player right now, {ctx.author.mention}?", error=True)
+
+        if isinstance(error, RangeError):
+            # The command invoker provided a value outside the allowed range
+            return await respondEmbed(ctx, message="The volume must be between **0** and **500** ...", error=True)
+
+        if isinstance(error, BadArgument):
+            # The command invoker provided a value that is not a number
+            return await respondEmbed(ctx, message=f"That doesn't look like a valid number :thinking: ... give me a whole number between **0** and **500**, {ctx.author.mention}.", error=True)
+
+        # If the error is not handled, forward to the cog-level listener, or even bot-level if unhandled here
+        self.cog_on_command_error(ctx, error)
 
 
     @commands.hybrid_command(aliases=["nig"])

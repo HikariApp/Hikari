@@ -27,6 +27,7 @@ DEALINGS IN THE SOFTWARE.
 import logging
 from enum import Enum, auto
 from discord import Color, Embed, Forbidden, Message
+from discord.ui import View
 from discord.ext.commands import Context
 from typing import Optional
 
@@ -56,19 +57,19 @@ class ResponseTarget(Enum):
     Represents the target for sending a response message.
     """
 
-    CHANNEL   = auto()
+    CHANNEL = auto()
     """
     Sends the response message to the channel where the command was invoked.
     This is the default behavior.
     """
 
-    REPLY     = auto()
+    REPLY = auto()
     """
     Reply to the invoking message in the channel where the command was invoked.
     This is a public response that references the original message.
     """
 
-    DM        = auto()
+    DM = auto()
     """
     Sends the response message as a direct message (DM)
     to the user who invoked the command.
@@ -91,6 +92,7 @@ async def respondEmbed(
     title: Optional[str] = None,
     isSilent: bool = False,
     deleteAfter: Optional[float] = None,
+    view: Optional[View] = None
 ) -> Optional[Message]:
     """
     This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
@@ -103,17 +105,19 @@ async def respondEmbed(
         The context of the command invocation.
     message : str
         The message to be included in the embed.
+    target : ResponseTarget, optional
+        The target for sending the response message.
     error : bool, optional
         Whether the embed should be displayed in red (for errors).
     title : str, optional
         The title of the embed.
-    target : ResponseTarget, optional
-        The target for sending the response message.
     isSilent : bool, optional
         Whether the embed should be sent silently (without a notification).
-    deleteAfter : Optional[float], optional
+    deleteAfter : float, optional
         The time in seconds after which the message should be deleted.
         If it is None, the message will not be deleted.
+    view : discord.ui.View, optional
+        The view to be attached to the message. If None, no view will be attached.
 
     Returns
     -------
@@ -147,12 +151,15 @@ async def respondEmbed(
     if deleteAfter is not None:
         kwargs["delete_after"] = deleteAfter
 
+    if view is not None:
+        kwargs["view"] = view
+
     # dispatch on the single delivery axis
     if target is ResponseTarget.EPHEMERAL:
         interaction = ctx.interaction
         if interaction is not None and not interaction.response.is_done():
             # We own the first response, ephemeral is honored here
-            ephemeralKwargs = {"embed": embed, "ephemeral": True}
+            ephemeralKwargs = {"embed": embed, "view": view, "ephemeral": True}
             await interaction.response.send_message(**ephemeralKwargs)
             return await interaction.original_response()
 
@@ -199,3 +206,4 @@ async def respondEmbed(
 
     # ResponseTarget.CHANNEL (default)
     return await ctx.send(**kwargs)
+
