@@ -1,10 +1,11 @@
-import math
+from numpy.ma import ceil
 from discord import Color, Embed, Interaction, SelectOption
 from discord.ext import commands
-from discord.ext.commands import Bot, Cog, Context, Range
+from discord.ext.commands import Cog, Context, Range
 from discord.ui import View, Select
 from lava_lyra import LoopMode
 from typing import Optional, List
+from startup import MyBot
 from bot.extensions.MusicPlayer._betterPlayer import BetterPlayer
 from bot.extensions.MusicPlayer.commands._playerHelper import ensurePlayable
 from helpers.respondEmbed import respondEmbed
@@ -22,17 +23,16 @@ def buildPagination(player: BetterPlayer, pageSize: int) -> List[SelectOption]:
 
     Parameters
     ----------
-    player : `BetterPlayer`
+    player : BetterPlayer
         The music player instance containing the queue.
     
     pageSize : int
         Number of tracks per page.
-    
+
     Returns
     -------
-    List`[SelectOption]`
+    List[SelectOption]
         A list of SelectOption for the dropdown menu.
-    
     """
 
     total = player.queue.historySize
@@ -45,7 +45,7 @@ def buildPagination(player: BetterPlayer, pageSize: int) -> List[SelectOption]:
     if upcomingTracksCount <= 0:
         return []
 
-    pages = math.ceil(upcomingTracksCount / pageSize)
+    pages = ceil(upcomingTracksCount / pageSize)
     options: List[SelectOption] = []
 
     for i in range(pages):
@@ -66,10 +66,10 @@ def createQueueEmbed(player: BetterPlayer, color: Color, page: int, pageSize: in
 
     Parameters
     ----------
-    player : `BetterPlayer`
+    player : BetterPlayer
         The music player instance containing the queue.
 
-    color : `discord.Color`
+    color : discord.Color
         The color to use for the embed.
     
     page : int
@@ -77,12 +77,11 @@ def createQueueEmbed(player: BetterPlayer, color: Color, page: int, pageSize: in
 
     pageSize : int
         Number of tracks per page. Defaults to 10.
-    
+
     Returns
     -------
-    `discord.Embed`
+    discord.Embed
         The constructed embed showing the queue.
-
     """
 
     embed = Embed(title="Queue:", color=color)
@@ -118,7 +117,7 @@ def createQueueEmbed(player: BetterPlayer, color: Color, page: int, pageSize: in
 
         # Upcoming list (paginated)
         if upcomingTracks:
-            totalPages = math.ceil(len(upcomingTracks) / pageSize)
+            totalPages = ceil(len(upcomingTracks) / pageSize)
             page = max(1, min(page, totalPages))
             startIndexOfPage = (page - 1) * pageSize
             endingIndexOfPage = startIndexOfPage + pageSize
@@ -148,10 +147,10 @@ class QueueSelect(Select):
     def __init__(self, *, player: BetterPlayer, pageSize: int) -> None:
         """
         Initialize the `QueueSelect` dropdown menu.
-        
+
         Parameters
         ----------
-        player : `BetterPlayer`
+        player : BetterPlayer
             The music player instance containing the queue.
 
         pageSize : int
@@ -160,8 +159,8 @@ class QueueSelect(Select):
         Returns
         -------
         None
-
         """
+
         self.player = player
         self.pageSize = pageSize
 
@@ -184,13 +183,12 @@ class QueueSelect(Select):
 
         Parameters
         ----------
-        interaction : `discord.Interaction`
+        interaction : discord.Interaction
             The interaction object representing the user's selection.
-        
+
         Returns
         -------
         None
-
         """
 
         # Refresh options in case queue mutated
@@ -225,8 +223,7 @@ class QueueView(View):
 
         Parameters
         ----------
-
-        player : `BetterPlayer`
+        player : BetterPlayer
             The music player instance containing the queue.
 
         pageSize : int
@@ -235,7 +232,6 @@ class QueueView(View):
         Returns
         -------
         None
-        
         """
 
         super().__init__(timeout=300)   # 5 minutes timeout
@@ -245,8 +241,9 @@ class QueueView(View):
 
 
 class MusicQueueSystem(Cog):
-    def __init__(self, bot: Bot):
+    def __init__(self, bot: MyBot):
         self.bot = bot
+        self.logger = self.bot.getLogger()
 
 
     @commands.hybrid_command(aliases=["qu"])
@@ -305,7 +302,7 @@ class MusicQueueSystem(Cog):
 
         if index == player.queue.currentTrackIndex:
             return await respondEmbed(ctx, message=f"{ctx.author.mention}, You cannot remove the **currently playing track**. Use the `skip` command instead to skip to the next track.")
-        
+
         try:
             newCurrentIndex = player.queue.currentTrackIndex
             if newCurrentIndex is None:
@@ -325,12 +322,12 @@ class MusicQueueSystem(Cog):
             player.queue._queue = player.queue.playbackHistory[newCurrentIndex + 1:]
 
         except (ValueError, IndexError) as e:
-            self.bot.logger.error(f"Error while removing track at index {index} from queue: {e}")
+            self.logger.error(f"Error while removing track at index {index} from queue: {e}")
             return await respondEmbed(ctx, message=f"An error occurred while trying to remove the track at index **#{1 + index}** from the queue. This could be due to an invalid index or an issue with the queue itself.", error=True)
-        
+
         except Exception as e:
             # Catch-all for any other exceptions
-            self.bot.logger.error(f"Unexpected error while removing track at index {index} from queue: {e}")
+            self.logger.error(f"Unexpected error while removing track at index {index} from queue: {e}")
             return await respondEmbed(ctx, message=f"An unexpected error occurred while trying to remove the track at index **#{1 + index}** from the queue. Please try again later.", error=True)
 
         await respondEmbed(ctx, message=f"Removed track **#{1 + index}** from the queue.")

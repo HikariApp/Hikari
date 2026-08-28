@@ -47,7 +47,6 @@ async def ensurePlayable(ctx: Context, player: BetterPlayer) -> bool:
     -------
     bool
         True if the player is in a playable state, False otherwise.
-
     """
 
     if player is None:
