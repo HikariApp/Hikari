@@ -3,26 +3,29 @@ import netifaces
 import socket
 from discord import Embed
 from discord.ext import commands
-from discord.ext.commands import Bot, Cog, Context, ExtensionAlreadyLoaded, ExtensionNotLoaded, NoEntryPointError, ExtensionFailed
+from discord.ext.commands import Cog, Context, ExtensionAlreadyLoaded, ExtensionNotLoaded, NoEntryPointError, ExtensionFailed
 from datetime import datetime
 from helpers.errorHandling import *
 from helpers.getIPv4Info import *
+from startup import MyBot
 from helpers.restarter import restarter
 from helpers.extensionsHandler import getAllExtensions
 from helpers.respondEmbed import respondEmbed, ResponseTarget
 
 
 class OwnerOnly(Cog):
-    def __init__(self, bot: Bot):
+    def __init__(self, bot: MyBot):
         self.bot = bot
         self.logger = self.bot.getLogger()
         self.db = self.bot.getMongoClusterDB()
 
 
     # Cog-level error listener for unhandled errors
-    async def cog_on_command_error(self, ctx: Context, error: Exception):
+    async def cog_command_error(self, ctx: Context, error: Exception):
+        if getattr(ctx, "_errorHandled", False):    # if ctx._errorHandled was set to True this could be ignored
+            return
+
         self.logger.exception(f"Uncaught error in {ctx.cog.__cog_name__}:", exc_info=error)
-        raise error
 
 
     # This is a migrated cog from startup.py for owner only commands
@@ -251,5 +254,5 @@ class OwnerOnly(Cog):
         await self.bot.close()
 
 
-async def setup(bot):
+async def setup(bot: MyBot):
     await bot.add_cog(OwnerOnly(bot))

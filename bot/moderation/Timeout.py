@@ -1,23 +1,26 @@
 import discord
 import re
 from datetime import timedelta
-from discord import Color, Embed, Forbidden, Member
+from discord import Forbidden, Member
 from discord.ext import commands
-from discord.ext.commands import BadUnionArgument, Bot, Cog, Context, CommandInvokeError, MissingPermissions, MissingRequiredArgument, MemberNotFound, BotMissingPermissions, UserNotFound
+from discord.ext.commands import BadUnionArgument, Cog, Context, CommandInvokeError, MissingPermissions, MissingRequiredArgument, MemberNotFound, BotMissingPermissions, UserNotFound
 from typing import Any, Optional, Union
+from startup import MyBot
 from helpers.respondEmbed import respondEmbed
 
 
 class Timeout(Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: MyBot):
         self.bot = bot
         self.logger = self.bot.getLogger()
 
 
     # Cog-level error listener for unhandled errors
-    async def cog_on_command_error(self, ctx: Context, error: Exception):
+    async def cog_command_error(self, ctx: Context, error: Exception):
+        if getattr(ctx, "_errorHandled", False):    # if ctx._errorHandled was set to True this could be ignored
+            return
+
         self.logger.exception(f"Uncaught error in {ctx.cog.__cog_name__}:", exc_info=error)
-        raise error
 
 
     # Convert time string to seconds and detailed duration breakdown (< 28 days / 4 weeks)
@@ -85,7 +88,7 @@ class Timeout(Cog):
             
             else:
                 raise
-            
+
 
     # Timeouts a member for a specified amount of time
     @commands.hybrid_command(name="timeout", help="Timeouts a member for a specified amount of time")
@@ -140,31 +143,35 @@ class Timeout(Cog):
     # Error handling, for both commands and slash commands
     @timeout.error
     async def timeout_error(self, ctx: Context, error: Any):
-        embed = Embed(title="")
-        embed.color = Color.red()
+        ctx._errorHandled = False    # if the error is handled, we would set this to True to prevent further propagation
 
         if isinstance(error, MissingRequiredArgument) and error.param.name == "member":
             # The command invoker doesn't provide the member argument
             # A special case to return a more user-friendly message
+            ctx._errorHandled = True
             return await respondEmbed(ctx, message=f"Looks like you want me to **timeout someone**, but **haven't specified** the user you would like to timeout :thinking:  ...\nJust curious to know, **who** should I timeout for now, {ctx.author.mention}?", error=True)
 
         if isinstance(error, BadUnionArgument) or isinstance(error, UserNotFound):
             # The member argument couldn't be converted to either User or Member
             # This includes the case where a User is provided but does not exist
             # A special case to return a more user-friendly message
+            ctx._errorHandled = True
             return await respondEmbed(ctx, message=f"I couldn't find **the user you wanted to timeout** :thinking: ... Perhaps check if that user really **exists** on Discord, {ctx.author.mention}?", error=True)
         
         if isinstance(error, MemberNotFound):
             # The specified member could not be found
             # This will unlikely be triggered since we are using Union[User, Member] for the member argument, but we add it here just in case
+            ctx._errorHandled = True
             return await respondEmbed(ctx, message=f"{error.argument} is not in the server, {ctx.author.mention} :thinking: ...", error=True)
 
         if isinstance(error, MissingRequiredArgument):
             # Missing argument(s)
+            ctx._errorHandled = True
             return await respondEmbed(ctx, message=f"Missing argument: `{error.param.name}`. Please provide all required arguments, {ctx.author.mention}.", error=True)
 
         if isinstance(error, MissingPermissions):
             # The command invoker doesn't have permissions
+            ctx._errorHandled = True
             return await respondEmbed(ctx, message=f"This command **requires** `moderate_members` permission, and you probably **don't have** it, {ctx.author.mention}.", error=True)
 
         if (
@@ -172,11 +179,9 @@ class Timeout(Cog):
             (isinstance(error, CommandInvokeError) and isinstance(error.original, Forbidden))    # Sometimes the application might throw a CommandInvokeError which caused by Forbidden, which is basically the same concept
         ):
             # The application doesn't have permissions to do so
+            ctx._errorHandled = True
             return await respondEmbed(ctx, message=f"I couldn't **timeout** that member. Please **double-check** my **permissions** and **role position**.", error=True)
 
-        # If the error is not handled, forward to the cog-level listener, or even bot-level if unhandled here
-        await self.cog_on_command_error(ctx, error)
-        
 
-async def setup(bot):
+async def setup(bot: MyBot):
     await bot.add_cog(Timeout(bot))

@@ -1,7 +1,8 @@
 from discord import Forbidden, Member, User
 from discord.ext import commands
-from discord.ext.commands import Bot, Cog, Context, CommandInvokeError, MissingPermissions, MissingRequiredArgument, BotMissingPermissions, UserNotFound
+from discord.ext.commands import Cog, Context, CommandInvokeError, MissingPermissions, MissingRequiredArgument, BotMissingPermissions, UserNotFound
 from typing import Any, Optional
+from startup import MyBot
 from helpers.respondEmbed import respondEmbed
 
 # Check if a user is already banned in the guild
@@ -32,14 +33,18 @@ async def isBanned(ctx: Context, user: User) -> bool:
 
 
 class Ban(Cog):
-    def __init__(self, bot: Bot):
+    def __init__(self, bot: MyBot):
         self.bot = bot
         self.logger = self.bot.getLogger()
 
+
     # Cog-level error listener for unhandled errors
-    async def cog_on_command_error(self, ctx: Context, error: Exception):
+    async def cog_command_error(self, ctx: Context, error: Exception):
+        if getattr(ctx, "_errorHandled", False):    # if ctx._errorHandled was set to True this could be ignored
+            return
+
         self.logger.exception(f"Uncaught error in {ctx.cog.__cog_name__}:", exc_info=error)
-        raise error
+
 
     # Bans a user
     @commands.hybrid_command(name="ban", help="Bans a user")
@@ -105,27 +110,33 @@ class Ban(Cog):
 
         else:
             return await respondEmbed(ctx, message=f":white_check_mark: {user.mention} has been **banned**.\nReason: **{reason}**")
-        
+
 
     # Error handling, for both commands and slash commands
     @ban.error
     async def ban_error(self, ctx: Context, error: Any):
+        ctx._errorHandled = False    # if the error is handled, we would set this to True to prevent further propagation
+
         if isinstance(error, MissingRequiredArgument) and error.param.name == "user":
             # The command invoker doesn't provide the user argument
             # A special case to return a more user-friendly message
+            ctx._errorHandled = True
             return await respondEmbed(ctx, message=f"Looks like you want me to **ban someone**, but **haven't specified** the user you would like to ban :thinking:  ...\nJust curious to know, **who** should I ban for now, {ctx.author.mention}?", error=True)
         
         if isinstance(error, UserNotFound):
             # The member argument couldn't be converted to either User or Member
             # A special case to return a more user-friendly message
+            ctx._errorHandled = True
             return await respondEmbed(ctx, message=f"I couldn't find **the user you wanted to ban** :thinking: ... Perhaps check if that user really **exists** on Discord, {ctx.author.mention}?", error=True)
         
         if isinstance(error, MissingRequiredArgument):
             # Missing argument(s)
+            ctx._errorHandled = True
             return await respondEmbed(ctx, message=f"<a:crossred:1356353067024515266> Missing argument: `{error.param.name}`. Please provide all required arguments, {ctx.author.mention}.", error=True)
 
         if isinstance(error, MissingPermissions):
             # The command invoker doesn't have permissions
+            ctx._errorHandled = True
             return await respondEmbed(ctx, message=f"<a:crossred:1356353067024515266> This command **requires** `ban_members` permission, and you probably **don't have** it, {ctx.author.mention}.", error=True)
 
         if (
@@ -133,12 +144,9 @@ class Ban(Cog):
             (isinstance(error, CommandInvokeError) and isinstance(error.original, Forbidden))    # Sometimes the application might throw a CommandInvokeError which caused by Forbidden, which is basically the same concept
         ):
             # The application doesn't have permissions to do so
+            ctx._errorHandled = True
             return await respondEmbed(ctx, message=f"<a:crossred:1356353067024515266> I couldn't **ban** that user. Please **double-check** my **permissions** and **role position**.", error=True)
 
-        # If the error is not handled, forward to the cog-level listener, or even bot-level if unhandled here
-        self.cog_on_command_error(ctx, error)
 
-
-async def setup(bot):
+async def setup(bot: MyBot):
     await bot.add_cog(Ban(bot))
-

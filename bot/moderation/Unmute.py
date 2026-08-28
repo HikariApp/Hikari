@@ -1,20 +1,23 @@
 from discord import Forbidden, Member
 from discord.ext import commands
-from discord.ext.commands import Bot, Cog, Context, CommandInvokeError, MissingPermissions, MissingRequiredArgument, BotMissingPermissions, UserNotFound
+from discord.ext.commands import Cog, Context, CommandInvokeError, MissingPermissions, MissingRequiredArgument, BotMissingPermissions, UserNotFound
 from typing import Any, Optional
+from startup import MyBot
 from helpers.respondEmbed import respondEmbed
 
 class Unmute(Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: MyBot):
         self.bot = bot
         self.logger = self.bot.getLogger()
         self.db = self.bot.getMongoClusterDB()
 
 
     # Cog-level error listener for unhandled errors
-    async def cog_on_command_error(self, ctx: Context, error: Exception):
+    async def cog_command_error(self, ctx: Context, error: Exception):
+        if getattr(ctx, "_errorHandled", False):    # if ctx._errorHandled was set to True this could be ignored
+            return
+
         self.logger.exception(f"Uncaught error in {ctx.cog.__cog_name__}:", exc_info=error)
-        raise error
 
 
     # Unmutes a member from text channels
@@ -77,22 +80,28 @@ class Unmute(Cog):
     # Handle errors while unbanning a user, for both commands and app_commands
     @unmute.error
     async def unmute_error(self, ctx: Context, error: Any):
+        ctx._errorHandled = False    # if the error is handled, we would set this to True to prevent further propagation
+
         if isinstance(error, MissingRequiredArgument) and error.param.name == "user":
             # The command invoker doesn't provide the user argument
             # A special case to return a more user-friendly message
+            ctx._errorHandled = True
             return await respondEmbed(ctx, message=f"Looks like you want me to **unmute someone**, but **haven't specified** the user you would like to unmute :thinking:  ...\nJust curious to know, **who** should I unmute for now, {ctx.author.mention}?", error=True)
         
         if isinstance(error, UserNotFound):
             # The user argument couldn't be converted to User
             # A special case to return a more user-friendly message
+            ctx._errorHandled = True
             return await respondEmbed(ctx, message=f"I couldn't find **the user you wanted to unmute** :thinking: ... Perhaps check if that user really **exists** on Discord, {ctx.author.mention}?", error=True)
         
         if isinstance(error, MissingRequiredArgument):
             # Missing argument(s)
+            ctx._errorHandled = True
             return await respondEmbed(ctx, message=f"Missing argument: `{error.param.name}`. Please provide all required arguments, {ctx.author.mention}.", error=True)
 
         if isinstance(error, MissingPermissions):
             # The command invoker doesn't have permissions
+            ctx._errorHandled = True
             return await respondEmbed(ctx, message=f"This command **requires** `moderate_members` permission, and you probably **don't have** it, {ctx.author.mention}.", error=True)
 
         if (
@@ -100,11 +109,9 @@ class Unmute(Cog):
             (isinstance(error, CommandInvokeError) and isinstance(error.original, Forbidden))    # Sometimes the application might throw a CommandInvokeError which caused by Forbidden, which is basically the same concept
         ):
             # The application doesn't have permissions to do so
+            ctx._errorHandled = True
             return await respondEmbed(ctx, message=f"I couldn't **unmute** that user. Please **double-check** my **permissions** and **role position**.", error=True)
 
-        # If the error is not handled, forward to the cog-level listener, or even bot-level if unhandled here
-        self.cog_on_command_error(ctx, error)
 
-
-async def setup(bot: Bot):
+async def setup(bot: MyBot):
     await bot.add_cog(Unmute(bot))

@@ -1,20 +1,24 @@
 from discord import Color, Embed, Forbidden
 from discord.ext import commands
-from discord.ext.commands import Bot, Cog, Context, CommandInvokeError, MissingPermissions, BotMissingPermissions
+from discord.ext.commands import Cog, Context, CommandInvokeError, MissingPermissions, BotMissingPermissions
 from typing import Any
 from datetime import datetime
+from startup import MyBot
 from helpers.respondEmbed import respondEmbed
 
 
 class GetBannedList(Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: MyBot):
         self.bot = bot
         self.logger = self.bot.getLogger()
 
+
     # Cog-level error listener for unhandled errors
-    async def cog_on_command_error(self, ctx: Context, error: Exception):
+    async def cog_command_error(self, ctx: Context, error: Exception):
+        if getattr(ctx, "_errorHandled", False):    # if ctx._errorHandled was set to True this could be ignored
+            return
+
         self.logger.exception(f"Uncaught error in {ctx.cog.__cog_name__}:", exc_info=error)
-        raise error
 
 
     # Returns a list of banned members in the guild
@@ -53,8 +57,11 @@ class GetBannedList(Cog):
     # Error handling, for both commands and slash commands
     @banned.error
     async def banned_error(self, ctx: Context, error: Any):
+        ctx._errorHandled = False    # if the error is handled, we would set this to True to prevent further propagation
+
         if isinstance(error, MissingPermissions):
             # The command invoker doesn't have permissions
+            ctx._errorHandled = True
             return await respondEmbed(ctx, message=f"<a:crossred:1356353067024515266> This command **requires** `ban_members` permission, and you probably **don't have** it, {ctx.author.mention}.", error=True)
 
         if (
@@ -62,11 +69,9 @@ class GetBannedList(Cog):
             (isinstance(error, CommandInvokeError) and isinstance(error.original, Forbidden))    # Sometimes the application might throw a CommandInvokeError which caused by Forbidden, which is basically the same concept
         ):
             # The application doesn't have permissions to do so
+            ctx._errorHandled = True
             return await respondEmbed(ctx, message=f"<a:crossred:1356353067024515266> I couldn't **list all banned users**. Please **double-check** my **permissions** and **role position**.", error=True)
 
-        # If the error is not handled, forward to the cog-level listener, or even bot-level if unhandled here
-        self.cog_on_command_error(ctx, error)
 
-
-async def setup(bot):
+async def setup(bot: MyBot):
     await bot.add_cog(GetBannedList(bot))

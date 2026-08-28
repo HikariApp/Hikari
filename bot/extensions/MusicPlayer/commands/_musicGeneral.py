@@ -17,10 +17,14 @@ class MusicGeneral(Cog):
         self.bot = bot
         self.logger = self.bot.getLogger()
 
+
     # Cog-level error listener for unhandled errors
-    async def cog_on_command_error(self, ctx: Context, error: Exception):
+    async def cog_command_error(self, ctx: Context, error: Exception):
+        if getattr(ctx, "_errorHandled", False):    # if ctx._errorHandled was set to True this could be ignored
+            return
+
         self.logger.exception(f"Uncaught error in {ctx.cog.__cog_name__}:", exc_info=error)
-        raise error
+
 
     async def _advanceOrReport(self, player: BetterPlayer):
         try:
@@ -109,7 +113,7 @@ class MusicGeneral(Cog):
         
         # Return a blank list because web URL's does not require to be searched, or the player object is None.
         return []
-    
+
 
     @commands.hybrid_command(aliases=["p", "pla"])
     @app_commands.autocomplete(search=web_serach_autocomplete)
@@ -380,7 +384,7 @@ class MusicGeneral(Cog):
         # We won't implement any logic here, as the subcommands will handle the functionality
         # If no subcommand is invoked, return an error message
         await respondEmbed(ctx, message=f"{ctx.author.mention}, you need to specify a subcommand: `one` or `all`.", error=True)
-    
+
 
     @repeat.command()
     async def one(self, ctx: Context):
@@ -529,21 +533,23 @@ class MusicGeneral(Cog):
     # Error handling, for both commands and slash commands
     @volume.error
     async def volume_error(self, ctx: Context, error: CommandError):
+        ctx._errorHandled = False    # if the error is handled, we would set this to True to prevent further propagation
+
         if isinstance(error, MissingRequiredArgument):
             # The command invoker doesn't provide the value argument
             # A special case to return a more user-friendly message
+            ctx._errorHandled = True
             return await respondEmbed(ctx, message=f"Looks like you want me to **change the volume** for the player, but **haven't specified** the value you would like to set :thinking:  ...\nJust curious to know, **what** should I set the volume to the player right now, {ctx.author.mention}?", error=True)
 
         if isinstance(error, RangeError):
             # The command invoker provided a value outside the allowed range
+            ctx._errorHandled = True
             return await respondEmbed(ctx, message="The volume must be between **0** and **500** ...", error=True)
 
         if isinstance(error, BadArgument):
             # The command invoker provided a value that is not a number
+            ctx._errorHandled = True
             return await respondEmbed(ctx, message=f"That doesn't look like a valid number :thinking: ... give me a whole number between **0** and **500**, {ctx.author.mention}.", error=True)
-
-        # If the error is not handled, forward to the cog-level listener, or even bot-level if unhandled here
-        self.cog_on_command_error(ctx, error)
 
 
     @commands.hybrid_command(aliases=["nig"])
@@ -565,5 +571,4 @@ class MusicGeneral(Cog):
         else:
             await player.reset_filters(fast_apply=True)
             await respondEmbed(ctx, message=f"**Deactivating** nightcore mode... The track may be briefly interrupted.")
-
 

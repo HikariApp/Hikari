@@ -1,13 +1,20 @@
 import discord
 from discord import app_commands, Interaction
-from discord.ext.commands import Bot, Cog, CommandError, Context
-from discord.ext.commands.errors import MessageNotFound
+from discord.ext.commands import Cog, Context
+from startup import MyBot
 from helpers.errorHandling import *
 
 # Main cog
 class ReactingMessages(Cog):
-    def __init__(self, bot: Bot):
+    def __init__(self, bot: MyBot):
         self.bot = bot
+
+    # Cog-level error listener for unhandled errors
+    async def cog_command_error(self, ctx: Context, error: Exception):
+        if getattr(ctx, "_errorHandled", False):    # if ctx._errorHandled was set to True this could be ignored
+            return
+
+        self.logger.exception(f"Uncaught error in {ctx.cog.__cog_name__}:", exc_info=error)
 
     reaction = app_commands.Group(name="reaction", description="Reacting to messages")
 
@@ -144,15 +151,5 @@ class ReactingMessages(Cog):
         await message.clear_reactions()
 
 
-    # Error handling
-    async def cog_command_error(self, interaction: Context, error: CommandError):
-        # Handles error for message could not be found
-        if isinstance(error, MessageNotFound):
-            await interaction.response.send_message(MessageNotFoundError())
-            
-        else:
-            raise error  # Raise other errors to ensure they aren't ignored
-
-
-async def setup(bot: Bot):
+async def setup(bot: MyBot):
     await bot.add_cog(ReactingMessages(bot))
