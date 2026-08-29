@@ -83,6 +83,41 @@ class ResponseTarget(Enum):
     """
 
 
+async def _dm_fallback(ctx: Context, embed: Embed) -> Optional[Message]:
+    """
+    This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
+
+    Last-resort delivery when a channel/reply send is rejected.
+    
+    This could happen on sometimes (e.g. the bot was locked out of the channel
+    it's trying to post in), and we need to DM the invoking author with
+    the original embed.
+    
+    If the DM also fails, it's logged and None is returned,
+    so callers never see an uncaught Forbidden bubble up
+    into the command error handler.
+    """
+
+    try:
+        return await ctx.author.send(embed=embed)
+
+    except Forbidden:
+        logger.warning(
+            "respondEmbed: channel send forbidden and author has DMs closed "
+            "(command=%s user=%s)",
+            getattr(ctx, "command", None), ctx.author,
+        )
+        return
+
+    except Exception:
+        logger.exception(
+            "respondEmbed: channel send forbidden and DM fallback errored "
+            "(command=%s user=%s)",
+            getattr(ctx, "command", None), ctx.author,
+        )
+        return
+
+
 async def respondEmbed(
     ctx: Context,
     message: str,
@@ -157,6 +192,7 @@ async def respondEmbed(
     # dispatch on the single delivery axis
     if target is ResponseTarget.EPHEMERAL:
         interaction = ctx.interaction
+
         if interaction is not None and not interaction.response.is_done():
             # We own the first response, ephemeral is honored here
             ephemeralKwargs = {"embed": embed, "view": view, "ephemeral": True}
@@ -169,7 +205,17 @@ async def respondEmbed(
             "deferred (or non-interaction); sending publicly. command=%s user=%s",
             getattr(ctx, "command", None), ctx.author,
         )
-        return await ctx.send(**kwargs)
+
+        try:
+            return await ctx.send(**kwargs)
+
+        except Forbidden:
+            logger.warning(
+                "respondEmbed: public fallback of EPHEMERAL forbidden; DMing author "
+                "(command=%s user=%s)",
+                getattr(ctx, "command", None), ctx.author,
+            )
+            return await _dm_fallback(ctx, embed)
 
     if target is ResponseTarget.DM:
         interaction = ctx.interaction
@@ -177,14 +223,40 @@ async def respondEmbed(
             dmMessage = await ctx.author.send(**kwargs)
 
         except Forbidden:
-            return await ctx.reply(embed=DM_FORBIDDEN_EMBED, delete_after=DM_FALLBACK_DELETE)
+            # DM is closed, so we try to reply in-channel with a notice that the DM failed.
+            logger.exception(
+                "respondEmbed: DM requested but failed to send (command=%s user=%s) due to Forbidden (likely DMs closed)",
+                getattr(ctx, "command", None), ctx.author,
+            )
+            try:
+                return await ctx.reply(embed=DM_FORBIDDEN_EMBED, delete_after=DM_FALLBACK_DELETE)
+
+            except Forbidden:
+                # can't reply in-channel either (locked out); nothing left to try
+                logger.warning(
+                    "respondEmbed: DM forbidden and in-channel notice also forbidden "
+                    "(command=%s user=%s)",
+                    getattr(ctx, "command", None), ctx.author,
+                )
+                return
 
         except Exception:
+            # DM errored, so we try to reply in-channel with a notice that the DM failed.
             logger.exception(
                 "respondEmbed: DM requested but failed to send (command=%s user=%s)",
                 getattr(ctx, "command", None), ctx.author,
             )
-            return await ctx.reply(embed=DM_ERROR_EMBED, delete_after=DM_FALLBACK_DELETE)
+            try:
+                return await ctx.reply(embed=DM_ERROR_EMBED, delete_after=DM_FALLBACK_DELETE)
+
+            except Forbidden:
+                # can't reply in-channel either (locked out); nothing left to try
+                logger.warning(
+                    "respondEmbed: DM errored and in-channel notice also forbidden "
+                    "(command=%s user=%s)",
+                    getattr(ctx, "command", None), ctx.author,
+                )
+                return
 
         # DM landed — acknowledge the interaction if there is one, so slash callers
         # don't see "application did not respond". Ephemeral: it's noise, not content.
@@ -202,8 +274,27 @@ async def respondEmbed(
         return dmMessage
 
     if target is ResponseTarget.REPLY:
-        return await ctx.reply(**kwargs)
+        try:
+            return await ctx.reply(**kwargs)
+
+        except Forbidden:
+            # reply is forbidden (likely locked out); DM the author instead
+            logger.warning(
+                "respondEmbed: REPLY forbidden (likely locked out); DMing author "
+                "(command=%s user=%s)",
+                getattr(ctx, "command", None), ctx.author,
+            )
+            return await _dm_fallback(ctx, embed)
 
     # ResponseTarget.CHANNEL (default)
-    return await ctx.send(**kwargs)
+    try:
+        return await ctx.send(**kwargs)
 
+    except Forbidden:
+        # channel send is forbidden (likely locked out); DM the author instead
+        logger.warning(
+            "respondEmbed: CHANNEL send forbidden (likely locked out); DMing author "
+            "(command=%s user=%s)",
+            getattr(ctx, "command", None), ctx.author,
+        )
+        return await _dm_fallback(ctx, embed)
