@@ -315,7 +315,7 @@ class VoiceChannel(commands.Cog):
             return await respondEmbed(
                 ctx,
                 message=(
-                    f"I have been moved to {specified_vc.mention}.",
+                    f"I have been moved to {specified_vc.mention}."
                     + (f"\n**Reason**: {reason}" if reason else "")
                 ),
                 isSilent=True
@@ -326,7 +326,7 @@ class VoiceChannel(commands.Cog):
             return await respondEmbed(
                 ctx,
                 message=(
-                    f"{member.mention} has been moved to {specified_vc.mention}.",
+                    f"{member.mention} has been moved to {specified_vc.mention}."
                     + (f"\n**Reason**: {reason}" if reason else "")
                     ),
                 isSilent=True
