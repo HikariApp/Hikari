@@ -1,6 +1,6 @@
 from discord import VoiceChannel, app_commands, Color, ClientException
 from discord.ext import commands
-from discord.ext.commands import Cog, Context, Range, CommandError, BadArgument, RangeError, MissingRequiredArgument
+from discord.ext.commands import Cog, Context, Range, CommandError, BadArgument, ChannelNotFound, CommandInvokeError, RangeError, MissingRequiredArgument
 from discord.app_commands import Choice
 from lava_lyra import LoopMode, Playlist, QueueException, Timescale
 from lava_lyra.pool import NodePool
@@ -137,16 +137,11 @@ class MusicGeneral(Cog):
             return await respondEmbed(ctx, message=f"{ctx.author.mention} Join a voice channel plz :pleading_face:  I don't think I can stay there without you :pensive: ...\n\nOr specify which voice channel you want me to join by using the `channel` argument.")
         
         if player is None:
-            try:
-                # Join voice channel
-                player = await voice_channel.connect(cls=BetterPlayer)
-                # Set the context, for later use in the message sending
-                player.setContext(ctx)
-                return await respondEmbed(ctx, message=f"I've joined the voice channel {voice_channel.mention}")
-            
-            except ClientException:
-                # Something went wrong on discord or network side while joining voice channel
-                return await respondEmbed(ctx, message=f"I was unable to join {ctx.author.voice.channel}. Please try again.", error=True)
+            # Join voice channel
+            player = await voice_channel.connect(cls=BetterPlayer)
+            # Set the context, for later use in the message sending
+            player.setContext(ctx)
+            return await respondEmbed(ctx, message=f"I've joined the voice channel {voice_channel.mention}")
 
         elif player.channel != voice_channel:
             if channel is not None:
@@ -160,6 +155,24 @@ class MusicGeneral(Cog):
         else:
             # The bot has been connected to the same channel as the author
             return await respondEmbed(ctx, message=f"Can you found me in the voice channel? I have connected to {voice_channel.mention} already :>")
+
+
+    # Error handling, for both commands and slash commands
+    @join.error
+    async def join_error(self, ctx: Context, error: Exception):
+        if getattr(ctx, "_errorHandled", False):    # if ctx._errorHandled was set to True this could be ignored
+            return
+
+        if isinstance(error, ChannelNotFound):
+            # The specified channel could not be found
+            # A special case to return a more user-friendly message
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"I couldn't find **the channel you wanted me to join** :thinking: ... Perhaps check if that channel really **exists** on Discord, {ctx.author.mention}?")
+
+        if (isinstance(error, CommandInvokeError) and isinstance(error.original, ClientException)):    # Sometimes the application might throw a CommandInvokeError which caused by Forbidden, which is basically the same concept
+            # A ClientException occurred while trying to join the voice channel
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"I was unable to join the voice channel due to a **ClientException**. Please try again later.", error=True)
 
 
     @commands.hybrid_command(aliases=["p", "pla"])

@@ -1,7 +1,7 @@
 import asyncio
 from discord import Color, Embed, Forbidden, Member, User, VoiceChannel, VoiceState, HTTPException
 from discord.ext import commands, tasks
-from discord.ext.commands import Context, MissingRequiredArgument, CommandInvokeError, CommandInvokeError, MissingPermissions, BotMissingPermissions, BadUnionArgument, MemberNotFound, UserNotFound
+from discord.ext.commands import ChannelNotFound, Context, MissingRequiredArgument, CommandInvokeError, CommandInvokeError, MissingPermissions, BotMissingPermissions, BadUnionArgument, MemberNotFound, UserNotFound
 from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 from helpers.errorHandling import *
@@ -244,6 +244,12 @@ class VoiceChannel(commands.Cog):
     async def move_all_error(self, ctx: Context, error):
         ctx._errorHandled = False    # if the error is handled, we would set this to True to prevent further propagation
 
+        if isinstance(error, ChannelNotFound):
+            # The specified channel could not be found
+            # A special case to return a more user-friendly message
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"I couldn't find **the channel you wanted to move the member to** :thinking: ... Perhaps check if that channel really **exists** on Discord, {ctx.author.mention}?")
+
         if isinstance(error, MissingPermissions):
             # The command invoker doesn't have permissions
             ctx._errorHandled = True
@@ -351,6 +357,12 @@ class VoiceChannel(commands.Cog):
             ctx._errorHandled = True
             return await respondEmbed(ctx, message=f"I couldn't find **the user you wanted to move** :thinking: ... Perhaps check if that user really **exists** on Discord, {ctx.author.mention}?", error=True)
 
+        if isinstance(error, ChannelNotFound):
+            # The specified channel could not be found
+            # A special case to return a more user-friendly message
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"I couldn't find **the channel you wanted to move the member to** :thinking: ... Perhaps check if that channel really **exists** on Discord, {ctx.author.mention}?")
+
         if isinstance(error, MissingPermissions):
             # The command invoker doesn't have permissions
             ctx._errorHandled = True
@@ -404,6 +416,12 @@ class VoiceChannel(commands.Cog):
             # A special case to return a more user-friendly message
             ctx._errorHandled = True
             return await respondEmbed(ctx, message=f"Looks like you want me to **move you to another channel**, but **haven't specified** the channel you would like to move to :thinking:  ...\nJust curious to know, **where** should I move you for now, {ctx.author.mention}?")
+
+        if isinstance(error, ChannelNotFound):
+            # The specified channel could not be found
+            # A special case to return a more user-friendly message
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"I couldn't find **the channel you wanted to move the member to** :thinking: ... Perhaps check if that channel really **exists** on Discord, {ctx.author.mention}?")
 
         if isinstance(error, MissingPermissions):
             # The command invoker doesn't have permissions
