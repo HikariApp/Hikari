@@ -421,7 +421,7 @@ class VoiceChannel(commands.Cog):
             # The specified channel could not be found
             # A special case to return a more user-friendly message
             ctx._errorHandled = True
-            return await respondEmbed(ctx, message=f"I couldn't find **the channel you wanted to move the member to** :thinking: ... Perhaps check if that channel really **exists** on Discord, {ctx.author.mention}?")
+            return await respondEmbed(ctx, message=f"I couldn't find **the channel you wanted to move you to** :thinking: ... Perhaps check if that channel really **exists** on Discord, {ctx.author.mention}?")
 
         if isinstance(error, MissingPermissions):
             # The command invoker doesn't have permissions
