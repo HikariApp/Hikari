@@ -1,4 +1,4 @@
-from discord import app_commands, Color
+from discord import VoiceChannel, app_commands, Color, ClientException
 from discord.ext import commands
 from discord.ext.commands import Cog, Context, Range, CommandError, BadArgument, RangeError, MissingRequiredArgument
 from discord.app_commands import Choice
@@ -115,6 +115,53 @@ class MusicGeneral(Cog):
         return []
 
 
+    @commands.hybrid_command(name="join", help="Invokes me to a voice channel")
+    async def join(self, ctx: Context, channel: Optional[VoiceChannel] = None):
+        """
+        Invokes me to a voice channel
+
+        Parameters
+        ----------
+        channel : discord.VoiceChannel, optional
+            Channel to join. Leave this blank if you want the bot to join where you are.
+        """
+
+        player: BetterPlayer = cast(BetterPlayer, ctx.guild.voice_client)
+        voice_channel = channel
+
+        if voice_channel is None and ctx.author.voice is not None:
+            voice_channel = ctx.author.voice.channel
+
+        if voice_channel is None:
+            # The author is not in a voice channel, or not specified which voice channel the application should join
+            return await respondEmbed(ctx, message=f"{ctx.author.mention} Join a voice channel plz :pleading_face:  I don't think I can stay there without you :pensive: ...\n\nOr specify which voice channel you want me to join by using the `channel` argument.")
+        
+        if player is None:
+            try:
+                # Join voice channel
+                player = await voice_channel.connect(cls=BetterPlayer)
+                # Set the context, for later use in the message sending
+                player.setContext(ctx)
+                return await respondEmbed(ctx, message=f"I've joined the voice channel {voice_channel.mention}")
+            
+            except ClientException:
+                # Something went wrong on discord or network side while joining voice channel
+                return await respondEmbed(ctx, message=f"I was unable to join {ctx.author.voice.channel}. Please try again.", error=True)
+
+        elif player.channel != voice_channel:
+            if channel is not None:
+                # The bot has been connected to a voice channel but not as same as the required one
+                return await respondEmbed(ctx, message=f"I've already joined the voice channel {player.channel.mention}, but not the one you wanted me to join ~\n\n**I'm currently in:** {player.channel.mention}\n**The channel you wanted me to join:** {voice_channel.mention}", error=True)
+
+            else:
+                # The bot has been connected to a voice channel but not as same as the author one
+                return await respondEmbed(ctx, message=f"I've already joined the voice channel {player.channel.mention}, but not the one you are in ~\n\n**I'm currently in:** {player.channel.mention}\n**You're currently in:** {voice_channel.mention}", error=True)
+
+        else:
+            # The bot has been connected to the same channel as the author
+            return await respondEmbed(ctx, message=f"Can you found me in the voice channel? I have connected to {voice_channel.mention} already :>")
+
+
     @commands.hybrid_command(aliases=["p", "pla"])
     @app_commands.autocomplete(search=web_serach_autocomplete)
     async def play(self, ctx: Context, *, search: Optional[str] = None) -> Context | None:
@@ -130,7 +177,6 @@ class MusicGeneral(Cog):
         -------
         commands.Context
             The context of the command invocation, if the command was successful.
-        
         None
             If the command failed due to an error or invalid state.
         """
@@ -139,16 +185,16 @@ class MusicGeneral(Cog):
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
 
         if player is None:
+            if not ctx.author.voice or not ctx.author.voice.channel:
+                # The author is not in a voice channel
+                return await respondEmbed(ctx, message=f"{ctx.author.mention} Join a voice channel plz :pleading_face:  I don't think I can stay there without you :pensive: ...")
+
             try:
                 await ctx.author.voice.channel.connect(cls=BetterPlayer)
                 player = ctx.voice_client  # type: ignore
                 # Set the context, for later use in the message sending
                 player.setContext(ctx)
 
-            except AttributeError:
-                # The author is not in a voice channel
-                return await respondEmbed(ctx, message=f"{ctx.author.mention} Join a voice channel plz :pleading_face:  I don't think I can stay there without you :pensive: ...")
-            
             except Exception as e:
                 self.logger.error(f"An unexpected error occurred while trying to join the voice channel: {e}")
                 return await respondEmbed(ctx, message=f"I was unable to join {ctx.author.voice.channel} due to an unexpected error. Please try again later.", error=True)
@@ -571,4 +617,3 @@ class MusicGeneral(Cog):
         else:
             await player.reset_filters(fast_apply=True)
             await respondEmbed(ctx, message=f"**Deactivating** nightcore mode... The track may be briefly interrupted.")
-

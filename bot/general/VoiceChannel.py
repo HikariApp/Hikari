@@ -1,518 +1,483 @@
-import discord
 import asyncio
-import re
-import logging
-import lava_lyra
-from bot.extensions.MusicPlayer._betterPlayer import BetterPlayer
-from discord import app_commands, Embed, Interaction, Forbidden, Member, VoiceChannel
+from discord import Color, Embed, Forbidden, Member, User, VoiceChannel, VoiceState, HTTPException
 from discord.ext import commands, tasks
-from discord.app_commands import BotMissingPermissions
-from discord.app_commands.errors import MissingPermissions
+from discord.ext.commands import Context, MissingRequiredArgument, CommandInvokeError, CommandInvokeError, MissingPermissions, BotMissingPermissions, BadUnionArgument, MemberNotFound, UserNotFound
 from datetime import datetime, timezone, timedelta
-from typing import cast, Optional, Union
-from bot.general.VoiceChannelFallbackConfig import *
-from configs.Bot._logging import setupLogger
+from typing import Any, Optional
 from helpers.errorHandling import *
+from helpers.respondEmbed import respondEmbed
+from helpers.parseDuration import parseDuration
 
-recording_vc = {}
-logger = setupLogger('discord_bot', 'bot.log', logging.INFO)
 
-# Main cog, heavily rewrited after wavelink implementation
 class VoiceChannel(commands.Cog):
     def __init__(self, bot):
-        # General init
-        global set_fallback_channel
-        global recording_vc
         self.bot = bot
+        self.logger = self.bot.getLogger()
         self.db = self.bot.getMongoClusterDB()
         self.unmute_voice_task.start()
+
+
+    # Cog-level error listener for unhandled errors
+    async def cog_command_error(self, ctx: Context, error: Exception):
+        if getattr(ctx, "_errorHandled", False):    # if ctx._errorHandled was set to True this could be ignored
+            return
+
+        self.logger.exception(f"Uncaught error in {ctx.cog.__cog_name__}:", exc_info=error)
+
 
     def cog_unload(self):
         self.unmute_voice_task.cancel()  # Stop the task when the cog is unloaded
 
-    move = app_commands.Group(name="move", description="Move User")
-
-
-    # ----------<Voice Channels>-----------
-
 
     @commands.Cog.listener()
-    async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
-        global recording_vc
+    async def on_voice_state_update(self, member: Member, before: VoiceState, after: VoiceState):
         # Ensure:
         # - this is a channel leave as opposed to anything else
         # Actions:
-        # - Reset all settings if the bot leave or being kicked by someone else
+        # - Send a message to the system channel or a text channel with send permissions, if available
 
-        if member != self.bot.user:
+        if member.id != self.bot.user.id:
             return
 
         if (
             after.channel is None and  # if this is None this is certainly a leave
             before.channel != after.channel  # if these match then this could be e.g. server deafen
         ):
-            guild_id = before.channel.guild.id
-            # Send fallback and reset all settings
-            if guild_id in fallback_text_channel:
-                left_vc = discord.Embed(title="", description="", color=self.bot.user.color)
-                left_vc.add_field(name="", value="I left the voice channel.")
-                await fallback_text_channel[guild_id].send(embed=left_vc, silent=True)
-                del fallback_text_channel[guild_id]
+            guild = before.channel.guild
+            channel = guild.system_channel or next(
+                (c for c in guild.text_channels if c.permissions_for(guild.me).send_messages),
+                None
+            )
 
-            # Reset the music player
-            reset_music_player(guild_id)
-            recording_vc[guild_id] = None
+            if channel is None:    # No suitable text channel found to send the message
+                return
 
+            left_embed = Embed(
+                description="I've left the voice channel.",
+                color=Color.blurple()
+            )
+            await channel.send(embed=left_embed, silent=True)
 
-    # General commands
-    # Joining voice channel
-    @app_commands.command(description="Invokes me to a voice channel")
-    @app_commands.describe(channel="Channel to join. Leave this blank if you want the bot to join where you are.")
-    async def join(self, interaction: Interaction, channel: Optional[discord.VoiceChannel] = None):
-        player: BetterPlayer
-        player = cast(BetterPlayer, interaction.guild.voice_client)
-        join_embed = discord.Embed(title="", color=interaction.user.colour)
-        voice_channel = channel
-
-        if voice_channel is None and interaction.user.voice is not None:
-            voice_channel = interaction.user.voice.channel
-
-        if voice_channel is None:
-            # The author is not in a voice channel, or not specified which voice channel the application should join
-            return await interaction.response.send_message(embed=AuthorNotInVoiceError(interaction, interaction.user).return_embed())
-        
-        if not player:
-            try:
-                # Join voice channel
-                player = await voice_channel.connect(cls=lava_lyra.Player)
-                set_fallback_text_channel(interaction, interaction.channel)
-                join_embed.add_field(name="", value=f"I've joined the voice channel {voice_channel.mention}")
-                return await interaction.response.send_message(embed=join_embed)
-            
-            except discord.ClientException:
-                # Something went wrong on discord or network side while joining voice channel
-                join_embed.add_field(name="", value=f"I was unable to join {interaction.user.voice.channel}. Please try again.", inline=False)
-                return await interaction.response.send_message(embed=join_embed)
-            
-        elif player.channel != voice_channel:
-            # The bot has been connected to a voice channel but not as same as the author or required one
-
-            if channel is not None:
-                # The bot has been connected to a voice channel but not as same as the required one
-                await interaction.response.send_message(embed=BotAlreadyInVoiceError(interaction, player.channel, voice_channel).notrequired())
-
-            else:
-                # The bot has been connected to a voice channel but not as same as the author one
-                await interaction.response.send_message(embed=BotAlreadyInVoiceError(interaction, player.channel, voice_channel).notauthor())
-
-        else:
-            # The bot has been connected to the same channel as the author
-            await interaction.response.send_message(embed=BotAlreadyInVoiceError(interaction, player.channel, voice_channel).same())
+    # NOTE: join() command is now handled by the music player cog, so we removed it from here
 
 
-    # Leaving voice channel
-    @app_commands.command(description="Leaving a voice channel")
-    async def leave(self, interaction: Interaction):
-        player: lava_lyra.Player
-        player = cast(lava_lyra.Player, interaction.guild.voice_client)
-        leaving_vc = discord.Embed(title="", description="", color=self.bot.user.color)
-        leaving_vc_error_embed = discord.Embed(title="", color=discord.Colour.red())
+    # Leaving a voice channel
+    @commands.hybrid_command(name="leave", help="Leaving a voice channel")
+    @commands.guild_only()
+    async def leave(self, ctx: Context):
+        """
+        Leaving a voice channel.
+        """
 
+        player = ctx.voice_client  # works for lava_lyra.Player AND voice_recv client
         if player is not None:
-            # Disconnect the bot from voice channel if it has been connected
             await player.disconnect()
-            leaving_vc.add_field(name="", value="Please wait a moment, I'm now leaving...", inline=False)
-            await interaction.response.send_message(embed=leaving_vc, ephemeral=True, delete_after=0)
+            # keep this minimal if the listener will announce "I left"
+            await respondEmbed(ctx, message=f"Leaving the voice channel...", error=False, deleteAfter=5)
 
         else:
-            leaving_vc_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm **not** in a voice channel :(", inline=False)
-            # The bot is currently not in a voice channel
-            await interaction.response.send_message(embed=leaving_vc_error_embed)
+            await respondEmbed(ctx, message=f"{ctx.author.mention}, I'm not in a voice channel... :thinking:", error=False)
 
 
     # Moving all users or ends a voice call
     # Function to move all members (i.e. move them to any voice channel in the server, or use None to kick them away from the vc)
+    async def moveAll(self, guild, specifiedVC: VoiceChannel | None, *, reason: str | None):
+        """
+        This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
-    # Asynchronously move a single member to the target voice channel (to avoid blocking issues)
-    async def move_member(self, member: Member, target_channel: VoiceChannel | None, reason: str | None):
-        try:
-            if reason is not None:
-                await member.move_to(target_channel, reason=reason)
-
-            else:
-                await member.move_to(target_channel)
-
-            if target_channel is None:
-                logger.info(f"Terminated {member.name} from voice")
-            
-            else:
-                logger.info(f"Moved {member.name} to {target_channel.name}")
-
-        except discord.Forbidden:
-            logger.error(f"Permission error: Could not move {member.name}")
-            raise
+        Moves all members in the guild's voice channels to a specified voice channel or disconnects them if `specified_vc` is None.
         
-        except discord.HTTPException as e:
-            logger.error(f"HTTP error while moving {member.name}: {e}")
-            raise
+        Parameters
+        ----------
+        guild : Guild
+            The guild object where the members are located.
 
+        specifiedVC : discord.VoiceChannel, optional
+            The target voice channel to move members to. If None, members will be disconnected from voice channels.
 
-    # Apply the above function for moving all users (to avoid blocking issues)
-    async def move_all_members(self, interaction: Interaction, specified_vc: VoiceChannel | None, reason: str | None):
-        # Getting all members in voice
-        all_members = [member for channel in interaction.guild.voice_channels for member in channel.members]
+        reason : str, optional
+            The reason for moving members, which will be logged in the audit log.
 
-        # Use asyncio.gather to move all members concurrently
+        Returns
+        -------
+        tuple
+            A tuple containing:
+            - total_members: Total number of members in voice channels.
+            - success_count: Number of members successfully moved.
+            - failure_count: Number of members that failed to move.
+
+        Notes
+        -----
+        This function has been rewritten, it now takes `guild` instead of `interaction`,
+        and returns a tuple with the results with reason omitted.
+        """
+
+        allMembersInVC = [member for channel in guild.voice_channels for member in channel.members]
         results = await asyncio.gather(
-            *(self.move_member(member, specified_vc, reason) for member in all_members),
+            *(member.move_to(specifiedVC, reason=reason) for member in allMembersInVC),
             return_exceptions=True
         )
-        success_count = sum(1 for result in results if not isinstance(result, Exception))
-        failure_count = sum(1 for result in results if isinstance(result, Exception))
-        return {"all_members_vc_count": len(all_members), "success_count": success_count, "failure_count": failure_count, "reason": reason}
-    
-    
-    # Ending a voice call
-    @app_commands.command(name="end", description="End the call for all voice channel(s)")
-    @app_commands.checks.has_permissions(move_members=True)
-    @app_commands.describe(reason="Reason to end the call")
-    async def end(self, interaction: Interaction, reason: Optional[str] = None):
-        end_embed = discord.Embed(title="", color=interaction.user.colour)
-        end_error_embed = discord.Embed(title="", color=discord.Colour.red())
-        
-        end_embed.add_field(name="", value=f"Ending the call for all voice channel(s)...", inline=False)
-        
-        await interaction.response.send_message(embed=end_embed)
-        
-        end_embed.remove_field(index=0)
-        end_result = await self.move_all_members(interaction, None, reason)
+        successCount = sum(1 for result in results if not isinstance(result, Exception))
+        failureCount = sum(1 for result in results if isinstance(result, Exception))
 
-        if end_result["success_count"] != end_result["all_members_vc_count"] and end_result["failure_count"] > 0:
-            end_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Something went wrong while ending the call for all channel(s) :thinking:")
-            return await interaction.edit_original_response(embed=end_error_embed)
-        
-        reason_message = f"\nReason: **{end_result["reason"]}" if reason is not None else ""
-        end_embed.add_field(name="", value=f"Ended the call for all voice channel(s).{reason_message}", inline=False)
-        
-        await interaction.edit_original_response(embed=end_embed)
+        # Return a tuple containing the total number of members, the count of successful moves and failures.
+        return len(allMembersInVC), successCount, failureCount
 
 
+    # Ending the call for all voice channels
+    @commands.hybrid_command(name="end", description="End the call for all voice channel(s)")
+    @commands.guild_only()
+    @commands.has_guild_permissions(move_members=True)
+    async def end(self, ctx: Context, *, reason: Optional[str] = None):
+        """
+        End the call for all voice channel(s)
+
+        Parameters
+        ----------
+        reason : str, optional
+            Reason for ending the call.
+        """
+
+        # Defer the interaction response if invoked as a slash command, in case of long processing time.
+        if ctx.interaction:
+            await ctx.interaction.response.defer()
+
+        allMembersInVC, successCount, failureCount = await self.moveAll(ctx.guild, None, reason)
+
+        if (successCount != allMembersInVC) and failureCount > 0:
+            return await respondEmbed(ctx, message=f"Something went wrong while ending the call for all channel(s) :thinking:", error=True)
+
+        return await respondEmbed(
+            ctx,
+            message=(
+                f"Ended the call for all voice channel(s)."
+                f"\n**{successCount}** {'users' if successCount > 1 else 'user'} has been disconnected from voice channels."
+                + (f"\n**Reason**: {reason}" if reason else "")
+                ),
+            isSilent=True
+        )
+
+
+    # Error handling, for both commands and slash commands
     @end.error
-    async def end_error(self, interaction: Interaction, error):
-        end_error_embed = discord.Embed(title="", color=discord.Colour.red())
+    async def end_error(self, ctx: Context, error):
+        ctx._errorHandled = False    # if the error is handled, we would set this to True to prevent further propagation
 
         if isinstance(error, MissingPermissions):
-            end_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `move members` permission, and you probably **don't have** it, {interaction.user.mention}.", inline=False)
-            await interaction.response.send_message(embed=end_error_embed)
-            
-        else:
-            raise error
-    
+            # The command invoker doesn't have permissions
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"This command **requires** `move_members` permission, and you probably **don't have** it, {ctx.author.mention}.", error=True)
 
-    # Move all users to the voice channel which the author is already connected, or a specified voice channel.
+        if (
+            isinstance(error, BotMissingPermissions) or
+            (isinstance(error, CommandInvokeError) and isinstance(error.original, Forbidden))    # Sometimes the application might throw a CommandInvokeError which caused by Forbidden, which is basically the same concept
+        ):
+            # The application doesn't have permissions to do so
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"I couldn't end the call. Please **double-check** my **permissions** and **role position**.", error=True)
+
+
+    # Hybrid command group for moving members between voice channels
+    @commands.hybrid_group(name="move", description="Move members between voice channels")
+    @commands.guild_only()
+    async def move(self, ctx: Context):
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help(ctx.command)
+
+
+    # Move all users to a specified voice channel
     @move.command(name="all", description="Moves all users to the specified voice channel")
-    @app_commands.checks.has_permissions(move_members=True)
-    @app_commands.describe(channel="Channel to move them to. Leave this blank if you want to move them into where you are.")
-    @app_commands.describe(reason="Reason for move")
-    async def move_all(self, interaction: Interaction, channel: Optional[discord.VoiceChannel] = None, reason: Optional[str] = None):
-        move_all_embed = discord.Embed(title="", color=interaction.user.color)
-        move_all_error_embed = discord.Embed(title="", color=discord.Colour.red())
+    @commands.guild_only()
+    @commands.has_guild_permissions(move_members=True)
+    async def move_all(self, ctx: Context, channel: Optional[VoiceChannel] = None, *, reason: Optional[str] = None):
+        """
+        Moves all users to the specified voice channel.
 
+        Parameters
+        ----------
+        channel : discord.VoiceChannel, optional
+            Channel to move them to. Leave this blank if you want to move them into where you are.
+        reason : str, optional
+            Reason for move.
+        """
+
+        # Defer the interaction response if invoked as a slash command, in case of long processing time.
+        if ctx.interaction:
+            await ctx.interaction.response.defer()
+
+        # Resolve destination — invoker only needs to be in voice if they DIDN'T name a channel
         if channel is None:
-
-            if interaction.user.voice is not None:
-                specified_vc = interaction.user.voice.channel
-
+            if ctx.author.voice is not None:
+                specified_vc = ctx.author.voice.channel
             else:
-                # The author has not joined the voice channel yet
-                move_all_error_embed.add_field(name="", value=f"Looks like you're currently not in a voice channel, but trying to move all connected members into the voice channel that you're connected :thinking: ...\nJust curious to know, where should I move them all into right now, {interaction.user.mention}?", inline=False)
-                return await interaction.response.send_message(embed=move_all_error_embed)
-            
+                return await respondEmbed(
+                    ctx, 
+                    message=(
+                        f"Looks like you're currently not in a voice channel, but trying to move someone into the voice channel that you were connected :thinking: ..."
+                        f"\nJust curious to know, where should I move them all into right now, {ctx.author.mention}?"
+                        )
+                )
+
         else:
             specified_vc = channel
-            
-        move_all_embed.add_field(name="", value=f"<a:LoadingCustom:1295993639641812992> Moving all users to {specified_vc.mention}...", inline=False)
-        await interaction.response.send_message(embed=move_all_embed)
-        move_all_embed.remove_field(index=0)
-        move_all_result = await self.move_all_members(interaction, specified_vc, reason=reason)
 
-        if move_all_result["failure_count"] == move_all_result["all_members_vc_count"]:
-            move_all_error_embed.add_field(name="", value=f"It seems that no user were found in the voice channel, {interaction.user.mention} :thinking:...")
-            return await interaction.edit_original_response(embed=move_all_error_embed)
-        
-        failure_message = f" with **{move_all_result["failure_count"]}** failed" if move_all_result["failure_count"] > 0 else ""
-        reason_message = f"\nReason: **{reason}**." if reason is not None else ""
-        move_all_embed.add_field(name="", value=f"**{move_all_result["success_count"]}** {"users" if move_all_result["success_count"] > 1 else "user"} has been moved to {specified_vc.mention}{failure_message}.{reason_message}", inline=False)
-        await interaction.edit_original_response(embed=move_all_embed)
+        allMembersInVC, successCount, failureCount = await self.moveAll(ctx.guild, specified_vc, reason)
+
+        if allMembersInVC == 0:
+            return await respondEmbed(ctx, message=f"It seems that no user were found in the voice channel, {ctx.author.mention} :thinking:...")
+
+        if (failureCount > 0) and (successCount != allMembersInVC):
+            return await respondEmbed(ctx, message=f"Something went wrong while moving all users to {specified_vc.mention} :thinking:", error=True)
+
+        await respondEmbed(
+            ctx,
+            message=(
+                f"\n**{successCount}** {'users' if successCount > 1 else 'user'} has been moved to {specified_vc.mention}."
+                + (f"\n**Reason**: {reason}" if reason else "")
+                ),
+            isSilent=True
+        )
 
 
+    # Error handling, for both commands and slash commands
     @move_all.error
-    async def move_all_error(self, interaction: Interaction, error):
-        move_all_error_embed = discord.Embed(title="", color=discord.Colour.red())
+    async def move_all_error(self, ctx: Context, error):
+        ctx._errorHandled = False    # if the error is handled, we would set this to True to prevent further propagation
 
         if isinstance(error, MissingPermissions):
-            move_all_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `move members` permission, and you probably **don't have** it, {interaction.user.mention}.", inline=False)
-            await interaction.response.send_message(embed=move_all_error_embed)
+            # The command invoker doesn't have permissions
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"This command **requires** `move_members` permission, and you probably **don't have** it, {ctx.author.mention}.", error=True)
 
-        else:
-            raise error
+        if (
+            isinstance(error, BotMissingPermissions) or
+            (isinstance(error, CommandInvokeError) and isinstance(error.original, Forbidden))    # Sometimes the application might throw a CommandInvokeError which caused by Forbidden, which is basically the same concept
+        ):
+            # The application doesn't have permissions to do so
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"I couldn't move the members. Please **double-check** my **permissions** and **role position**.", error=True)
 
 
-    # Move an user to another voice channel which the author is already connected, or a specified voice channel.
-    @move.command(name="user", description="Moves a member to another specified voice channel")
-    @app_commands.describe(member="Member to move")
-    @app_commands.describe(channel="Channel to move user to. Leave this blank if you want to move the user into where you are.")
-    @app_commands.describe(reason="Reason for move")
+    # Moves a specific member to a specified voice channel
+    @move.command(name="member", description="Moves a member to another specified voice channel")
+    @commands.guild_only()
     @commands.has_guild_permissions(move_members=True)
-    async def move_user(self, interaction: Interaction, member: discord.Member, channel: Optional[discord.VoiceChannel] = None, reason: Optional[str] = None):
-        move_user_embed = discord.Embed(title="", color=interaction.user.color)
-        move_user_error_embed = discord.Embed(title="", color=discord.Colour.red())
+    async def move_member(self, ctx: Context, member: Member | User, channel: Optional[VoiceChannel] = None, *, reason: Optional[str] = None):
+        """
+        Moves a member to another specified voice channel.
 
-        # Check the target user was in the vc or not
-        if member.voice is None and interaction.user.id == self.bot.application_id:
-            move_user_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm currently not in a voice channel.", inline=False)
-            return await interaction.response.send_message(embed=move_user_error_embed)
-        
-        elif interaction.user.voice is None:
-            move_user_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> You're currently not in a voice channel!", inline=False)
-            return await interaction.response.send_message(embed=move_user_error_embed)
-        
-        elif member.voice is None:
-            move_user_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {member.mention} currently not in a voice channel.", inline=False)
-            return await interaction.response.send_message(embed=move_user_error_embed)
-        
-        # Check the target vc
-        if channel is None:
+        Parameters
+        ----------
+        member : discord.Member | User
+            Member to move.
+        channel : discord.VoiceChannel, optional
+            Channel to move member to. Leave this blank if you want to move the user into where you are.
+        reason : str, optional
+            Reason for move.
+        """
 
-            if interaction.user.voice is not None:
-                specified_vc = interaction.user.voice.channel
+        isBotTarget = member.id == self.bot.user.id
+
+        # Target must actually be in voice
+        if member.voice is None:
+            if isBotTarget:
+                # first-person UX when the target is the bot's own self
+                return await respondEmbed(ctx, message=f"{ctx.author.mention}, I'm currently not in a voice channel... :thinking:", error=True)
 
             else:
-                # The author has not joined the voice channel yet
-                move_user_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Looks like you're currently not in a voice channel, but trying to move someone into the voice channel that you're connected :thinking: ...\nJust curious to know, where should I move {member.mention} into right now, {interaction.user.mention}?", inline=False)
-                return await interaction.response.send_message(embed=move_user_error_embed)
-            
+                # second-person UX when the target is someone else
+                return await respondEmbed(ctx, message=f"{ctx.author.mention}, Looks like {member.mention} is currently not in a voice channel... :thinking:", error=True)
+
+        # Resolve destination — invoker only needs to be in voice if they DIDN'T name a channel
+        if channel is None:
+            if ctx.author.voice is not None:
+                specified_vc = ctx.author.voice.channel
+            else:
+                return await respondEmbed(
+                    ctx, 
+                    message=(
+                        f"Looks like you're currently not in a voice channel, but trying to move someone into the voice channel that you were connected :thinking: ..."
+                        f"\nJust curious to know, where should I move {member.mention} into right now, {ctx.author.mention}?"
+                        )
+                )
+
         else:
             specified_vc = channel
 
-        if reason is None:
-            await member.move_to(specified_vc)
+        if ctx.guild.get_member(member.id) is None:
+            # The specified user exists, but could not be found as a member of the guild
+            return await respondEmbed(ctx, message=f"Looks like {member.mention} is not in the server, {ctx.author.mention} :thinking: ...", error=True)
 
-            if interaction.user.id == self.bot.application_id:
-                move_user_embed.add_field(name="", value=f"I have been moved to {specified_vc.mention}. You can also use </move bot:1212006756989800458> to move me into somewhere else next time :angel:.", inline=False)
-                return await interaction.response.send_message(embed=move_user_embed)
-            
-            move_user_embed.add_field(name="", value=f"{member.mention} has been moved to {specified_vc.mention}.", inline=False)
-            await interaction.response.send_message(embed=move_user_embed)
+        await member.move_to(specified_vc, reason=reason)
+
+        if isBotTarget:
+            # first-person UX when the target is the bot's own self
+            return await respondEmbed(
+                ctx,
+                message=(
+                    f"I have been moved to {specified_vc.mention}.",
+                    + (f"\n**Reason**: {reason}" if reason else "")
+                ),
+                isSilent=True
+            )
 
         else:
-            await member.move_to(specified_vc, reason=reason)
+            # second-person UX when the target is someone else
+            return await respondEmbed(
+                ctx,
+                message=(
+                    f"{member.mention} has been moved to {specified_vc.mention}.",
+                    + (f"\n**Reason**: {reason}" if reason else "")
+                    ),
+                isSilent=True
+            )
 
-            if interaction.user.id == self.bot.application_id:
-                move_user_embed.add_field(name="", value=f"I have been moved to {specified_vc.mention} for **{reason}**. You can also use </move bot:1212006756989800458> to move me into somewhere else next time :angel:.", inline=False)
-                return await interaction.response.send_message(embed=move_user_embed)
-            
-            move_user_embed.add_field(name="", value=f"{member.mention} has been moved to {specified_vc.mention} for **{reason}**.", inline=False)
-            await interaction.response.send_message(embed=move_user_embed)
 
+    # Error handling, for both commands and slash commands
+    @move_member.error
+    async def move_member_error(self, ctx: Context, error):
+        ctx._errorHandled = False    # if the error is handled, we would set this to True to prevent further propagation
 
-    @move_user.error
-    async def move_user_error(self, interaction: Interaction, error):
-        move_user_error_embed = discord.Embed(title="", color=discord.Colour.red())
+        if isinstance(error, MissingRequiredArgument) and error.param.name == "member":
+            # The command invoker doesn't provide the member argument
+            # A special case to return a more user-friendly message
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"Looks like you want me to **move someone**, but **haven't specified** the member you would like to move :thinking:  ...\nJust curious to know, **who** should I move for now, {ctx.author.mention}?")
+
+        if isinstance(error, BadUnionArgument) or isinstance(error, UserNotFound):
+            # The member argument couldn't be converted to either User or Member
+            # This includes the case where a User is provided but does not exist
+            # A special case to return a more user-friendly message
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"I couldn't find **the user you wanted to move** :thinking: ... Perhaps check if that user really **exists** on Discord, {ctx.author.mention}?", error=True)
 
         if isinstance(error, MissingPermissions):
-            move_user_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `move members` permission, and you probably **don't have** it, {interaction.user.mention}.", inline=False)
-            await interaction.response.send_message(embed=move_user_error_embed)
+            # The command invoker doesn't have permissions
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"This command **requires** `move_members` permission, and you probably **don't have** it, {ctx.author.mention}.", error=True)
 
-        else:
-            raise error
+        if (
+            isinstance(error, BotMissingPermissions) or
+            (isinstance(error, CommandInvokeError) and isinstance(error.original, Forbidden))    # Sometimes the application might throw a CommandInvokeError which caused by Forbidden, which is basically the same concept
+        ):
+            # The application doesn't have permissions to do so
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"I couldn't move that member. Please **double-check** my **permissions** and **role position**.", error=True)
 
 
-    # Moves the author to another specified voice channel
+    # Moves the command invoker to a specified voice channel
     @move.command(name="me", description="Moves you to another specified voice channel")
+    @commands.guild_only()
     @commands.has_guild_permissions(move_members=True)
-    @app_commands.describe(channel="Channel to move you to.")
-    @app_commands.describe(reason="Reason for move")
-    async def move_me(self, interaction: Interaction, channel: discord.VoiceChannel, reason: Optional[str] = None):
-        move_me_embed = discord.Embed(title="", color=interaction.user.color)
-        move_me_error_embed = discord.Embed(title="", color=discord.Colour.red())
+    async def move_me(self, ctx: Context, channel: VoiceChannel, reason: Optional[str] = None):
+        """
+        Moves you to another specified voice channel.
 
-        # Check the target user was in the vc or not
-        if interaction.user.voice is None:
-            move_me_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> You're currently not in a voice channel!", inline=False)
-            return await interaction.response.send_message(embed=move_me_error_embed)
-        
-        if reason is None:
-            move_me_embed.add_field(name="", value=f"{interaction.user.mention} has been moved to {channel.mention}.", inline=False)
-            await interaction.user.move_to(channel)
-            await interaction.response.send_message(embed=move_me_embed)
+        Parameters
+        ----------
+        channel : VoiceChannel
+            Channel to move you to.
+        reason : str, optional
+            Reason for move.
+        """
 
-        else:
-            move_me_embed.add_field(name="", value=f"{interaction.user.mention} has been moved to {channel.mention} for **{reason}**.", inline=False)
-            await interaction.user.move_to(channel, reason=reason)
-            await interaction.response.send_message(embed=move_me_embed)
+        if ctx.author.voice is None:
+            return await respondEmbed(ctx, message=f"{ctx.author.mention}, You're currently not in a voice channel!", error=True)
+
+        await ctx.author.move_to(channel, reason=reason)
+
+        await respondEmbed(
+            ctx,
+            message=(
+                f"{ctx.author.mention} has been moved to {channel.mention}."
+                + (f"\n**Reason**: {reason}" if reason else "")
+                ),
+            isSilent=True
+            )
 
 
+    # Error handling, for both commands and slash commands
     @move_me.error
-    async def move_me_error(self, interaction: Interaction, error):
-        move_me_error_embed = discord.Embed(title="", color=discord.Colour.red())
+    async def move_me_error(self, ctx: Context, error):
+        if isinstance(error, MissingRequiredArgument) and error.param.name == "channel":
+            # The command invoker doesn't provide the channel argument
+            # A special case to return a more user-friendly message
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"Looks like you want me to **move you to another channel**, but **haven't specified** the channel you would like to move to :thinking:  ...\nJust curious to know, **where** should I move you for now, {ctx.author.mention}?")
 
         if isinstance(error, MissingPermissions):
-            move_me_error_embed.add_field(name=f"<a:crossred:1356353067024515266> This command **requires** `move members` permission, and you probably **don't have** it, {interaction.user.mention}.", value="", inline=False)
-            return await interaction.response.send_message(embed=move_me_error_embed)
-        
-        else:
-            raise error
-        
+            # The command invoker doesn't have permissions
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"This command **requires** `move_members` permission, and you probably **don't have** it, {ctx.author.mention}.", error=True)
 
-    # Moves the bot to another voice channel which the author is already connected, or a specified voice channel.
-    @move.command(name="bot", description="Moves me to another specified voice channel")
-    @app_commands.checks.has_permissions(move_members=True, moderate_members=True)
-    @app_commands.describe(channel="Channel to move me to. Leave this blank if you want to move me into where you are.")
-    @app_commands.describe(reason="Reason for move")
-    async def move_bot(self, interaction: Interaction, channel: Optional[discord.VoiceChannel] = None, reason: Optional[str] = None):
-        player: BetterPlayer
-        player = cast(BetterPlayer, interaction.guild.voice_client)
-        move_bot_embed = discord.Embed(title="", color=interaction.user.color)
-        move_bot_error_embed = discord.Embed(title="", color=discord.Colour.red())
-
-        # Check the bot was in the vc or not
-        if player is None:
-            move_bot_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I'm currently not in a voice channel.", inline=False)
-            return await interaction.response.send_message(embed=move_bot_error_embed)
-        
-        if channel is None:
-
-            if interaction.user.voice is not None:
-                specified_vc = interaction.user.voice.channel
-
-            else:
-                # The author has not joined the voice channel yet
-                move_bot_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Looks like you're currently not in a voice channel, but trying to move me into the voice channel that you're connected :thinking: ...\nJust curious to know, where should I move into right now, {interaction.user.mention}?", inline=False)
-                return await interaction.response.send_message(embed=move_bot_error_embed)
-            
-        else:
-            specified_vc = channel
-
-        if reason is None:
-            move_bot_embed.add_field(name="", value=f"I have been moved to {specified_vc.mention}.", inline=False)
-            await player.move_to(specified_vc)
-            await interaction.response.send_message(embed=move_bot_embed)
-
-        else:
-            move_bot_embed.add_field(name="", value=f"I have been moved to {specified_vc.mention} for **{reason}**.", inline=False)
-            await player.move_to(specified_vc)
-            await interaction.response.send_message(embed=move_bot_embed)
+        if (
+            isinstance(error, BotMissingPermissions) or
+            (isinstance(error, CommandInvokeError) and isinstance(error.original, Forbidden))    # Sometimes the application might throw a CommandInvokeError which caused by Forbidden, which is basically the same concept
+        ):
+            # The application doesn't have permissions to do so
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"I couldn't move you. Please **double-check** my **permissions** and **role position**.", error=True)
 
 
-    @move_bot.error
-    async def move_bot_error(self, interaction: Interaction, error):
-        move_bot_error_embed = discord.Embed(title="", color=discord.Colour.red())
-
-        if isinstance(error, MissingPermissions):
-            move_bot_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `move members` and `moderate members` permission, and you probably **don't have** it, {interaction.user.mention}.", inline=False)
-            return await interaction.response.send_message(embed=move_bot_error_embed)
-        
-        else:
-            raise error
-
-    # Convert time string to seconds and detailed duration breakdown
-    def parse_duration(self, duration_str: str) -> Union[dict, str]:
-        units = {
-            "s": 1,        # seconds
-            "m": 60,       # minutes
-            "h": 3600,     # hours
-            "d": 86400,    # days
-            "w": 604800,   # weeks
-            "mo": 2592000, # months (approximate)
-            "y": 31536000  # years (approximate)
-        }
-
-        matches = re.findall(r"(\d+)(mo|[smhdwy])", duration_str)
-
-        if not matches:
-            return "error_improper_format"
-
-        total_seconds = 0
-        duration_breakdown = {
-            "years": 0,
-            "months": 0,
-            "weeks": 0,
-            "days": 0,
-            "hours": 0,
-            "minutes": 0,
-            "seconds": 0
-        }
-
-        for amount, unit in matches:
-            if unit in units:
-                total_seconds += int(amount) * units[unit]
-                duration_breakdown[{
-                    "y": "years",
-                    "mo": "months",
-                    "w": "weeks",
-                    "d": "days",
-                    "h": "hours",
-                    "m": "minutes",
-                    "s": "seconds"
-                }[unit]] += int(amount)
-
-        duration_breakdown["total_seconds"] = total_seconds
-        return duration_breakdown
-    
     # Function of mutes a member from voice channel
-    async def mute_member_voice(self, interaction: Interaction, member: discord.Member, duration_str: str | None, reason: str):
+    async def applyMuteVC(self, ctx: Context, member: Member, durationStr: str | None, reason: str | None):
+        """
+        This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
+
+        Applies a mute to a member from voice channels for a specified duration with an optional reason.
+
+        This handles the logic for applying a mute to a member, including parsing the duration string and adding records to the database.
+        It also sends appropriate responses to the context based on the outcome of the operation.
+
+        Parameters
+        ----------
+        ctx : discord.ext.commands.Context
+            The context in which the command was invoked.
+        member : discord.Member
+            The member to mute.
+        durationStr : str, optional
+            The duration for the mute in a string format (e.g., "1h", "30m", "2d"). If None, the mute will be indefinite.
+        reason : str, optional
+            The reason for the mute. If None, no reason will be provided.
+
+        Returns
+        -------
+        None
+        """
+
         database = self.db.moderation_mute
         mute_voice_collection = database["mute_voice"]
-        vmute_embed = Embed(title="", color=interaction.user.color)
-        vmute_error_embed = Embed(title="", color=discord.Colour.red())
         
-        try:
-            if duration_str is not None:  # For time-based mute only
-                total_duration = self.parse_duration(duration_str)
-                
-                if total_duration == "error_improper_format":
-                    vmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Looks like the time fomrmat you entered it's not vaild :thinking: ... Perhaps enter again and gave me a chance to handle it, {interaction.user.mention} :pleading_face:?", inline=False)
-                    vmute_error_embed.add_field(name="Supported time format:", value=f"**1**s = **1** second | **2**m = **2** minutes | **5**h = **5** hours | **10**d = **10** days | **3**w = **3** weeks | **6**y = **6** years.", inline=False)
-                    return await interaction.response.send_message(embed=vmute_error_embed)
-            
-            if member.voice.mute:
-                vmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {member.mention} is **already muted from voice**!")
-                return await interaction.response.send_message(embed=vmute_error_embed)
-            
-            duration_message = "for " + " and ".join(", ".join([f"**{value}** {unit[:-1]}" + ("s" if value > 1 else "") for unit, value in total_duration.items() if unit != "total_seconds" and value != 0]).rsplit(", ", 1)) + " " if duration_str is not None else ""
-            reason_message =  f"\nReason: **{reason}**" if reason is not None else ""
+        if durationStr is not None:  # For time-based mute only
+            totalDuration = parseDuration(durationStr)
+            if totalDuration is None:
+                return await respondEmbed(ctx, message=f"Looks like the time format you entered is not valid :thinking: ... Perhaps enter again and give me a chance to handle it, {ctx.author.mention} :pleading_face:?\n\n**Supported time format:**\n**1**s = **1** second | **2**m = **2** minutes | **5**h = **5** hours | **10**d = **10** days | **3**w = **3** weeks | **6**y = **6** years.", error=True)
 
-            if reason is not None:
-                await member.edit(mute=True, reason=reason)
+        if member.voice.mute:
+            return await respondEmbed(ctx, message=f"{member.mention} is already muted from voice!", error=True)
 
-            else:
-                await member.edit(mute=True)
+        durationMessage = "for " + " and ".join(", ".join([f"**{value}** {unit[:-1]}" + ("s" if value > 1 else "") for unit, value in totalDuration.items() if unit != "total_seconds" and value != 0]).rsplit(", ", 1)) + " " if durationStr is not None else ""
+        reasonMessage =  f"\nReason: **{reason}**" if reason is not None else ""
 
-            vmute_embed.add_field(name="", value=f":white_check_mark: {member.mention} has been **muted from voice** {duration_message}:zipper_mouth:{reason_message}")
-            await interaction.response.send_message(embed=vmute_embed)
-            
-            # Save mute info to the database
-            if duration_str is not None:
-                mute_end_time = datetime.now(timezone.utc) + timedelta(seconds=total_duration["total_seconds"])    # For time-based mute only
-            else:
-                mute_end_time = None
-            await mute_voice_collection.insert_one({
-                "guild_id": interaction.guild.id,
-                "user_id": member.id,
-                "time_based": True if duration_str is not None else False,
-                "mute_end_time": mute_end_time,
-                "reason": reason
-            })
-                    
-        except Forbidden as e:
-            if e.status == 403 and e.code == 50013:
-                # Handling rare forbidden case
-                vmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **mute that user from voice**. Please **double-check** my **permissions** and **role position**.")
-                await interaction.response.send_message(embed=vmute_error_embed)
+        reasonKarg = {"reason": reason} if reason is not None else {}
+        await member.edit(mute=True, **reasonKarg)
 
-            else:
-                raise e
+        await respondEmbed(ctx, message=f"{member.mention} has been **muted from voice** {durationMessage}:zipper_mouth:{reasonMessage}")
+        
+        # Save mute info to the database
+        if durationStr is not None:
+            muteExpirationTime = datetime.now(timezone.utc) + timedelta(seconds=totalDuration["total_seconds"])    # For time-based mute only
+
+        else:
+            muteExpirationTime = None
+
+        await mute_voice_collection.insert_one({
+            "guild_id": ctx.guild.id,
+            "user_id": member.id,
+            "time_based": True if durationStr is not None else False,
+            "mute_end_time": muteExpirationTime,
+            "reason": reason
+        })
 
 
     # Background task to handle only time-based unmutes
@@ -548,13 +513,13 @@ class VoiceChannel(commands.Cog):
             try:
                 await member.edit(mute=False, reason="Voice mute duration expired")
 
-            except discord.Forbidden:
+            except Forbidden:
                 # If the bot lacks the permissions to unmute, skip this member
                 continue
 
-            except discord.HTTPException as e:
+            except HTTPException as e:
                 # Handle any unexpected errors with a log or skip this member
-                print(f"Failed to unmute {member} in guild {guild.id}: {e}")
+                self.logger.error(f"Failed to unmute {member} from voice in guild {guild.id}: {e}")
                 continue
 
             # Remove the mute record from the database
@@ -562,187 +527,268 @@ class VoiceChannel(commands.Cog):
 
 
     # Mutes a member from voice for a specified amount of time
-    @app_commands.command(description="Mutes a member from voice channels")
-    @app_commands.checks.has_permissions(moderate_members=True)
-    @app_commands.checks.bot_has_permissions(moderate_members=True)
-    @app_commands.describe(member="Member to mute")
-    @app_commands.describe(duration="Duration for mute (e.g. 1s = 1 second | 2m = 2 minutes | 5h = 5 hours | 10d = 10 days | 3w = 3 weeks | 6y = 6 years)")
-    async def vmute(self, interaction: Interaction, member: discord.Member, duration: Optional[str] = None, reason: Optional[str] = None):
-        vmute_error_embed = Embed(title="", color=discord.Colour.red())
+    @commands.hybrid_command(name="vmute", help="Mutes a member from voice channels")
+    @commands.has_permissions(moderate_members=True)
+    @commands.bot_has_permissions(moderate_members=True)
+    async def vmute(self, ctx: Context, member: Member | User, duration: Optional[str] = None, *, reason: Optional[str] = None):
+        """
+        Mutes a member from voice channels.
 
-        if member == interaction.user:
-            vmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {interaction.user.mention}, You can't **mute yourself from voice**!")
-            return await interaction.response.send_message(embed=vmute_error_embed)
-        
-        if member.guild_permissions.administrator and interaction.user != interaction.guild.owner:
+        Parameters
+        ----------
+        member : discord.Member | discord.User
+            The member to mute.
+        duration : str, optional
+            Duration for mute (e.g. 1s = 1 second | 2m = 2 minutes | 5h = 5 hours | 10d = 10 days | 3w = 3 weeks | 6y = 6 years)
+        reason : str, optional
+            Reason for mute.
+        """
 
-            if not await self.bot.is_owner(interaction.user):
-                vmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Stop trying to **mute an admin from voice**! :rolling_eyes:")
-                return await interaction.response.send_message(embed=vmute_error_embed)
-            
-        if member == self.bot.user:
-            vmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {interaction.user.mention}, I can't **mute myself from voice**!")
-            return await interaction.response.send_message(embed=vmute_error_embed)
-        
-        if member.voice is None:
-            vmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {member.mention} is **not connected to voice** currently.")
-            return await interaction.response.send_message(embed=vmute_error_embed)
-        
-        await self.mute_member_voice(interaction, member, duration, reason)
+        # Defer the interaction response if invoked as a slash command, in case of long processing time.
+        if ctx.interaction:
+            await ctx.interaction.response.defer()
 
+        # Basic checks
+        # Error handling will be done by the error handler below
+        if (member.id == ctx.author.id):
+            return await respondEmbed(ctx, message=f"{ctx.author.mention}, You can't **mute yourself from voice**!", error=True)
+        
+        if (member.id == self.bot.user.id):
+            return await respondEmbed(ctx, message=f"{ctx.author.mention}, I can't **mute myself from voice**!", error=True)
+        
+        if ctx.guild.get_member(member.id) is None:
+            # The specified user exists, but could not be found as a member of the guild
+            return await respondEmbed(ctx, message=f"Looks like {member.mention} is not in the server, {ctx.author.mention} :thinking: ...", error=True)
+        
+        # As stated above, only the server owner (or bot owner) has privileges to mute admins from voice
+        if member.guild_permissions.administrator and (ctx.author.id != ctx.guild.owner.id or not await self.bot.is_owner(ctx.author)):
+            return await respondEmbed(ctx, message=f"{ctx.author.mention}, I know you're trying to **mute an admin from voice**, but I can't let you do that... :rolling_eyes:", error=True)
+        
+        if member and member.top_role >= ctx.guild.get_member(self.bot.user.id).top_role:
+            return await respondEmbed(ctx, message=f"{ctx.author.mention}, I can't **mute** {member.mention} from voice because their **top role is higher than mine**.", error=True)
+        
+        await self.applyMuteVC(ctx, member, duration, reason)
+
+
+    # Error handling, for both commands and slash commands
     @vmute.error
-    async def vmute_error(self, interaction: Interaction, error):
-        vmute_error_embed = Embed(title="", color=discord.Colour.red())
+    async def vmute_error(self, ctx: Context, error: Any):
+        ctx._errorHandled = False    # if the error is handled, we would set this to True to prevent further propagation
+
+        if isinstance(error, MissingRequiredArgument) and error.param.name == "member":
+            # The command invoker doesn't provide the member argument
+            # A special case to return a more user-friendly message
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"Looks like you want me to **mute someone from voice channels**, but **haven't specified** the user you would like to mute :thinking:  ...\nJust curious to know, **who** should I mute for now, {ctx.author.mention}?")
+
+        if isinstance(error, BadUnionArgument) or isinstance(error, UserNotFound):
+            # The member argument couldn't be converted to either User or Member
+            # This includes the case where a User is provided but does not exist
+            # A special case to return a more user-friendly message
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"I couldn't find **the user you wanted to mute from voice channels** :thinking: ... Perhaps check if that user really **exists** on Discord, {ctx.author.mention}?")
         
+        if isinstance(error, MemberNotFound):
+            # The specified member could not be found
+            # This will unlikely be triggered since we are using Union[User, Member] for the member argument, but we add it here just in case
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"{error.argument} is not in the server, {ctx.author.mention} :thinking: ...", error=True)
+
+        if isinstance(error, MissingRequiredArgument):
+            # Missing argument(s)
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"Missing argument: `{error.param.name}`. Please provide all required arguments, {ctx.author.mention}.", error=True)
+
         if isinstance(error, MissingPermissions):
-            vmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `moderate members` permission, and you probably **don't have** it, {interaction.user.mention}.")
-            await interaction.response.send_message(embed=vmute_error_embed)
+            # The command invoker doesn't have permissions
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"This command **requires** `moderate_members` permission, and you probably **don't have** it, {ctx.author.mention}.", error=True)
 
-        elif isinstance(error, BotMissingPermissions):
-            vmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **mute that user from voice**. Please **double-check** my **permissions** and **role position**.")
-            await interaction.response.send_message(embed=vmute_error_embed)
-
-        else:
-            raise error
+        if (
+            isinstance(error, BotMissingPermissions) or
+            (isinstance(error, CommandInvokeError) and isinstance(error.original, Forbidden))    # Sometimes the application might throw a CommandInvokeError which caused by Forbidden, which is basically the same concept
+        ):
+            # The application doesn't have permissions to do so
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"I couldn't **mute** that member from voice channels. Please **double-check** my **permissions** and **role position**.", error=True)
 
 
     # Unmutes a member from voice
-    @app_commands.command(description="Unmutes a member from voice channels")
-    @app_commands.checks.has_permissions(moderate_members=True)
-    @app_commands.checks.bot_has_permissions(moderate_members=True)
-    @app_commands.describe(member="Member to unmute (Enter the User ID e.g. 529872483195806124)")
-    @app_commands.describe(reason="Reason for unmute")
-    async def vunmute(self, interaction: Interaction, member: discord.Member, reason: Optional[str] = None):
+    @commands.hybrid_command(name="vunmute", help="Unmutes a member from voice channels")
+    @commands.has_permissions(moderate_members=True)
+    @commands.bot_has_permissions(moderate_members=True)
+    async def vunmute(self, ctx: Context, member: Member | User, *, reason: Optional[str] = None):
+        """
+        Unmutes a member from voice channels.
+
+        Parameters
+        ----------
+        member : discord.Member | discord.User
+            Member to unmute (Enter the User ID e.g. 529872483195806124)
+        reason : str, optional
+            Reason for unmute.
+        """
+
         database = self.db.moderation_mute
         mute_voice_collection = database["mute_voice"]
-        vunmute_embed = Embed(title="", color=interaction.user.color)
-        vunmute_error_embed = Embed(title="", color=discord.Colour.red())
 
         # Fetch mute record from the database
-        mute_record = await mute_voice_collection.find_one({"guild_id": interaction.guild.id, "user_id": member.id})
+        mute_record = await mute_voice_collection.find_one({"guild_id": ctx.guild.id, "user_id": member.id})
 
         if member.voice is None:
-            vunmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {member.mention} is **not connected to voice** currently.")
-            return await interaction.response.send_message(embed=vunmute_error_embed)
+            return await respondEmbed(ctx, message=f"{member.mention} is **not connected to voice** currently.", error=True)
 
         if not mute_record:
-            # If no mute record is found in the database, the user is not muted
-            vunmute_error_embed.add_field(name="" ,value=f"<a:crossred:1356353067024515266> {member.mention} is **not currently muted from voice** in the database.", inline=False)
-            return await interaction.response.send_message(embed=vunmute_error_embed, ephemeral=True)
+            # If no mute record is found in the database, the user is not muted from voice
+            return await respondEmbed(ctx, message=f"{member.mention} is **not currently muted from voice** in the database.", error=True)
 
         # Check if the user actually muted from voice
         if not member.voice.mute:
-            vunmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {member.mention} does **not muted from voice**, but they are recorded as muted in the database.", inline=False)
-            return await interaction.response.send_message(embed=vunmute_error_embed, ephemeral=True)
+            return await respondEmbed(ctx, message=f"{member.mention} does **not muted from voice**, but they are recorded as muted in the database.", error=True)
 
-        # Remove the Muted role
-        try:
-            if reason is None:
-                if member.voice:
-                    await member.edit(mute=False)
-                    vunmute_embed.add_field(name="", value=f"{member.mention} has been **unmuted**.")
-            else:
-                if member.voice:
-                    await member.edit(mute=False, reason=reason)
-                    vunmute_embed.add_field(name="", value=f"{member.mention} has been **unmuted**.\nReason: **{reason}**.")
-        except discord.Forbidden:
-            vunmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **unmute** {member.mention} **from voice**. Please check my **permissions** and **role position**.", inline=False)
-            return await interaction.response.send_message(embed=vunmute_error_embed, ephemeral=True)
+        reasonKarg = {"reason": reason} if reason is not None else {}
+        await member.edit(mute=False, **reasonKarg)
 
         # Remove the mute record from the database
         await mute_voice_collection.delete_one({"_id": mute_record["_id"]})
 
-        # Send confirmation message
-        await interaction.response.send_message(embed=vunmute_embed)
+        return await respondEmbed(
+            ctx,
+            message=(
+                f"{member.mention} has been **unmuted from voice**."
+                + (f"\n**Reason**: {reason}" if reason else "")
+                )
+            )
 
 
+    # Error handling, for both commands and slash commands
     @vunmute.error
-    async def vunmute_error(self, interaction: Interaction, error):
-        vunmute_error_embed = Embed(title="", color=discord.Colour.red())
+    async def vunmute_error(self, ctx: Context, error: Any):
+        ctx._errorHandled = False    # if the error is handled, we would set this to True to prevent further propagation
+
+        if isinstance(error, MissingRequiredArgument) and error.param.name == "member":
+            # The command invoker doesn't provide the user argument
+            # A special case to return a more user-friendly message
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"Looks like you want me to **unmute someone from voice channels**, but **haven't specified** the user you would like to unmute :thinking:  ...\nJust curious to know, **who** should I unmute for now, {ctx.author.mention}?")
+        
+        if isinstance(error, BadUnionArgument) or isinstance(error, UserNotFound):
+            # The member argument couldn't be converted to either User or Member
+            # This includes the case where a User is provided but does not exist
+            # A special case to return a more user-friendly message
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"I couldn't find **the user you wanted to unmute from voice channels** :thinking: ... Perhaps check if that user really **exists** on Discord, {ctx.author.mention}?")
+        
+        if isinstance(error, MissingRequiredArgument):
+            # Missing argument(s)
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"Missing argument: `{error.param.name}`. Please provide all required arguments, {ctx.author.mention}.", error=True)
 
         if isinstance(error, MissingPermissions):
-            vunmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `moderate members` permission, and you probably **don't have** it, {interaction.user.mention}.")
-            await interaction.response.send_message(embed=vunmute_error_embed)
+            # The command invoker doesn't have permissions
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"This command **requires** `moderate_members` permission, and you probably **don't have** it, {ctx.author.mention}.", error=True)
 
-        elif isinstance(error, BotMissingPermissions):
-            vunmute_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **unmute that user from voice**. Please **double-check** my **permissions** and **role position**.")
-            await interaction.response.send_message(embed=vunmute_error_embed)
-
-        else:
-            raise error
+        if (
+            isinstance(error, BotMissingPermissions) or
+            (isinstance(error, CommandInvokeError) and isinstance(error.original, Forbidden))    # Sometimes the application might throw a CommandInvokeError which caused by Forbidden, which is basically the same concept
+        ):
+            # The application doesn't have permissions to do so
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"I couldn't **unmute** that user from voice channels. Please **double-check** my **permissions** and **role position**.", error=True)
 
 
     # Kicks a member from voice
-    @app_commands.command(description="Kicks a member from the voice channel")
-    @app_commands.checks.has_permissions(moderate_members=True)
-    @app_commands.checks.bot_has_permissions(moderate_members=True)
-    @app_commands.describe(member="User to kick")
-    @app_commands.rename(member="user")
-    @app_commands.describe(reason="Reason for kick")
-    async def vkick(self, interaction: Interaction, member: discord.Member, reason: Optional[str] = None):
-        vkick_embed = Embed(title="", color=interaction.user.color)
-        vkick_error_embed = Embed(title="", color=discord.Colour.red())
-        try:
-            if member.voice is None:
-                vkick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {member.mention} is **not in voice** currently.")
-                return await interaction.response.send_message(embed=vkick_error_embed)
-            
-            if member == interaction.user:
-                vkick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {interaction.user.mention}, You can't **kick yourself from voice**!")
-                return await interaction.response.send_message(embed=vkick_error_embed)
-            
-            if member == self.bot.user:
-                vkick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {interaction.user.mention}, I can't **kick myself from voice**!")
-                return await interaction.response.send_message(embed=vkick_error_embed)
-            
-            if member.guild_permissions.administrator and interaction.user != interaction.guild.owner:
-
-                if not await self.bot.is_owner(interaction.user):
-                    vkick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> Stop trying to **kick an admin from voice**! :rolling_eyes:")
-                    return await interaction.response.send_message(embed=vkick_error_embed)
-                
-            if reason is not None:
-                await member.move_to(None, reason=reason)
-                vkick_embed.add_field(name="", value=f":white_check_mark: {member.mention} has been **kicked from voice**.\nReason: **{reason}**")
-
-            else:
-                await member.move_to(None)
-                vkick_embed.add_field(name="", value=f":white_check_mark: {member.mention} has been **kicked from voice**.")
-
-            return await interaction.response.send_message(embed=vkick_embed)
+    @commands.hybrid_command(name="vkick", help="Kicks a member from voice channels")
+    @commands.has_permissions(moderate_members=True)
+    @commands.bot_has_permissions(moderate_members=True)
+    async def vkick(self, ctx: Context, member: Member | User, reason: Optional[str] = None):
+        """
+        Kicks a member from voice channels.
         
-        except Forbidden as e:
-            if e.status == 403 and e.code == 50013:
-                # Handling rare forbidden case
-                vkick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **kick that user from voice**. Please **double-check** my **permissions** and **role position**.")
-                await interaction.response.send_message(embed=vkick_error_embed)
-                
-            else:
-                raise e
-            
+        Parameters
+        ----------
+        member : discord.Member | discord.User
+            Member to kick.
+
+        reason : str, optional
+            Reason for the kick.
+        """
+
+        if member.voice is None:
+            return await respondEmbed(ctx, message=f"{member.mention} is **not in voice** currently.", error=True)
+        
+        if member == ctx.author:
+            return await respondEmbed(ctx, message=f"{ctx.author.mention}, You can't **kick yourself from voice**!", error=True)
+
+        if member == self.bot.user:
+            return await respondEmbed(ctx, message=f"{ctx.author.mention}, I can't **kick myself from voice**!", error=True)
+
+        if ctx.guild.get_member(member.id) is None:
+            # The specified user exists, but could not be found as a member of the guild
+            return await respondEmbed(ctx, message=f"Looks like {member.mention} is not in the server, {ctx.author.mention} :thinking: ...", error=True)
+        
+        # As stated above, only the server owner (or bot owner) has privileges to kick admins
+        if member.guild_permissions.administrator and (ctx.author.id != ctx.guild.owner.id or not await self.bot.is_owner(ctx.author)):
+            return await respondEmbed(ctx, message=f"{ctx.author.mention}, I know you're trying to **kick an admin from voice**, but I can't let you do that... :rolling_eyes:", error=True)
+        
+        if member and member.top_role >= ctx.guild.get_member(self.bot.user.id).top_role:
+            return await respondEmbed(ctx, message=f"{ctx.author.mention}, I can't **kick** {member.mention} from voice because their **top role is higher than mine**.", error=True)
+
+        reasonKarg = {"reason": reason} if reason is not None else {}
+        await member.move_to(None, **reasonKarg)
+
+        return await respondEmbed(
+            ctx,
+            message=(
+                f"{member.mention} has been **kicked from voice**."
+                + (f"\n**Reason**: {reason}" if reason else "")
+                )
+            )
+
+
+    # Error handling, for both commands and slash commands
     @vkick.error
-    async def vkick_error(self, interaction: Interaction, error):
-        vkick_error_embed = Embed(title="", color=discord.Colour.red())
+    async def vkick_error(self, ctx: Context, error: Any):
+        ctx._errorHandled = False    # if the error is handled, we would set this to True to prevent further propagation
+
+        if isinstance(error, MissingRequiredArgument) and error.param.name == "member":
+            # The command invoker doesn't provide the member argument
+            # A special case to return a more user-friendly message
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"Looks like you want me to **kick someone from voice**, but **haven't specified** the user you would like to kick :thinking:  ...\nJust curious to know, **who** should I kick from voice for now, {ctx.author.mention}?")
+
+        if isinstance(error, BadUnionArgument) or isinstance(error, UserNotFound):
+            # The member argument couldn't be converted to either User or Member
+            # This includes the case where a User is provided but does not exist
+            # A special case to return a more user-friendly message
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"I couldn't find **the user you wanted to kick from voice** :thinking: ... Perhaps check if that user really **exists** on Discord, {ctx.author.mention}?")
+        
+        if isinstance(error, MemberNotFound):
+            # The specified member could not be found
+            # This will unlikely be triggered since we are using Union[User, Member] for the member argument, but we add it here just in case
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"{error.argument} is not in the server, {ctx.author.mention} :thinking: ...", error=True)
+
+        if isinstance(error, MissingRequiredArgument):
+            # Missing argument(s)
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"Missing argument: `{error.param.name}`. Please provide all required arguments, {ctx.author.mention}.", error=True)
 
         if isinstance(error, MissingPermissions):
-            vkick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `moderate members` permission, and you probably **don't have** it, {interaction.user.mention}.")
-            await interaction.response.send_message(embed=vkick_error_embed)
+            # The command invoker doesn't have permissions
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"This command **requires** `moderate_members` permission, and you probably **don't have** it, {ctx.author.mention}.", error=True)
 
-        elif isinstance(error, BotMissingPermissions):
-            vkick_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **kick that user from voice**. Please **double-check** my **permissions** and **role position**.")
-            await interaction.response.send_message(embed=vkick_error_embed)
-
-        else:
-            raise error
-
-
-    # discord.py has no recording vc function.
-    # 21102024 UPDATE: recording vc function can now be achieved by discord.ext.voice_recv plugin,
-    # and has been separated as another cog (see VoiceRecorder.py)
-
-    # ----------</Voice Channels>----------
+        if (
+            isinstance(error, BotMissingPermissions) or
+            (isinstance(error, CommandInvokeError) and isinstance(error.original, Forbidden))    # Sometimes the application might throw a CommandInvokeError which caused by Forbidden, which is basically the same concept
+        ):
+            # The application doesn't have permissions to do so
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"I couldn't **kick** that member from voice. Please **double-check** my **permissions** and **role position**.", error=True)
 
 
 async def setup(bot):
     await bot.add_cog(VoiceChannel(bot))
-

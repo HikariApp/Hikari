@@ -1,12 +1,12 @@
 import discord
-import re
 from datetime import datetime, timezone, timedelta
-from discord import Forbidden, Member, Permissions
+from discord import Forbidden, HTTPException, Member, Permissions
 from discord.ext import commands, tasks
 from discord.ext.commands import BadUnionArgument, Cog, Context, CommandInvokeError, MissingPermissions, MissingRequiredArgument, MemberNotFound, BotMissingPermissions, UserNotFound
-from typing import Any, Optional, Union
+from typing import Any, Optional
 from startup import MyBot
 from helpers.respondEmbed import respondEmbed
+from helpers.parseDuration import parseDuration
 
 
 class Mute(Cog):
@@ -29,104 +29,71 @@ class Mute(Cog):
         self.unmute_text_task.cancel()  # Stop the task when the cog is unloaded
 
 
-    # Convert time string to seconds and detailed duration breakdown
-    def parseDurationForMute(self, duration_str: str) -> Union[dict, str]:
-        units = {
-            "s": 1,        # seconds
-            "m": 60,       # minutes
-            "h": 3600,     # hours
-            "d": 86400,    # days
-            "w": 604800,   # weeks
-            "mo": 2592000, # months (approximate)
-            "y": 31536000  # years (approximate)
-        }
-
-        matches = re.findall(r"(\d+)(mo|[smhdwy])", duration_str)
-        
-        if not matches:
-            return "error_improper_format"
-
-        totalSeconds = 0
-        durationBreakdown = {
-            "years": 0,
-            "months": 0,
-            "weeks": 0,
-            "days": 0,
-            "hours": 0,
-            "minutes": 0,
-            "seconds": 0
-        }
-
-        for amount, unit in matches:
-        
-            if unit in units:
-                totalSeconds += int(amount) * units[unit]
-                durationBreakdown[{
-                    "y": "years",
-                    "mo": "months",
-                    "w": "weeks",
-                    "d": "days",
-                    "h": "hours",
-                    "m": "minutes",
-                    "s": "seconds"
-                }[unit]] += int(amount)
-
-        durationBreakdown["total_seconds"] = totalSeconds
-        return durationBreakdown
-
-
     # Function of mutes a member from text channel
     async def applyMute(self, ctx: Context, member: Member, durationStr: str | None, reason: str | None):
+        """
+        This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
+
+        Applies a mute to a member from text channels for a specified duration with an optional reason.
+
+        This handles the logic for applying a mute to a member, including parsing the duration string and adding records to the database.
+        It also sends appropriate responses to the context based on the outcome of the operation.
+
+        Parameters
+        ----------
+        ctx : discord.ext.commands.Context
+            The context in which the command was invoked.
+        member : discord.Member
+            The member to mute.
+        durationStr : str, optional
+            The duration for the mute in a string format (e.g., "1h", "30m", "2d"). If None, the mute will be indefinite.
+        reason : str, optional
+            The reason for the mute. If None, no reason will be provided.
+
+        Returns
+        -------
+        None
+        """
+
         database = self.db.moderation_mute
         mute_text_collection = database["mute_text"]
         
-        try:
-            muted = discord.utils.get(ctx.guild.roles, name="Muted")
-            
-            if durationStr is not None:  # For time-based mute only
-                totalDuration = self.parseDurationForMute(durationStr)
-                
-                if totalDuration == "error_improper_format":
-                    return await respondEmbed(ctx, message=f"Looks like the time format you entered is not valid :thinking: ... Perhaps enter again and give me a chance to handle it, {ctx.author.mention} :pleading_face:?\n\n**Supported time format:**\n**1**s = **1** second | **2**m = **2** minutes | **5**h = **5** hours | **10**d = **10** days | **3**w = **3** weeks | **6**y = **6** years.", error=True)
-            
-            if muted is None:
-                muted = await ctx.guild.create_role("Muted", permissions=Permissions(send_messages=False))
-            
-            if muted in member.roles:
-                return await respondEmbed(ctx, message=f"{member.mention} is already muted!", error=True)
-            
-            duration_message = "for " + " and ".join(", ".join([f"**{value}** {unit[:-1]}" + ("s" if value > 1 else "") for unit, value in totalDuration.items() if unit != "total_seconds" and value != 0]).rsplit(", ", 1)) + " " if durationStr is not None else ""
-            reason_message =  f"\nReason: **{reason}**" if reason is not None else ""
-            
-            if reason is not None:
-                await member.add_roles(muted, reason=reason)
-            
-            else:
-                await member.add_roles(muted)
-
-            await respondEmbed(ctx, message=f":white_check_mark: {member.mention} has been **muted** {duration_message}:zipper_mouth:{reason_message}")
-            
-            # Save mute info to the database
-            if durationStr is not None:
-                mute_end_time = datetime.now(timezone.utc) + timedelta(seconds=totalDuration["total_seconds"])    # For time-based mute only
-            else:
-                mute_end_time = None
-            await mute_text_collection.insert_one({
-                "guild_id": ctx.guild.id,
-                "user_id": member.id,
-                "role_id": muted.id,
-                "time_based": True if durationStr is not None else False,
-                "mute_end_time": mute_end_time,
-                "reason": reason
-            })
+        muted = discord.utils.get(ctx.guild.roles, name="Muted")
         
-        except Forbidden as e:
-            if e.status == 403 and e.code == 50013:
-                # Handling rare forbidden case
-                return await respondEmbed(ctx, message=f"I couldn't **mute** that user by changing the user's roles. Please **double-check** my **permissions** and **role position**.", error=True)
-            
-            else:
-                raise
+        if durationStr is not None:  # For time-based mute only
+            totalDuration = parseDuration(durationStr)
+            if totalDuration is None:
+                return await respondEmbed(ctx, message=f"Looks like the time format you entered is not valid :thinking: ... Perhaps enter again and give me a chance to handle it, {ctx.author.mention} :pleading_face:?\n\n**Supported time format:**\n**1**s = **1** second | **2**m = **2** minutes | **5**h = **5** hours | **10**d = **10** days | **3**w = **3** weeks | **6**y = **6** years.", error=True)
+        
+        if muted is None:
+            muted = await ctx.guild.create_role("Muted", permissions=Permissions(send_messages=False))
+        
+        if muted in member.roles:
+            return await respondEmbed(ctx, message=f"{member.mention} is already muted!", error=True)
+        
+        durationMessage = "for " + " and ".join(", ".join([f"**{value}** {unit[:-1]}" + ("s" if value > 1 else "") for unit, value in totalDuration.items() if unit != "total_seconds" and value != 0]).rsplit(", ", 1)) + " " if durationStr is not None else ""
+        reasonMessage =  f"\nReason: **{reason}**" if reason is not None else ""
+
+        reasonKarg = {"reason": reason} if reason is not None else {}
+        await member.add_roles(muted, **reasonKarg)
+
+        await respondEmbed(ctx, message=f":white_check_mark: {member.mention} has been **muted** {durationMessage}:zipper_mouth:{reasonMessage}")
+        
+        # Save mute info to the database
+        if durationStr is not None:
+            muteExpirationTime = datetime.now(timezone.utc) + timedelta(seconds=totalDuration["total_seconds"])    # For time-based mute only
+
+        else:
+            muteExpirationTime = None
+
+        await mute_text_collection.insert_one({
+            "guild_id": ctx.guild.id,
+            "user_id": member.id,
+            "role_id": muted.id,
+            "time_based": True if durationStr is not None else False,
+            "mute_end_time": muteExpirationTime,
+            "reason": reason
+        })
 
 
     # Background task to handle only time-based unmutes
@@ -162,8 +129,13 @@ class Mute(Cog):
             try:
                 await member.remove_roles(role, reason="Mute duration expired")
             
-            except discord.Forbidden:
+            except Forbidden:
                 # If the bot lacks the permissions to remove the role, skip this member
+                continue
+
+            except HTTPException as e:
+                # Handle any unexpected errors with a log or skip this member
+                self.logger.error(f"Failed to unmute {member} from voice in guild {guild.id}: {e}")
                 continue
 
             # Remove the mute record from the database

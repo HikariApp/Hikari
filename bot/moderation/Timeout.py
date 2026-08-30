@@ -1,12 +1,12 @@
 import discord
-import re
 from datetime import timedelta
 from discord import Forbidden, Member
 from discord.ext import commands
 from discord.ext.commands import BadUnionArgument, Cog, Context, CommandInvokeError, MissingPermissions, MissingRequiredArgument, MemberNotFound, BotMissingPermissions, UserNotFound
-from typing import Any, Optional, Union
+from typing import Any, Optional
 from startup import MyBot
 from helpers.respondEmbed import respondEmbed
+from helpers.parseDuration import parseDuration
 
 
 class Timeout(Cog):
@@ -23,71 +23,48 @@ class Timeout(Cog):
         self.logger.exception(f"Uncaught error in {ctx.cog.__cog_name__}:", exc_info=error)
 
 
-    # Convert time string to seconds and detailed duration breakdown (< 28 days / 4 weeks)
-    def parseDurationForTimeout(self, durationStr: str) -> Union[dict, str]:
-        units = {
-            "s": 1,        # seconds
-            "m": 60,       # minutes
-            "h": 3600,     # hours
-            "d": 86400,    # days
-            "w": 604800,   # weeks
-        }
-
-        matches = re.findall(r"(\d+)(mo|[smhdwy])", durationStr)
-        
-        if not matches:
-            return "error_improper_format"
-
-        total_seconds = 0
-        duration_breakdown = {
-            "weeks": 0,
-            "days": 0,
-            "hours": 0,
-            "minutes": 0,
-            "seconds": 0
-        }
-
-        for amount, unit in matches:
-            if unit in units:
-                total_seconds += int(amount) * units[unit]
-                duration_breakdown[{
-                    "w": "weeks",
-                    "d": "days",
-                    "h": "hours",
-                    "m": "minutes",
-                    "s": "seconds"
-                }[unit]] += int(amount)
-
-        duration_breakdown["total_seconds"] = total_seconds
-        return duration_breakdown
-
-
     # Function of timeout a member
-    async def applyTimeout(self, ctx: Context, member: Union[discord.Member, discord.User], durationStr: str | None, reason: str | None):
-        try:
-            totalDuration = self.parseDurationForTimeout(durationStr)
-            
-            if totalDuration == "error_improper_format":
-                return await respondEmbed(ctx, message=f"Looks like the time format you entered is not valid :thinking: ... Perhaps enter again and give me a chance to handle it, {ctx.author.mention} :pleading_face:?\n\n**Supported time format:**\n**1**s = **1** second | **2**m = **2** minutes | **5**h = **5** hours | **10**d = **10** days | **3**w = **3** weeks.", error=True)
+    async def applyTimeout(self, ctx: Context, member: discord.Member, durationStr: str | None, reason: str | None):
+        """
+        This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
-            duration_message = "for " + " and ".join(", ".join([f"**{value}** {unit[:-1]}" + ("s" if value > 1 else "") for unit, value in totalDuration.items() if unit != "total_seconds" and value != 0]).rsplit(", ", 1)) + " " if durationStr is not None else ""
-            reason_message =  f"\nReason: **{reason}**" if reason is not None else ""
-            
-            if reason is not None:
-                await member.timeout(timedelta(seconds=totalDuration["total_seconds"]), reason=reason)
-            
-            else:
-                await member.timeout(timedelta(seconds=totalDuration["total_seconds"]))
+        Applies a timeout to a member for a specified duration with an optional reason.
 
-            await respondEmbed(ctx, message=f":white_check_mark: {member.mention} has been **timed out** {duration_message}:zipper_mouth:{reason_message}")
+        This handles the logic for applying a timeout to a member, including parsing the duration string and checking for errors.
+        It also sends appropriate responses to the context based on the outcome of the operation.
 
-        except Forbidden as e:
-            if e.status == 403 and e.code == 50013:
-                # Handling rare forbidden case
-                return await respondEmbed(ctx, message=f"I couldn't **timeout** that user by changing the user's roles. Please **double-check** my **permissions** and **role position**.", error=True)
-            
-            else:
-                raise
+        Parameters
+        ----------
+        ctx : discord.ext.commands.Context
+            The context in which the command was invoked.
+        member : discord.Member | discord.User
+            The member to timeout.
+        durationStr : str, optional
+            The duration for the timeout in a string format (e.g., "1h", "30m", "2d"). If None, the timeout will be indefinite.
+        reason : str, optional
+            The reason for the timeout. If None, no reason will be provided.
+
+        Returns
+        -------
+        None
+        """
+
+        totalDuration = parseDuration(durationStr)
+        
+        if totalDuration is None:
+            return await respondEmbed(ctx, message=f"Looks like the time format you entered is not valid :thinking: ... Perhaps enter again and give me a chance to handle it, {ctx.author.mention} :pleading_face:?\n\n**Supported time format:**\n**1**s = **1** second | **2**m = **2** minutes | **5**h = **5** hours | **10**d = **10** days | **3**w = **3** weeks.", error=True)
+
+        # Check if the total duration exceeds 28 days (4 weeks)
+        if totalDuration["total_seconds"] > 2419200:
+            return await respondEmbed(ctx, message=f"Looks like the total duration you entered exceeds **28 days** :thinking: ... Perhaps enter again and give me a chance to handle it, {ctx.author.mention} :pleading_face:?\n\n**Supported time format:**\n**1**s = **1** second | **2**m = **2** minutes | **5**h = **5** hours | **10**d = **10** days | **3**w = **3** weeks.", error=True)
+
+        durationMessage = "for " + " and ".join(", ".join([f"**{value}** {unit[:-1]}" + ("s" if value > 1 else "") for unit, value in totalDuration.items() if unit != "total_seconds" and value != 0]).rsplit(", ", 1)) + " " if durationStr is not None else ""
+        reasonMessage =  f"\nReason: **{reason}**" if reason is not None else ""
+
+        reasonKarg = {"reason": reason} if reason is not None else {}
+        await member.timeout(timedelta(seconds=totalDuration["total_seconds"]), **reasonKarg)
+
+        await respondEmbed(ctx, message=f":white_check_mark: {member.mention} has been **timed out** {durationMessage}:zipper_mouth:{reasonMessage}")
 
 
     # Timeouts a member for a specified amount of time
