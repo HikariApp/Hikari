@@ -142,7 +142,7 @@ class VoiceChannel(commands.Cog):
         if ctx.interaction:
             await ctx.interaction.response.defer()
 
-        allMembersInVC, successCount, failureCount = await self.moveAll(ctx.guild, None, reason)
+        allMembersInVC, successCount, failureCount = await self.moveAll(guild=ctx.guild, specifiedVC=None, reason=reason)
 
         if (successCount != allMembersInVC) and failureCount > 0:
             return await respondEmbed(ctx, message=f"Something went wrong while ending the call for all channel(s) :thinking:", error=True)
@@ -221,7 +221,7 @@ class VoiceChannel(commands.Cog):
         else:
             specified_vc = channel
 
-        allMembersInVC, successCount, failureCount = await self.moveAll(ctx.guild, specified_vc, reason)
+        allMembersInVC, successCount, failureCount = await self.moveAll(guild=ctx.guild, specifiedVC=specified_vc, reason=reason)
 
         if allMembersInVC == 0:
             return await respondEmbed(ctx, message=f"It seems that no user were found in the voice channel, {ctx.author.mention} :thinking:...")
@@ -420,7 +420,7 @@ class VoiceChannel(commands.Cog):
 
 
     # Function of mutes a member from voice channel
-    async def applyMuteVC(self, ctx: Context, member: Member, durationStr: str | None, reason: str | None):
+    async def applyMuteVC(self, ctx: Context, member: Member, durationStr: str | None, *, reason: str | None):
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
@@ -567,7 +567,7 @@ class VoiceChannel(commands.Cog):
         if member and member.top_role >= ctx.guild.get_member(self.bot.user.id).top_role:
             return await respondEmbed(ctx, message=f"{ctx.author.mention}, I can't **mute** {member.mention} from voice because their **top role is higher than mine**.", error=True)
         
-        await self.applyMuteVC(ctx, member, duration, reason)
+        await self.applyMuteVC(ctx=ctx, member=member, durationStr=duration, reason=reason)
 
 
     # Error handling, for both commands and slash commands

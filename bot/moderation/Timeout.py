@@ -24,7 +24,7 @@ class Timeout(Cog):
 
 
     # Function of timeout a member
-    async def applyTimeout(self, ctx: Context, member: discord.Member, durationStr: str | None, reason: str | None):
+    async def applyTimeout(self, ctx: Context, member: discord.Member, durationStr: str | None, *, reason: str | None):
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
@@ -114,7 +114,7 @@ class Timeout(Cog):
         if member and member.top_role >= ctx.guild.get_member(self.bot.user.id).top_role:
             return await respondEmbed(ctx, message=f"{ctx.author.mention}, I can't **timeout** {member.mention} because their **top role is higher than mine**.", error=True)
         
-        await self.applyTimeout(ctx, member, duration, reason)
+        await self.applyTimeout(ctx=ctx, member=member, durationStr=duration, reason=reason)
 
 
     # Error handling, for both commands and slash commands

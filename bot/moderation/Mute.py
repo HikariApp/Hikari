@@ -30,7 +30,7 @@ class Mute(Cog):
 
 
     # Function of mutes a member from text channel
-    async def applyMute(self, ctx: Context, member: Member, durationStr: str | None, reason: str | None):
+    async def applyMute(self, ctx: Context, member: Member, durationStr: str | None, *, reason: str | None):
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
@@ -189,7 +189,7 @@ class Mute(Cog):
         if member and member.top_role >= ctx.guild.get_member(self.bot.user.id).top_role:
             return await respondEmbed(ctx, message=f"{ctx.author.mention}, I can't **mute** {member.mention} because their **top role is higher than mine**.", error=True)
         
-        await self.applyMute(ctx, member, duration, reason)
+        await self.applyMute(ctx=ctx, member=member, durationStr=duration, reason=reason)
 
 
     # Error handling, for both commands and slash commands
