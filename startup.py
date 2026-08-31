@@ -6,7 +6,7 @@ from signal import SIGINT, SIGTERM
 from discord.ext.commands import Bot
 from discord.errors import LoginFailure, HTTPException
 from dotenv import load_dotenv
-import motor.motor_asyncio as motor
+from pymongo import AsyncMongoClient
 import lava_lyra
 from aiohttp import web
 
@@ -37,8 +37,8 @@ class MyBot(Bot):
 
     Attributes
     ----------
-    mongoClient : motor.AsyncIOMotorClient
-        The motor client for MongoDB operations, initialized in `setup_hook`.
+    mongoClient : AsyncMongoClient
+        The AsyncMongoClient instance for MongoDB operations, initialized in `setup_hook`.
     logger : logging.Logger
         The logger instance for logging bot activities.
     webRunner : aiohttp.web.AppRunner
@@ -49,7 +49,7 @@ class MyBot(Bot):
     setup_hook()
         Coroutine that sets up the bot's dependencies, including MongoDB connection, loading extensions and starting the web server.
     getMongoClusterDB()
-        Returns the motor client for MongoDB operations.
+        Returns the AsyncMongoClient instance for MongoDB operations.
     getLogger()
         Returns the logger instance for logging bot activities.
     close()
@@ -91,8 +91,8 @@ class MyBot(Bot):
             raise SystemExit("No MONGO_DATABASE_URI found in environment.")
 
         try:
-            # Initialize the motor client
-            self.mongoClient = motor.AsyncIOMotorClient(uri)
+            # Initialize the AsyncMongoClient instance with the provided URI
+            self.mongoClient = AsyncMongoClient(uri)
 
             # Self MongoDB connection test
             if await self.mongoClient.admin.command("ping"):
@@ -237,14 +237,14 @@ class MyBot(Bot):
         logger.info(f"Monitoring server listening on http://{WEB_HOST}:{WEB_PORT}")
 
 
-    def getMongoClusterDB(self) -> motor.AsyncIOMotorClient:
+    def getMongoClusterDB(self) -> AsyncMongoClient:
         """
-        Retrieve the motor client for all cogs.
+        Retrieve the `AsyncMongoClient` instance for all cogs.
         
         Returns
         -------
-        motor.AsyncIOMotorClient
-            The motor client instance for MongoDB operations.
+        AsyncMongoClient
+            The `AsyncMongoClient` instance for MongoDB operations.
         """
 
         return self.mongoClient
@@ -298,7 +298,7 @@ class MyBot(Bot):
 
         # MongoDB follows by that
         if self.mongoClient:
-            self.mongoClient.close()
+            await self.mongoClient.close()
             logger.info("MongoDB client closed.")
 
         # Finally we close discord.py itself and terminates the process

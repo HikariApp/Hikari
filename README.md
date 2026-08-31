@@ -17,7 +17,7 @@
 
 Powered by [discord.py][discord.py_GitHub] with some extensions.
 
-Inherited from **Skylar <3**, which is also a discord bot that **never been published before**. I planned to release on a later stage after almost 2 yrs of development originally but with total failure unfortuneately due to the *unexpected termination*
+Inherited from **Skylar <3**, which is also a discord bot that **never been published before**. I planned to release on a later stage after almost 2 yrs of development originally but with total failure unfortunately due to the *unexpected termination*
 
 A much detailed documenatation will be provided on a later stage.
 

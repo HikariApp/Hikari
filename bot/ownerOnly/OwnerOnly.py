@@ -1,16 +1,16 @@
+import asyncio
 import psutil
-import netifaces
 import socket
-from discord import Embed
 from discord.ext import commands
 from discord.ext.commands import Cog, Context, ExtensionAlreadyLoaded, ExtensionNotLoaded, NoEntryPointError, ExtensionFailed
-from datetime import datetime
 from helpers.errorHandling import *
 from helpers.getIPv4Info import *
 from startup import MyBot
 from helpers.restarter import restarter
 from helpers.extensionsHandler import getAllExtensions
 from helpers.respondEmbed import respondEmbed, ResponseTarget
+from helpers.networkInfo import NetworkInfo
+from typing import List
 
 
 class OwnerOnly(Cog):
@@ -163,63 +163,90 @@ class OwnerOnly(Cog):
         if not await self.bot.is_owner(ctx.author):
             return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
         
-        def convert_to_GB(raw):
+        def convertToGiB(raw):
             return round(raw / 1024 ** 3, 2)
+
+        # Returning system info as embed
+        messageLines: List[str] = []
+
         # CPU
         cpuPercentage = psutil.cpu_percent()
         numberOfSystemCores = psutil.cpu_count(logical=False)
         numberOfLogicalCores = psutil.cpu_count(logical=True)
 
-        # Memory
-        ram = psutil.virtual_memory()
-        usedRamInGB = convert_to_GB(ram.used)
-        availableRamInGB = convert_to_GB(ram.available)
-        totalRamInGB = convert_to_GB(ram.total)
-        ramPercentage = ram.percent
+        messageLines.append(
+            f"\n**CPU:**\n"
+            f"CPU utilization: {cpuPercentage}%"
+            f"\nNumber of system cores: {numberOfSystemCores}"
+            f"\nNumber of logical cores: {numberOfLogicalCores}"
+        )
         
+        # RAM
+        ram = psutil.virtual_memory()
+        usedRamInGiB = convertToGiB(ram.used)
+        availableRamInGiB = convertToGiB(ram.available)
+        totalRamInGiB = convertToGiB(ram.total)
+        ramPercentage = ram.percent
+
+        messageLines.append(
+            f"\n**RAM:**\n"
+            f"Memory in use: {usedRamInGiB} / {totalRamInGiB} GiB ({ramPercentage}%)"
+            f"\nAvailible memory: {availableRamInGiB} GiB"
+        )
+
         # Storage
         disk = psutil.disk_usage('/')
-        usedVolumeInGB = convert_to_GB(disk.used)
-        freeVolumeInGB = convert_to_GB(disk.free)
-        totalVolumeInGB = convert_to_GB(disk.total)
+        usedVolumeInGiB = convertToGiB(disk.used)
+        freeVolumeInGiB = convertToGiB(disk.free)
+        totalVolumeInGiB = convertToGiB(disk.total)
         diskPercentage = disk.percent
 
-        # Network
-        hostname = socket.gethostname()
-        network = psutil.net_io_counters()
-
-        # Returning system info as embed
-        hardware_info_embed = Embed(title="Resource Usage (For reference only):", description='\u200b', timestamp=datetime.now(), color=ctx.author.color)
-
-        # CPU
-        hardware_info_embed.add_field(name="CPU", value=f"CPU utilization: {cpuPercentage}%\nNumber of system cores: {numberOfSystemCores}\nNumber of logical cores: {numberOfLogicalCores}", inline=True)
-        
-        # Memory
-        hardware_info_embed.add_field(name="RAM", value=f"Memory in use: {usedRamInGB} / {totalRamInGB} GB ({ramPercentage}%)\nAvailible memory: {availableRamInGB} GB", inline=True)
-        hardware_info_embed.add_field(name="Storage", value=f"Space used: {usedVolumeInGB} / {totalVolumeInGB} GB ({diskPercentage}%)\nAvailible space: {freeVolumeInGB} GB", inline=True)
-        hardware_info_embed.add_field(name="\u200b", value="", inline=False)
+        messageLines.append(
+            f"\n**Storage:**\n"
+            f"Space used: {usedVolumeInGiB} / {totalVolumeInGiB} GiB ({diskPercentage}%)"
+            f"\nAvailible space: {freeVolumeInGiB} GiB"
+        )
         
         # Basic Network
-        ip_addresses = [netifaces.ifaddresses(iface)[netifaces.AF_INET][0]['addr'] for iface in netifaces.interfaces() if netifaces.AF_INET in netifaces.ifaddresses(iface)]
-        subnets = [netifaces.ifaddresses(iface)[netifaces.AF_INET][0]['netmask'] for iface in netifaces.interfaces() if netifaces.AF_INET in netifaces.ifaddresses(iface)]
-        gateways = [netifaces.gateways()['default'][netifaces.AF_INET][0] for gateways in netifaces.interfaces() if "default" in netifaces.gateways()]
+        basicNetwork = await asyncio.to_thread(NetworkInfo)   # add ipv6_global_only=True if you want to trim link-local noise
+
+        messageLines.append(
+            f"\n**Network (Basic):**\n"
+            f"IPv4 Address(s): {basicNetwork.ipv4_addresses}\n"
+            f"Subnet(s) Mask: {basicNetwork.ipv4_subnets}\n"
+            f"IPv4 Gateway: {basicNetwork.ipv4_gateway}\n"
+            f"IPv6 Address(s): {basicNetwork.ipv6_addresses}\n"
+            f"IPv6 Gateway: {basicNetwork.ipv6_gateway}"
+        )
+
         
-        try:
-            hardware_info_embed.add_field(name="Network Information (Basic)", value=f"IPv4 Address(s): {ip_addresses}\nSubnet(s) Mask: {subnets}\nGateway(s): {gateways}", inline=True)
-        
-        except:
-            pass
-        
-        ipInfo = IPv4info()
         # Advanced Network
-        hardware_info_embed.add_field(name="Network Information (Advanced)", value=f"Hostname: {hostname}\nIPv4: {ipInfo.ip}\nIP Hostname: {ipInfo.hostname}\nCountry or district: {ipInfo.country}\nRegion: {ipInfo.region}\nCity: {ipInfo.city}\n Organization: {ipInfo.organization}\nPostal code: {ipInfo.postal}\nLocation: {ipInfo.location}", inline=True)
-        
-        # Packets transmission
-        hardware_info_embed.add_field(name="\u200b", value="", inline=False)
-        hardware_info_embed.add_field(name="Packets transmission:", value=f"Number of bytes sent: {network.bytes_sent}\nNumber of bytes received: {network.bytes_recv}\nNumber of packets sent: {network.packets_sent}\nNumber of packets received: {network.packets_recv}\nTotal number of errors while receiving: {network.errin}\nTotal number of errors while sending: {network.errout}\nTotal number of incoming packets dropped: {network.dropin}\nTotal number of outgoing packets dropped: {network.dropout}", inline=False)
-        hardware_info_embed.add_field(name="\u200b", value="", inline=False)
-        
-        await ctx.reply(embed=hardware_info_embed)
+        ipInfo = await asyncio.to_thread(IPv4info)
+        hostname = socket.gethostname()
+        advancedNetwork = psutil.net_io_counters()
+
+        messageLines.append(
+            f"\n**Network (Advanced):**\n"
+            f"Hostname: {hostname}\n"
+            f"IPv4: {ipInfo.ip}\n"
+            f"IP Hostname: {ipInfo.hostname}\n"
+            f"Country or district: {ipInfo.country}\n"
+            f"Region: {ipInfo.region}\n"
+            f"City: {ipInfo.city}\n"
+            f"Organization: {ipInfo.organization}\n"
+            f"Postal code: {ipInfo.postal}\n"
+            f"Location: {ipInfo.location}\n"
+            f"Number of bytes sent: {advancedNetwork.bytes_sent}\n"
+            f"Number of bytes received: {advancedNetwork.bytes_recv}\n"
+            f"Number of packets sent: {advancedNetwork.packets_sent}\n"
+            f"Number of packets received: {advancedNetwork.packets_recv}\n"
+            f"Total number of errors while receiving: {advancedNetwork.errin}\n"
+            f"Total number of errors while sending: {advancedNetwork.errout}\n"
+            f"Total number of incoming packets dropped: {advancedNetwork.dropin}\n"
+            f"Total number of outgoing packets dropped: {advancedNetwork.dropout}"
+        )
+
+        await respondEmbed(ctx, "\n".join(messageLines), title="System Info (For reference only):", target=ResponseTarget.REPLY, deleteAfter=30)
 
 
     # Shutdown the bot and the server

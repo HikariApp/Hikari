@@ -52,7 +52,7 @@ class NodeManager:
                 password=os.getenv("LAVALINK_PASSWORD"),
                 identifier="MAIN",
             )
-            self.logger.info(f"LavaLyra (Pomice) node has been established to a Lavalink server at {self.nodePool.nodes if self.nodePool.nodes else '<unknown host>'}.")
+            self.logger.info(f"LavaLyra (Pomice) node has been established to a Lavalink server at {self.nodePool._nodes if self.nodePool._nodes else '<unknown host>'}.")
 
         except Exception as exc:
             self.logger.exception("Failed to create lava_lyra node: %s", exc)
