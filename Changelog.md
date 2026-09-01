@@ -10,6 +10,37 @@ predates the first tag is collected under the initial `v1.0.0` release.
 
 ---
 
+## [v3.5.0] - 2026-09-01
+### Added
+- Recorder-aware guards in the music player: `join`/`play` and `ensurePlayable`
+  now respond with a clear ephemeral error when the voice client is currently
+  occupied by the voice recorder, instead of misbehaving.
+- Explicit offline-presence nudge during shutdown to work around an upstream
+  discord.py issue where the bot lingers as online after the connection closes.
+- `pydub` dependency for recorder audio mixing and silence handling
+  (now used by `_recorderSink.py`).
+### Changed
+- Restructured the voice recorder: retired the standalone `VoiceRecorder` cog
+  in favor of `_recorderSink.py`.
+- Reworked shutdown signal handling: `SIGTERM` is now routed through
+  `default_int_handler` so Docker stops follow the same proven
+  `KeyboardInterrupt` path `bot.run()` already handles cleanly, rather than a
+  custom loop signal handler that fought `bot.run()`.
+- `close()` now tears down voice clients first (while the gateway is still up):
+  `stop_listening()` followed by `disconnect(force=True)` under a 0.2s timeout,
+  tolerating and logging timeouts/failures so shutdown never hangs.
+- Tidied `startup.py` imports (`Intents`/`Status`/`math`/`signal`) and comments.
+- Bumped project version to `3.5.0`.
+### Fixed
+- Health endpoint no longer emits `NaN` for `latency_ms` before the first
+  heartbeat; latency is now guarded with `math.isfinite()`.
+- `respondEmbed` passes `view or MISSING` to `interaction.response.send_message`,
+  so a `None` view no longer breaks the ephemeral response path.
+- `on_voice_state_update` no longer raises an unhandled
+  `ServerDisconnectedError` when sending the "left the voice channel"
+  notification during shutdown or a gateway drop; the send is now guarded
+  and the disconnect is logged as a warning.
+
 ## [v3.3.0] - 2026-08-31
 ### Added
 - Slim Docker image via multi-stage build on a slim base.
@@ -535,7 +566,8 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - Migrated from discord.py to Pycord.
 - First deployment; added `ban_guild()`.
 
-[Unreleased]: https://github.com/HikariApp/hikari/compare/v3.3.0...HEAD
+[Unreleased]: https://github.com/HikariApp/hikari/compare/v3.5.0...HEAD
+[3.5.0]: https://github.com/HikariApp/hikari/compare/v3.3.0...v3.5.0
 [3.3.0]: https://github.com/HikariApp/hikari/compare/v3.2.2...v3.3.0
 [3.2.2]: https://github.com/HikariApp/hikari/compare/v3.2.1...v3.2.2
 [3.2.1]: https://github.com/HikariApp/hikari/compare/v3.1.7...v3.2.1

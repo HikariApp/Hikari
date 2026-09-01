@@ -1,13 +1,14 @@
 import os
+import math
 import logging
+import lava_lyra
 import asyncio
-import discord
-from signal import SIGINT, SIGTERM
+from discord import Intents, Status
 from discord.ext.commands import Bot
 from discord.errors import LoginFailure, HTTPException
 from dotenv import load_dotenv
 from pymongo import AsyncMongoClient
-import lava_lyra
+from signal import SIGTERM, signal, default_int_handler
 from aiohttp import web
 
 from helpers.restarter import restarter
@@ -18,7 +19,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-intents = discord.Intents.default()
+intents = Intents.default()
 intents.message_content = True
 intents.members = True
 
@@ -77,50 +78,33 @@ class MyBot(Bot):
         In our case, this establishes the MongoDB connection and loads the extensions,
         with a minimal web server for monitoring purpose.
 
-        `SIGINT` and `SIGTERM` signals are also handled properly to ensure a graceful shutdown.
-        
         Returns
         -------
         None
         """
 
-        # We establish the MongoDB connection first
+        # we establish the MongoDB connection first
         uri = os.getenv("MONGO_DATABASE_URI")
 
         if not uri:
             raise SystemExit("No MONGO_DATABASE_URI found in environment.")
 
         try:
-            # Initialize the AsyncMongoClient instance with the provided URI
+            # initialize the AsyncMongoClient instance with the provided URI
             self.mongoClient = AsyncMongoClient(uri)
 
-            # Self MongoDB connection test
+            # self MongoDB connection test
             if await self.mongoClient.admin.command("ping"):
                 logger.info("Pong! MongoDB connection established.")
 
         except Exception as e:
             raise ConnectionError(f"FATAL: could not connect to MongoDB cluster due to the following error: {e}")
 
-        # Then load the extensions
+        # then load the extensions
         await self.loadInitialExtensions()
 
-        # And finally start the web server for monitoring endpoints
+        # and finally start the web server for monitoring endpoints
         await self.startWebServer()
-
-        # Register signal handlers for graceful shutdown, if supported by the platform (e.g. Docker Compose)
-        loop = asyncio.get_running_loop()
-
-        def _graceful_stop():
-            # Schedule close on the loop; unwinds bot.run() cleanly.
-            asyncio.create_task(self.close())
-
-        for sig in (SIGTERM, SIGINT):
-            try:
-                loop.add_signal_handler(sig, _graceful_stop)
-            
-            except NotImplementedError:
-                # add_signal_handler isn't supported on Windows; harmless there.
-                pass
 
 
     async def loadInitialExtensions(self) -> None:
@@ -156,9 +140,9 @@ class MyBot(Bot):
     async def handleHealth(self, request) -> web.Response:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
-        
+
         Checks if the bot is alive and responding.
-        
+
         Returns
         -------
         web.Response
@@ -200,10 +184,12 @@ class MyBot(Bot):
         except Exception:
             nodeCount = 0
 
+        lat = self.latency
+
         return web.json_response({
             "status": "ok",
             "ready": self.is_ready(),
-            "latency_ms": round(self.latency * 1000, 2) if self.latency else None,
+            "latency_ms": round(lat * 1000, 2) if math.isfinite(lat) else None,
             "guilds": len(self.guilds),
             "mongo_connected": mongoOk,
             "lavalink_nodes": nodeCount,
@@ -240,7 +226,7 @@ class MyBot(Bot):
     def getMongoClusterDB(self) -> AsyncMongoClient:
         """
         Retrieve the `AsyncMongoClient` instance for all cogs.
-        
+
         Returns
         -------
         AsyncMongoClient
@@ -253,7 +239,7 @@ class MyBot(Bot):
     def getLogger(self) -> logging.Logger:
         """
         Retrieve the logger instance for the bot.
-        
+
         Returns
         -------
         logging.Logger
@@ -280,7 +266,39 @@ class MyBot(Bot):
 
         logger.info("close() called — shutting down cleanly.")
 
-        # We stop the web server first
+        # tear down voice / recorder first, while the gateway is still up
+        for vc in list(self.voice_clients):
+            try:
+                if vc.is_listening():
+                    logger.info("Stopping voice listening for %s", getattr(vc, "guild", "?"))
+                    vc.stop_listening()
+
+                # Ensure:
+                # - The voice client is disconnected from the voice channel
+                # Actions:
+                # - Disconnect the voice client from the voice channel, with a timeout of 0.2 seconds to avoid hanging the shutdown process.
+                # - Any exceptions during the disconnect process are logged, but the shutdown process may prolongs, to ensure a clean exit.
+
+                await asyncio.wait_for(vc.disconnect(force=True), timeout=0.2)
+                logger.info("disconnect() done for %s", vc.guild)
+
+            except asyncio.TimeoutError:
+                # If the disconnect action times out, we log a warning and continue with the shutdown process.
+                # This would only fire if the timeout were effectively zero, or if a future disconnect genuinely hangs on the reader-thread join.
+                # which is unlikely since the timeout itself was set to 0.2s.
+                # but if it does, we still wanted to make sure the bot shuts down cleanly.
+
+                logger.warning(
+                    "disconnect() timed out for %s — voice session left dangling; "
+                    "Discord will drop it server-side after ~30s. Continuing shutdown.",
+                    getattr(vc, "guild", "?"),
+                )
+
+            except Exception:
+                # Something wrong happened while trying to disconnect the voice client, we log the exception and continue with the shutdown process.
+                logger.exception("voice teardown failed for %s", getattr(vc, "guild", "?"))
+
+        # then the web server comes next
         if self.webRunner:
             try:
                 await self.webRunner.cleanup()
@@ -288,7 +306,7 @@ class MyBot(Bot):
             except Exception as e:
                 logger.error(f"Error while stopping monitoring server: {e}")
 
-        # Then the Lavalink node pool
+        # and the Lavalink node pool, if any
         try:
             if lava_lyra.NodePool._nodes:
                 await lava_lyra.NodePool.disconnect()
@@ -296,12 +314,22 @@ class MyBot(Bot):
         except Exception as e:
             logger.error(f"Error while disconnecting LavaLyra node pool: {e}")
 
-        # MongoDB follows by that
+        # also the MongoDB client
         if self.mongoClient:
             await self.mongoClient.close()
             logger.info("MongoDB client closed.")
 
-        # Finally we close discord.py itself and terminates the process
+        # set the bot's presence to offline before closing
+        # this is a known issue with discord.py where the bot may appear online for a brief moment, even after the connection is closed.
+        # unless the program was terminated with SIGINT (Ctrl+C), which is handled by the signal handler to performs an abrupt teardown.
+        # so we set the bot's presence to offline explicitly before closing, to ensure it appears offline to users.
+        # DO NOT REMOVE THIS, as it is a known issue from upstream and is not a bug in our code.
+        try:
+            await self.change_presence(status=Status.offline)
+        except Exception:
+            logger.debug("Presence nudge failed during close (gateway likely already gone).", exc_info=True)
+
+        # finally we close discord.py itself and terminates the process
         await super().close()
         logger.info("Bot closed.")
 
@@ -351,6 +379,11 @@ def main():
         if not token or not token.strip():
             raise SystemExit("No valid tokens were found in the environment variable. Please add your token to the Secrets pane.")
 
+        # Make Docker's SIGTERM behave exactly like Ctrl+C (SIGINT).
+        # bot.run() already shuts down cleanly on KeyboardInterrupt, so we route SIGTERM into that same proven path
+        # instead of registering a custom loop handler that fights bot.run().
+        signal(SIGTERM, default_int_handler)
+
         bot.run(token)
 
     except HTTPException as e:
@@ -363,7 +396,7 @@ def main():
 
         else:
             raise
-    
+
     except LoginFailure as e:
         # In this case, this might be due to an invalid token
         # So we raise the LoginFailure with a more descriptive and user-friendly message
@@ -390,5 +423,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

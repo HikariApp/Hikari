@@ -29,6 +29,7 @@ from enum import Enum, auto
 from discord import Color, Embed, Forbidden, Message
 from discord.ui import View
 from discord.ext.commands import Context
+from discord.utils import MISSING
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -195,7 +196,7 @@ async def respondEmbed(
 
         if interaction is not None and not interaction.response.is_done():
             # We own the first response, ephemeral is honored here
-            ephemeralKwargs = {"embed": embed, "view": view, "ephemeral": True}
+            ephemeralKwargs = {"embed": embed, "view": view or MISSING, "ephemeral": True}
             await interaction.response.send_message(**ephemeralKwargs)
             return await interaction.original_response()
 

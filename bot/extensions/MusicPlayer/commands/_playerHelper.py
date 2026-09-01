@@ -27,11 +27,12 @@ DEALINGS IN THE SOFTWARE.
 from numpy.ma import ceil
 from discord import Button, ButtonStyle, Color, Embed, Interaction, Message, SelectOption, User
 from discord.ext.commands import Context
+from discord.ext.voice_recv import VoiceRecvClient
 from discord.ui import button, View, Select
 from lava_lyra import LoopMode
 from typing import List, Optional
 from bot.extensions.MusicPlayer._betterPlayer import BetterPlayer
-from helpers.respondEmbed import CROSS_RED, respondEmbed
+from helpers.respondEmbed import CROSS_RED, ResponseTarget, respondEmbed
 
 # Fixed Interaction response for confirmations that are not for the interacting user.
 NON_AUTHOR_CONFIRMATION_EMBED = Embed(
@@ -40,7 +41,7 @@ NON_AUTHOR_CONFIRMATION_EMBED = Embed(
 )
 
 # Ensure the player is in a playable state before proceeding with any queue-related operations.
-async def ensurePlayable(ctx: Context, player: BetterPlayer) -> bool:
+async def ensurePlayable(ctx: Context, player: BetterPlayer | VoiceRecvClient) -> bool:
     """
     This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
@@ -48,10 +49,10 @@ async def ensurePlayable(ctx: Context, player: BetterPlayer) -> bool:
 
     Parameters
     ----------
-    ctx : `Context`
+    ctx : commands.Context
         The context of the command invocation.
     
-    player : `BetterPlayer`
+    player : BetterPlayer | discord.ext.voice_recv.VoiceRecvClient
         The player instance to check.
 
     Returns
@@ -62,6 +63,10 @@ async def ensurePlayable(ctx: Context, player: BetterPlayer) -> bool:
 
     if player is None:
         await respondEmbed(ctx, message=f"I'm not in a voice channel, either or the player is not connected to a node.", error=True)
+        return False
+    
+    if isinstance(player, VoiceRecvClient):
+        await respondEmbed(ctx, message=f"The voice client is now being occupied by the voice recorder. Please terminate the recorder and try again.", target=ResponseTarget.EPHEMERAL, error=True)
         return False
     
     if player.queue.historyIsEmpty:
@@ -91,7 +96,7 @@ def buildPagination(player: BetterPlayer, pageSize: int) -> List[SelectOption]:
 
     Returns
     -------
-    List[SelectOption]
+    list of SelectOption
         A list of SelectOption for the dropdown menu.
     """
 

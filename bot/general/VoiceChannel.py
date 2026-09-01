@@ -1,16 +1,18 @@
 import asyncio
+from aiohttp.client_exceptions import ServerDisconnectedError
 from discord import Color, Embed, Forbidden, Member, User, VoiceChannel, VoiceState, HTTPException
 from discord.ext import commands, tasks
-from discord.ext.commands import ChannelNotFound, Context, MissingRequiredArgument, CommandInvokeError, CommandInvokeError, MissingPermissions, BotMissingPermissions, BadUnionArgument, MemberNotFound, UserNotFound
+from discord.ext.commands import ChannelNotFound, Cog, Context, MissingRequiredArgument, CommandInvokeError, CommandInvokeError, MissingPermissions, BotMissingPermissions, BadUnionArgument, MemberNotFound, UserNotFound
 from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
+from startup import MyBot
 from helpers.errorHandling import *
 from helpers.respondEmbed import respondEmbed
 from helpers.parseDuration import parseDuration
 
 
-class VoiceChannel(commands.Cog):
-    def __init__(self, bot):
+class VoiceChannel(Cog):
+    def __init__(self, bot: MyBot):
         self.bot = bot
         self.logger = self.bot.getLogger()
         self.db = self.bot.getMongoClusterDB()
@@ -36,27 +38,31 @@ class VoiceChannel(commands.Cog):
         # Actions:
         # - Send a message to the system channel or a text channel with send permissions, if available
 
-        if member.id != self.bot.user.id:
-            return
-
-        if (
-            after.channel is None and  # if this is None this is certainly a leave
-            before.channel != after.channel  # if these match then this could be e.g. server deafen
-        ):
-            guild = before.channel.guild
-            channel = guild.system_channel or next(
-                (c for c in guild.text_channels if c.permissions_for(guild.me).send_messages),
-                None
-            )
-
-            if channel is None:    # No suitable text channel found to send the message
+        try:
+            if member.id != self.bot.user.id:
                 return
 
-            left_embed = Embed(
-                description="I've left the voice channel.",
-                color=Color.blurple()
-            )
-            await channel.send(embed=left_embed, silent=True)
+            if (
+                after.channel is None and  # if this is None this is certainly a leave
+                before.channel != after.channel  # if these match then this could be e.g. server deafen
+            ):
+                guild = before.channel.guild
+                channel = guild.system_channel or next(
+                    (c for c in guild.text_channels if c.permissions_for(guild.me).send_messages),
+                    None
+                )
+
+                if channel is None:    # No suitable text channel found to send the message
+                    return
+
+                left_embed = Embed(
+                    description="I've left the voice channel.",
+                    color=Color.blurple()
+                )
+                await channel.send(embed=left_embed, silent=True)
+
+        except ServerDisconnectedError:
+            self.logger.warning("ServerDisconnectedError occurred in on_voice_state_update. This is likely due to the bot being disconnected from the gateway or shutting down.")
 
     # NOTE: join() command is now handled by the music player cog, so we removed it from here
 
@@ -808,5 +814,5 @@ class VoiceChannel(commands.Cog):
             return await respondEmbed(ctx, message=f"I couldn't **kick** that member from voice. Please **double-check** my **permissions** and **role position**.", error=True)
 
 
-async def setup(bot):
+async def setup(bot: MyBot):
     await bot.add_cog(VoiceChannel(bot))

@@ -1,5 +1,6 @@
 from discord import VoiceChannel, app_commands, Color, ClientException
 from discord.ext import commands
+from discord.ext.voice_recv import VoiceRecvClient
 from discord.ext.commands import Cog, Context, Range, CommandError, BadArgument, ChannelNotFound, CommandInvokeError, RangeError, MissingRequiredArgument
 from discord.app_commands import Choice
 from lava_lyra import LoopMode, Playlist, QueueException, Timescale
@@ -9,7 +10,7 @@ from startup import MyBot
 from bot.extensions.MusicPlayer._betterPlayer import BetterPlayer
 from bot.extensions.MusicPlayer.commands._playerHelper import ensurePlayable, ConfirmView
 from helpers.errorHandling import *
-from helpers.respondEmbed import respondEmbed
+from helpers.respondEmbed import respondEmbed, ResponseTarget
 
 
 class MusicGeneral(Cog):
@@ -143,6 +144,9 @@ class MusicGeneral(Cog):
             player.setContext(ctx)
             return await respondEmbed(ctx, message=f"I've joined the voice channel {voice_channel.mention}")
 
+        elif isinstance(player, VoiceRecvClient):
+            return await respondEmbed(ctx, message="The voice client is now being occupied by the voice recorder. Please terminate the recorder and try again.", target=ResponseTarget.EPHEMERAL, error=True)
+
         elif player.channel != voice_channel:
             if channel is not None:
                 # The bot has been connected to a voice channel but not as same as the required one
@@ -211,6 +215,9 @@ class MusicGeneral(Cog):
             except Exception as e:
                 self.logger.error(f"An unexpected error occurred while trying to join the voice channel: {e}")
                 return await respondEmbed(ctx, message=f"I was unable to join {ctx.author.voice.channel} due to an unexpected error. Please try again later.", error=True)
+
+        if isinstance(player, VoiceRecvClient):
+            return await respondEmbed(ctx, message="The voice client is now being occupied by the voice recorder. Please terminate the recorder and try again.", target=ResponseTarget.EPHEMERAL, error=True)
 
         if not search:
             return await respondEmbed(ctx, message=f"Looks like you've been specified searching online for the audio source, but haven't specified the track you would like to play :thinking: ...\nJust curious to know, what should I play right now, {ctx.author.mention}?")
