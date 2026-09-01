@@ -34,22 +34,29 @@ class Recorder(commands.Cog):
         """
         Starts recording the voice channel.
         """
-        if not ctx.author.voice:
-            return await respondEmbed(ctx, "You must be connected to a voice channel to use this command.", target=ResponseTarget.EPHEMERAL, error=True)
 
-        if self.bot.voice_clients:
-            if isinstance(self.bot.voice_clients[0], BetterPlayer):
-                return await respondEmbed(ctx, "The voice client is now being occupied by the music player. Please terminate the player and try again.", target=ResponseTarget.EPHEMERAL, error=True)
+        voiceClient = ctx.guild.voice_client
 
-            else:
-                return await respondEmbed(ctx, "I'm already connected to a voice channel.", target=ResponseTarget.EPHEMERAL, error=True)
+        # Busy with music in this guild
+        if isinstance(voiceClient, BetterPlayer):
+            return await respondEmbed(ctx, "The voice client is now being occupied by the music player. Please terminate the player and try again.", target=ResponseTarget.EPHEMERAL, error=True)
 
-        voiceChannel = ctx.author.voice.channel
-        voiceClient: VoiceRecvClient = await voiceChannel.connect(cls=VoiceRecvClient)
+        # Connected, but not as a recorder client — can't record on this
+        if voiceClient is not None and not isinstance(voiceClient, VoiceRecvClient):
+            return await respondEmbed(ctx, "I'm connected to voice in a state I can't record from. Please disconnect me and try again.", target=ResponseTarget.EPHEMERAL, error=True)
 
-        if voiceClient.is_listening():
+        # Already recording in this guild
+        if isinstance(voiceClient, VoiceRecvClient) and voiceClient.is_listening():
             return await respondEmbed(ctx, "Recording is already in progress.", target=ResponseTarget.EPHEMERAL, error=True)
 
+        # Not connected yet — need a channel from the author
+        if voiceClient is None:
+            if not ctx.author.voice:
+                return await respondEmbed(ctx, "I'm not in a voice channel, so please join one and I'll follow.", target=ResponseTarget.EPHEMERAL)
+
+            voiceClient = await ctx.author.voice.channel.connect(cls=VoiceRecvClient)
+
+        # voiceClient is guaranteed to be a connected VoiceRecvClient here
         try:
             # Fresh sink per recording so buffers don't carry over from a previous session
             self.customSink = MultiAudioImprovedWithSilenceSink()
@@ -133,3 +140,4 @@ class Recorder(commands.Cog):
 
 async def setup(bot: MyBot):
     await bot.add_cog(Recorder(bot))
+

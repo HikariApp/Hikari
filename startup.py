@@ -1,9 +1,10 @@
 import os
+import asyncio
 import math
 import logging
 import lava_lyra
-import asyncio
 from discord import Intents, Status
+from discord.ext.voice_recv import VoiceRecvClient
 from discord.ext.commands import Bot
 from discord.errors import LoginFailure, HTTPException
 from dotenv import load_dotenv
@@ -269,7 +270,7 @@ class MyBot(Bot):
         # tear down voice / recorder first, while the gateway is still up
         for vc in list(self.voice_clients):
             try:
-                if vc.is_listening():
+                if isinstance(vc, VoiceRecvClient) and vc.is_listening():
                     logger.info("Stopping voice listening for %s", getattr(vc, "guild", "?"))
                     vc.stop_listening()
 
@@ -423,3 +424,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

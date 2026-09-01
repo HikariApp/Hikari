@@ -10,6 +10,28 @@ predates the first tag is collected under the initial `v1.0.0` release.
 
 ---
 
+## [v3.5.1] - 2026-09-01
+### Fixed
+- `discord.opus.OpusNotLoaded` crash on every incoming voice packet when
+  recording: the slim Docker runtime base shipped without libopus, needed to
+  decode Opus to PCM. `libopus0` is now installed in the runtime stage.
+- pydub `Couldn't find ffmpeg or avconv` warning and non-functional audio
+  mixing: `ffmpeg` is now installed in the runtime stage. Both are native
+  system libraries that installing pydub via `uv` did not provide.
+- `AttributeError: 'BetterPlayer' object has no attribute 'is_listening'`
+  during shutdown while music was playing: `close()` assumed every voice
+  client was a recorder client. The listening teardown is now guarded so
+  plain music clients disconnect cleanly.
+- Recorder guard checked global `bot.voice_clients` state instead of the
+  command's own guild, so the bot being connected in any server blocked
+  recording in every other server. The guard now uses `guild.voice_client`,
+  matching the per-guild logic the music player already used.
+### Changed
+- `record` no longer requires the invoker to be in a voice channel when the
+  bot is already connected; it starts recording in the bot's current channel.
+  The guard also refuses cleanly if the bot is connected in a non-recordable
+  state rather than failing later.
+
 ## [v3.5.0] - 2026-09-01
 ### Added
 - Recorder-aware guards in the music player: `join`/`play` and `ensurePlayable`
@@ -566,7 +588,8 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - Migrated from discord.py to Pycord.
 - First deployment; added `ban_guild()`.
 
-[Unreleased]: https://github.com/HikariApp/hikari/compare/v3.5.0...HEAD
+[Unreleased]: https://github.com/HikariApp/hikari/compare/v3.5.1...HEAD
+[3.5.0]: https://github.com/HikariApp/hikari/compare/v3.5.0...v3.5.1
 [3.5.0]: https://github.com/HikariApp/hikari/compare/v3.3.0...v3.5.0
 [3.3.0]: https://github.com/HikariApp/hikari/compare/v3.2.2...v3.3.0
 [3.2.2]: https://github.com/HikariApp/hikari/compare/v3.2.1...v3.2.2

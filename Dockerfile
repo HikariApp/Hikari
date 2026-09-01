@@ -36,6 +36,12 @@ VOLUME [ "/opt" ]
 # Copy the fully-built venv and app from the builder
 COPY --from=builder /app /app
 
+# Install runtime dependencies for audio processing.
+# These are needed for the bot to handle audio streams.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libopus0 ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
 # Put the venv on PATH so we can call the interpreter directly
 ENV PATH="/app/.venv/bin:$PATH"
 
