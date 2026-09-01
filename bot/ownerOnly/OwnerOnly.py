@@ -1,8 +1,10 @@
 import asyncio
 import psutil
 import socket
+from discord import Activity, ActivityType, CustomActivity, Streaming, Status
 from discord.ext import commands
 from discord.ext.commands import Cog, Context, ExtensionAlreadyLoaded, ExtensionNotLoaded, NoEntryPointError, ExtensionFailed
+from discord.ext.commands.errors import MissingRequiredArgument
 from helpers.errorHandling import *
 from helpers.getIPv4Info import *
 from startup import MyBot
@@ -10,7 +12,7 @@ from helpers.restarter import restarter
 from helpers.extensionsHandler import getAllExtensions
 from helpers.respondEmbed import respondEmbed, ResponseTarget
 from helpers.networkInfo import NetworkInfo
-from typing import List
+from typing import List, Literal
 
 
 class OwnerOnly(Cog):
@@ -25,11 +27,15 @@ class OwnerOnly(Cog):
         if getattr(ctx, "_errorHandled", False):    # if ctx._errorHandled was set to True this could be ignored
             return
 
+        # this is an administration cog, so we wanted to keep it simple.
+        if isinstance(error, MissingRequiredArgument):
+            return await respondEmbed(ctx, f"Missing required argument: `{error.param.name}`", error=True, target=ResponseTarget.REPLY)
+
         self.logger.exception(f"Uncaught error in {ctx.cog.__cog_name__}:", exc_info=error)
 
 
     # This is a migrated cog from startup.py for owner only commands
-    # Sync, load, unload, reload, systeminfo, restart, shutdown
+    # Sync, presence (migrated from general/ChangeStatus.py), load, unload, reload, systeminfo, restart, shutdown
 
 
     # Sync all cogs for latest changes 
@@ -41,11 +47,70 @@ class OwnerOnly(Cog):
         Sync all cogs for latest changes
         """
 
+        deleteAfterOwnerAction = 5  # default timer for deleting the message after succeed
+
         if not await self.bot.is_owner(ctx.author):
             return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
-        
+
         synced = await self.bot.tree.sync()
-        await respondEmbed(ctx, f"Synced {len(synced)} command(s).", title="Sync Successful", target=ResponseTarget.REPLY, deleteAfter=5)
+        await respondEmbed(ctx, f"Synced {len(synced)} command(s).", title="Sync Successful", target=ResponseTarget.REPLY, deleteAfter=deleteAfterOwnerAction)
+        await ctx.message.delete(delay=deleteAfterOwnerAction)
+
+
+    # Helper: build the activity object from plain-string inputs
+    def _buildActivity(self, activityType: str | None, name: str | None, url: str | None):
+        if activityType is None:
+            return None
+        if activityType == "custom":
+            return CustomActivity(name=name)
+        if activityType == "streaming":
+            return Streaming(name=name, url=url)
+        return Activity(type=getattr(ActivityType, activityType), name=name)
+
+
+    # Change the bot's presence (status + activity)
+    @commands.command(hidden=True)
+    async def presence(
+        self,
+        ctx: Context,
+        status: Literal["idle", "invisible", "dnd", "online"],
+        activity_type: Literal["playing", "streaming", "listening", "watching", "custom", "competing"] | None = None,
+        activity_name: str | None = None,
+        url: str | None = None,
+    ) -> None:
+        """
+        This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
+
+        Change the bot's presence (status and activity)
+
+        Parameters
+        ----------
+        status: str
+            The status to set: idle, invisible, dnd, or online.
+        activity_type: str
+            The activity type: playing, streaming, listening, watching, custom, or competing.
+        activity_name: str
+            The text shown in the bot's presence. Wrap in "quotes" if it contains spaces.
+        url: str
+            The stream URL (streaming only; requires a Twitch/YouTube link).
+        """
+
+        deleteAfterOwnerAction = 5  # default timer for deleting the message after succeed
+
+        if not await self.bot.is_owner(ctx.author):
+            return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
+
+        activity = self._buildActivity(activity_type, activity_name, url)
+        await self.bot.change_presence(status=getattr(Status, status), activity=activity)
+
+        await respondEmbed(
+            ctx,
+            f"Status set to `{status}`" + (f" · `{activity_type}` {activity_name!r}" if activity_type else ""),
+            title="Presence Updated",
+            target=ResponseTarget.REPLY,
+            deleteAfter=deleteAfterOwnerAction,
+        )
+        await ctx.message.delete(delay=deleteAfterOwnerAction)
 
 
     # Loading a cog manually
@@ -62,33 +127,37 @@ class OwnerOnly(Cog):
             The name to load.
         """
 
+        deleteAfterSuccess = 2  # default timer for deleting the message after succeed
+
         if not await self.bot.is_owner(ctx.author):
             return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
-        
+
         extensions = await getAllExtensions()
         if cog_name not in extensions:  # Front check if the cog was in the valid cog list or not
             return await respondEmbed(ctx, ExtensionNotFoundError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
-        
+
         try:
             await self.bot.load_extension(cog_name)
             await self.bot.tree.sync()
-            await respondEmbed(ctx, f"Cog `{cog_name}` has been loaded.", title="Load Successful", target=ResponseTarget.REPLY, deleteAfter=2)
-            
+            await respondEmbed(ctx, f"Cog `{cog_name}` has been loaded.", title="Load Successful", target=ResponseTarget.REPLY, deleteAfter=deleteAfterSuccess)
+            await ctx.message.delete(delay=deleteAfterSuccess)
+
         except ExtensionAlreadyLoaded:
             return await respondEmbed(ctx, f"Cog `{cog_name}` has been already loaded!", error=True, target=ResponseTarget.REPLY)
-        
+
         except NoEntryPointError:
             return await respondEmbed(ctx, ReturnNoEntryPointError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
-        
+
         except ExtensionFailed:
             return await respondEmbed(ctx, ExtensionFailedError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
 
 
+    # Unloading a cog manually
     @commands.command(hidden=True)
     async def unload(self, ctx: Context, cog_name: str) -> None:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
-        
+
         Unload cogs manually
 
         Parameters
@@ -97,16 +166,19 @@ class OwnerOnly(Cog):
             The name to unload.
         """
 
+        deleteAfterSuccess = 2  # default timer for deleting the message after succeed
+
         if not await self.bot.is_owner(ctx.author):
             return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
 
         if cog_name not in await getAllExtensions():  # Front check if the cog was in the valid cog list or not
             return await respondEmbed(ctx, ExtensionNotFoundError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
-        
+
         try:
             await self.bot.unload_extension(cog_name)
             await self.bot.tree.sync()
-            await respondEmbed(ctx, f"Cog `{cog_name}` has been unloaded.", title="Unload Successful", target=ResponseTarget.REPLY, deleteAfter=2)
+            await respondEmbed(ctx, f"Cog `{cog_name}` has been unloaded.", title="Unload Successful", target=ResponseTarget.REPLY, deleteAfter=deleteAfterSuccess)
+            await ctx.message.delete(delay=deleteAfterSuccess)
 
         except ExtensionNotLoaded:
             return await respondEmbed(ctx, f"Cog `{cog_name}` has been already unloaded!", error=True, target=ResponseTarget.REPLY)
@@ -118,6 +190,7 @@ class OwnerOnly(Cog):
             return await respondEmbed(ctx, ExtensionFailedError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
 
 
+    # Reloading a cog manually
     @commands.command(hidden=True)
     async def reload(self, ctx: Context, cog_name: str) -> None:
         """
@@ -131,16 +204,19 @@ class OwnerOnly(Cog):
             The name to reload.
         """
 
+        deleteAfterSuccess = 2  # default timer for deleting the message after succeed
+
         if not await self.bot.is_owner(ctx.author):
             return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
-        
+
         if cog_name not in await getAllExtensions():  # Front check if the cog was in the valid cog list or not
             return await respondEmbed(ctx, ExtensionNotFoundError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
-        
+
         try:
             await self.bot.reload_extension(cog_name)
             await self.bot.tree.sync()
-            await respondEmbed(ctx, f"Cog `{cog_name}` has been reloaded.", title="Reload Successful", target=ResponseTarget.REPLY, deleteAfter=2)
+            await respondEmbed(ctx, f"Cog `{cog_name}` has been reloaded.", title="Reload Successful", target=ResponseTarget.REPLY, deleteAfter=deleteAfterSuccess)
+            await ctx.message.delete(delay=deleteAfterSuccess)
 
         except ExtensionNotLoaded:
             return await respondEmbed(ctx, f"Cog `{cog_name}` has not been loaded.", error=True, target=ResponseTarget.REPLY)
@@ -152,6 +228,7 @@ class OwnerOnly(Cog):
             return await respondEmbed(ctx, ExtensionFailedError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
 
 
+    # Retrieving system info from the bot instance
     @commands.command(hidden=True)
     async def systeminfo(self, ctx: Context) -> None:
         """
@@ -160,9 +237,11 @@ class OwnerOnly(Cog):
         Retrieving system info from the bot
         """
 
+        deleteAfterSuccess = 30    # default timer for deleting the message after succeed
+
         if not await self.bot.is_owner(ctx.author):
             return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
-        
+
         def convertToGiB(raw):
             return round(raw / 1024 ** 3, 2)
 
@@ -180,7 +259,7 @@ class OwnerOnly(Cog):
             f"\nNumber of system cores: {numberOfSystemCores}"
             f"\nNumber of logical cores: {numberOfLogicalCores}"
         )
-        
+
         # RAM
         ram = psutil.virtual_memory()
         usedRamInGiB = convertToGiB(ram.used)
@@ -206,7 +285,7 @@ class OwnerOnly(Cog):
             f"Space used: {usedVolumeInGiB} / {totalVolumeInGiB} GiB ({diskPercentage}%)"
             f"\nAvailible space: {freeVolumeInGiB} GiB"
         )
-        
+
         # Basic Network
         basicNetwork = await asyncio.to_thread(NetworkInfo)   # add ipv6_global_only=True if you want to trim link-local noise
 
@@ -219,7 +298,7 @@ class OwnerOnly(Cog):
             f"IPv6 Gateway: {basicNetwork.ipv6_gateway}"
         )
 
-        
+
         # Advanced Network
         ipInfo = await asyncio.to_thread(IPv4info)
         hostname = socket.gethostname()
@@ -246,7 +325,8 @@ class OwnerOnly(Cog):
             f"Total number of outgoing packets dropped: {advancedNetwork.dropout}"
         )
 
-        await respondEmbed(ctx, "\n".join(messageLines), title="System Info (For reference only):", target=ResponseTarget.REPLY, deleteAfter=30)
+        await respondEmbed(ctx, "\n".join(messageLines), title="System Info (For reference only):", target=ResponseTarget.REPLY, deleteAfter=deleteAfterSuccess)
+        await ctx.message.delete(delay=deleteAfterSuccess)
 
 
     # Shutdown the bot and the server
@@ -259,11 +339,12 @@ class OwnerOnly(Cog):
 
         However, this command does NOT shut down the entire machine/server in docker or VPS hosting environments.
         """
-        
+
         if not await self.bot.is_owner(ctx.author):
             return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
-        
+
         await self.bot.close()
+
 
     # Restart the bot and the server
     @commands.command(hidden=True)
@@ -273,13 +354,14 @@ class OwnerOnly(Cog):
 
         Restart the bot and the server
         """
-        
+
         if not await self.bot.is_owner(ctx.author):
             return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
-        
+
         restarter.request(reason=f"Restart requested by bot owner.", delay=0.0)
         await self.bot.close()
 
 
 async def setup(bot: MyBot):
     await bot.add_cog(OwnerOnly(bot))
+

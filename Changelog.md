@@ -10,6 +10,24 @@ predates the first tag is collected under the initial `v1.0.0` release.
 
 ---
 
+## [v3.5.2] - 2026-09-02
+### Changed
+- Moved the bot presence (status + activity) command into the
+  `OwnerOnly` cog as a prefix-only command. It is no longer exposed as
+  a slash command, keeping it invisible to non-owner users by design.
+### Added
+- `presence` owner command to set the bot's status (idle, invisible,
+  dnd, online) and activity (playing, streaming, listening, watching,
+  custom, competing). Activity names containing spaces are supported by
+  wrapping them in quotes.
+### Fixed
+- Streaming activities now render correctly using discord.py's
+  `Streaming` type instead of a generic `Activity`.
+- Replaced a fragile `__getattribute__` enum lookup with `getattr`.
+### Removed
+- Obsolete hybrid `ChangeStatus` cog, superseded by the owner-only
+  `presence` command.
+
 ## [v3.5.1] - 2026-09-01
 ### Fixed
 - `discord.opus.OpusNotLoaded` crash on every incoming voice packet when
@@ -588,8 +606,9 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - Migrated from discord.py to Pycord.
 - First deployment; added `ban_guild()`.
 
-[Unreleased]: https://github.com/HikariApp/hikari/compare/v3.5.1...HEAD
-[3.5.0]: https://github.com/HikariApp/hikari/compare/v3.5.0...v3.5.1
+[Unreleased]: https://github.com/HikariApp/hikari/compare/v3.5.2...HEAD
+[3.5.2]: https://github.com/HikariApp/hikari/compare/v3.5.1...v3.5.2
+[3.5.1]: https://github.com/HikariApp/hikari/compare/v3.5.0...v3.5.1
 [3.5.0]: https://github.com/HikariApp/hikari/compare/v3.3.0...v3.5.0
 [3.3.0]: https://github.com/HikariApp/hikari/compare/v3.2.2...v3.3.0
 [3.2.2]: https://github.com/HikariApp/hikari/compare/v3.2.1...v3.2.2
