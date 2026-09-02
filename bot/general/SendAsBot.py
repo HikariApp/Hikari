@@ -1,112 +1,207 @@
 import discord
-from discord import app_commands, Color, Embed, File, Forbidden, Interaction, TextStyle, VoiceChannel
-from discord.ext.commands import Bot, Cog
+from discord import AllowedMentions, File, Forbidden, Interaction, Message, TextStyle
+from discord.ext import commands
+from discord.ext.commands import  Cog, CommandInvokeError, Context, BotMissingPermissions, MissingPermissions, MissingRequiredArgument
+from discord.ext.commands.errors import BadBoolArgument
 from discord.ui import Modal, TextInput
-from discord.app_commands.errors import MissingPermissions, BotMissingPermissions, CommandInvokeError
-from typing import Optional
+from typing import Optional, Union
+from startup import MyBot
+from helpers.respondEmbed import respondEmbed, ResponseTarget
 
 
-class SendAsBotModal(Modal):
+async def _emptyMessageError(source: Union[Context, Interaction]) -> Optional[Message]:
     """
-    A Discord Modal to let you send your message as bot's identity
+    This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
+    
+    Returns an embed for when the user tries to send nothing.
+    
+    Parameters
+    ----------
+    source : Union[Context, Interaction]
+        The source of the command or interaction, used to determine how to respond.
+
+    Returns
+    -------
+    discord.Message, optional
+        The message sent in response, or None if the response could not be sent.
     """
 
-    content = TextInput(
-        label="Content (Leave empty to send attachment only)",
-        style=TextStyle.paragraph,
-        placeholder="Any mass mentions like @everyone or @here will be sanitized unless you are the bot owner.",
-        required=True,
-        max_length=4000
+    return await respondEmbed(
+        source,
+        message="You can't send nothing — provide a message, an attachment, or both.",
+        error=True
     )
 
 
-    def __init__(self, bot: Bot, silent: bool = False, file: Optional[File] = None):
+def _allowedMentions(is_owner: bool) -> AllowedMentions:
+    """
+    Returns the allowed mentions for a given user.
+
+    Owners may ping @everyone/@here; everyone else cannot.
+    """
+
+    return AllowedMentions.all() if is_owner else AllowedMentions(everyone=False)
+
+
+class SendAsBotModal(Modal):
+    """A Discord Modal to let you send your message as the bot's identity."""
+
+    content = TextInput(
+        label="Content (leave empty to send attachment only)",
+        style=TextStyle.paragraph,
+        placeholder="@everyone / @here pings are blocked unless you are the bot owner.",
+        required=False,
+        max_length=4000,
+    )
+
+    def __init__(self, bot: MyBot, silent: bool = False, file: Optional[File] = None):
         self.bot = bot
         self.silent = silent
         self.file = file
-        super().__init__(title="Send your message as bot's identity")
+        super().__init__(title="Send your message as the bot's identity")
 
 
-    # Cog-level error listener for unhandled errors
-    async def cog_on_command_error(self, interaction: Interaction, error: Exception):
-        embed = discord.Embed(title="")
-
-        if isinstance(error, CommandInvokeError) and isinstance(error.original, Forbidden):
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **send the content you provided**. Please **double-check** my **permissions** and **role position**.")
-            embed.color = Color.red()
-            return await interaction.followup.send(embed=embed)
-        
-        self.logger.exception(f"Uncaught error in {interaction.cog.__cog_name__}:", exc_info=error)
+    async def on_error(self, interaction: Interaction, error: Exception) -> None:
+        if isinstance(error, Forbidden):
+            return await respondEmbed(
+                interaction,
+                message="I couldn't send that. Please double-check my permissions and role position.",
+                target=ResponseTarget.EPHEMERAL,
+                error=True
+            )
         raise error
 
 
-    async def on_submit(self, interaction: Interaction):
-        """
-        Handle modal submission.
-        """
-        errorEmbed = Embed(title="", color=Color.red())
-        await interaction.response.defer()
+    async def on_submit(self, interaction: Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
         content = self.content.value or None
-        #
-        # New safety guard to prevent unwanted mass mentions (spamming @everyone or @here) disasters in history.
-        # You can find it on (https://www.threads.com/@yukicon_/post/DQRQV0AEuQZ?xmt=AQF0BZjthgicIXxYGxVFI-rMDoMqo2fIOXRpvfqJrgNE4g) for more details.
-        #
-        # @everyone and @here mentions are now only available to bot owners
-        # For general users, this will replace both mentions with a zero-width space in between to prevent actual mentions
-        #
-        content = content if await self.bot.is_owner(interaction.user) else content.replace("@everyone", "@\u200beveryone").replace("@here", "@\u200bhere")
 
-        # Safety guard ends here, proceed to send the message
         if content is None and self.file is None:
-            # Returns if both message and attachments are not provided
-            errorEmbed.add_field(name="", value="<a:crossred:1356353067024515266> You cannot let me to send nothing... (say at least send a message or an attachment)", inline=False)
-            return await interaction.followup.send(embed=errorEmbed)
-    
-        return await interaction.channel.send(content=content, file=self.file, silent=self.silent) if not isinstance(interaction.channel, VoiceChannel) else None
+            return await _emptyMessageError(interaction)
+
+        is_owner = await self.bot.is_owner(interaction.user)
+        await interaction.channel.send(
+            content=content,
+            file=self.file,
+            silent=self.silent,
+            allowed_mentions=_allowedMentions(is_owner),
+        )
+
+        await respondEmbed(
+            interaction,
+            message=f"Sent to {interaction.channel.mention}.",
+            target=ResponseTarget.EPHEMERAL
+        )
 
 
 class SendAsBot(Cog):
-    def __init__(self, bot: Bot):
-        global bool_value
+    def __init__(self, bot: MyBot):
         self.bot = bot
+        self.logger = self.bot.getLogger()
 
 
-    # Send message from user input
-    @app_commands.command()
-    @app_commands.checks.has_permissions(administrator=True)
-    @app_commands.checks.bot_has_permissions(send_messages=True)
-    async def send(self, interaction: Interaction, silent: bool, attachment: Optional[discord.Attachment] = None):
+    # Cog-level error listener for unhandled errors
+    async def cog_command_error(self, ctx: Context, error: Exception):
+        if getattr(ctx, "_errorHandled", False):    # if ctx._errorHandled was set to True this could be ignored
+            return
+
+        self.logger.exception(f"Uncaught error in {ctx.cog.__cog_name__}:", exc_info=error)
+
+
+    # Send a message as the bot's identity
+    @commands.hybrid_command()
+    @commands.has_permissions(administrator=True)
+    @commands.bot_has_permissions(send_messages=True)
+    async def send(
+        self,
+        ctx: Context,
+        silent: bool = False,
+        attachment: Optional[discord.Attachment] = None,
+        *,
+        content: Optional[str] = None,
+    ) -> None:
         """
-        Send your message or attatchment, or both through me
+        Send a message and/or attachment through me.
 
         Parameters
         ----------
         silent : bool
             Send it as a silent message?
-        attachment : `Optional[discord.Attachment]`
-            The attachment you would like to send. Leave this empty if you want to send the message only.
+        attachment : Optional[discord.Attachment]
+            The attachment to send. Leave empty to send text only.
+        content : Optional[str]
+            The message text. On slash, leaving this empty opens a modal.
         """
-        # Converts the attachment to a discord.File() object
+
+        await ctx.defer()
         file = await attachment.to_file() if attachment else None
-        await interaction.response.send_modal(SendAsBotModal(bot=self.bot, silent=silent, file=file))
+
+        # Slash invocation with no inline content -> pop the rich modal.
+        if ctx.interaction is not None and content is None:
+            return await ctx.interaction.response.send_modal(
+                SendAsBotModal(bot=self.bot, silent=silent, file=file)
+            )
+
+        # Prefix, or slash-with-content: send directly.
+        if content is None and file is None:
+            return await _emptyMessageError(ctx)
+
+        is_owner = await self.bot.is_owner(ctx.author)
+        await ctx.channel.send(
+            content=content,
+            file=file,
+            silent=silent,
+            allowed_mentions=_allowedMentions(is_owner),
+        )
+
+        deleteAfterForContext = 5.0
+
+        await respondEmbed(
+            ctx,
+            message=f"Sent to {ctx.channel.mention}.",
+            target=ResponseTarget.REPLY,
+            deleteAfter=deleteAfterForContext,
+        )
+
+        if ctx.interaction is None:
+            await ctx.message.delete(delay=deleteAfterForContext)
 
 
+    # Error handling, for both commands and slash commands
     @send.error
-    async def send_error(self, interaction: Interaction, error):
-        embed = embed(title="", color=Color.red())
+    async def send_error(self, ctx: Context, error: Exception) -> None:
+        ctx._errorHandled = False    # if the error is handled, we would set this to True to prevent further propagation
 
         if isinstance(error, MissingPermissions):
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `move members` permission, and you probably **don't have** it, {interaction.user.mention}.", inline=False)
-            await interaction.response.send_message(embed=embed)
-            
-        if isinstance(error, BotMissingPermissions):
-            embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I **don't have** `send messages` permission in this channel. Please grant me the permission in advance when proceeding.", inline=False)
-            await interaction.response.send_message(embed=embed)
+            # The command invoker doesn't have permissions
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"This command **requires** `send_messages` permission, and you probably **don't have** it, {ctx.author.mention}.", error=True)
 
-        else:
-            raise error
+        if isinstance(error, BadBoolArgument):
+            # The command invoker provided an invalid boolean value
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"Invalid boolean value: `{error.argument}`", error=True, target=ResponseTarget.REPLY)
+
+        if isinstance(error, MissingRequiredArgument) and error.param.name == "content":
+            # The command invoker doesn't provide the user argument
+            # A special case to return a more user-friendly message
+            ctx._errorHandled = True
+            return await _emptyMessageError(ctx)
+
+        if isinstance(error, MissingRequiredArgument):
+            # Missing argument(s)
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"Missing argument: `{error.param.name}`. Please provide all required arguments, {ctx.author.mention}.", error=True)
+
+        if (
+            isinstance(error, BotMissingPermissions) or
+            (isinstance(error, CommandInvokeError) and isinstance(error.original, Forbidden))    # Sometimes the application might throw a CommandInvokeError which caused by Forbidden, which is basically the same concept
+        ):
+            # The application doesn't have permissions to do so
+            ctx._errorHandled = True
+            return await respondEmbed(ctx, message=f"I couldn't **send the message**. Please **double-check** my **permissions** and **role position**.", error=True)
 
 
-async def setup(bot: Bot):
+async def setup(bot: MyBot):
     await bot.add_cog(SendAsBot(bot))
 

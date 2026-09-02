@@ -50,10 +50,10 @@ class OwnerOnly(Cog):
         deleteAfterOwnerAction = 5  # default timer for deleting the message after succeed
 
         if not await self.bot.is_owner(ctx.author):
-            return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
+            return await respondEmbed(ctx, message=NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
 
         synced = await self.bot.tree.sync()
-        await respondEmbed(ctx, f"Synced {len(synced)} command(s).", title="Sync Successful", target=ResponseTarget.REPLY, deleteAfter=deleteAfterOwnerAction)
+        await respondEmbed(ctx, title="Sync Successful", message=f"Synced {len(synced)} command(s).", target=ResponseTarget.REPLY, deleteAfter=deleteAfterOwnerAction)
         await ctx.message.delete(delay=deleteAfterOwnerAction)
 
 
@@ -98,15 +98,15 @@ class OwnerOnly(Cog):
         deleteAfterOwnerAction = 5  # default timer for deleting the message after succeed
 
         if not await self.bot.is_owner(ctx.author):
-            return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
+            return await respondEmbed(ctx, message=NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
 
         activity = self._buildActivity(activity_type, activity_name, url)
         await self.bot.change_presence(status=getattr(Status, status), activity=activity)
 
         await respondEmbed(
             ctx,
-            f"Status set to `{status}`" + (f" · `{activity_type}` {activity_name!r}" if activity_type else ""),
             title="Presence Updated",
+            message=f"Status set to `{status}`" + (f" · `{activity_type}` {activity_name!r}" if activity_type else ""),
             target=ResponseTarget.REPLY,
             deleteAfter=deleteAfterOwnerAction,
         )
@@ -130,26 +130,26 @@ class OwnerOnly(Cog):
         deleteAfterSuccess = 2  # default timer for deleting the message after succeed
 
         if not await self.bot.is_owner(ctx.author):
-            return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
+            return await respondEmbed(ctx, message=NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
 
         extensions = await getAllExtensions()
         if cog_name not in extensions:  # Front check if the cog was in the valid cog list or not
-            return await respondEmbed(ctx, ExtensionNotFoundError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
+            return await respondEmbed(ctx, message=ExtensionNotFoundError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
 
         try:
             await self.bot.load_extension(cog_name)
             await self.bot.tree.sync()
-            await respondEmbed(ctx, f"Cog `{cog_name}` has been loaded.", title="Load Successful", target=ResponseTarget.REPLY, deleteAfter=deleteAfterSuccess)
+            await respondEmbed(ctx, title="Load Successful", message=f"Cog `{cog_name}` has been loaded.", target=ResponseTarget.REPLY, deleteAfter=deleteAfterSuccess)
             await ctx.message.delete(delay=deleteAfterSuccess)
 
         except ExtensionAlreadyLoaded:
-            return await respondEmbed(ctx, f"Cog `{cog_name}` has been already loaded!", error=True, target=ResponseTarget.REPLY)
+            return await respondEmbed(ctx, message=f"Cog `{cog_name}` has been already loaded!", error=True, target=ResponseTarget.REPLY)
 
         except NoEntryPointError:
-            return await respondEmbed(ctx, ReturnNoEntryPointError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
+            return await respondEmbed(ctx, message=ReturnNoEntryPointError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
 
         except ExtensionFailed:
-            return await respondEmbed(ctx, ExtensionFailedError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
+            return await respondEmbed(ctx, message=ExtensionFailedError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
 
 
     # Unloading a cog manually
@@ -169,25 +169,25 @@ class OwnerOnly(Cog):
         deleteAfterSuccess = 2  # default timer for deleting the message after succeed
 
         if not await self.bot.is_owner(ctx.author):
-            return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
+            return await respondEmbed(ctx, message=NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
 
         if cog_name not in await getAllExtensions():  # Front check if the cog was in the valid cog list or not
-            return await respondEmbed(ctx, ExtensionNotFoundError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
+            return await respondEmbed(ctx, message=ExtensionNotFoundError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
 
         try:
             await self.bot.unload_extension(cog_name)
             await self.bot.tree.sync()
-            await respondEmbed(ctx, f"Cog `{cog_name}` has been unloaded.", title="Unload Successful", target=ResponseTarget.REPLY, deleteAfter=deleteAfterSuccess)
+            await respondEmbed(ctx, title="Unload Successful", message=f"Cog `{cog_name}` has been unloaded.", target=ResponseTarget.REPLY, deleteAfter=deleteAfterSuccess)
             await ctx.message.delete(delay=deleteAfterSuccess)
 
         except ExtensionNotLoaded:
-            return await respondEmbed(ctx, f"Cog `{cog_name}` has been already unloaded!", error=True, target=ResponseTarget.REPLY)
+            return await respondEmbed(ctx, message=f"Cog `{cog_name}` has been already unloaded!", error=True, target=ResponseTarget.REPLY)
         
         except NoEntryPointError:
-            return await respondEmbed(ctx, ReturnNoEntryPointError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
+            return await respondEmbed(ctx, message=ReturnNoEntryPointError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
 
         except ExtensionFailed:
-            return await respondEmbed(ctx, ExtensionFailedError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
+            return await respondEmbed(ctx, message=ExtensionFailedError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
 
 
     # Reloading a cog manually
@@ -207,25 +207,25 @@ class OwnerOnly(Cog):
         deleteAfterSuccess = 2  # default timer for deleting the message after succeed
 
         if not await self.bot.is_owner(ctx.author):
-            return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
+            return await respondEmbed(ctx, message=NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
 
         if cog_name not in await getAllExtensions():  # Front check if the cog was in the valid cog list or not
-            return await respondEmbed(ctx, ExtensionNotFoundError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
+            return await respondEmbed(ctx, message=ExtensionNotFoundError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
 
         try:
             await self.bot.reload_extension(cog_name)
             await self.bot.tree.sync()
-            await respondEmbed(ctx, f"Cog `{cog_name}` has been reloaded.", title="Reload Successful", target=ResponseTarget.REPLY, deleteAfter=deleteAfterSuccess)
+            await respondEmbed(ctx, message=f"Cog `{cog_name}` has been reloaded.", title="Reload Successful", target=ResponseTarget.REPLY, deleteAfter=deleteAfterSuccess)
             await ctx.message.delete(delay=deleteAfterSuccess)
 
         except ExtensionNotLoaded:
-            return await respondEmbed(ctx, f"Cog `{cog_name}` has not been loaded.", error=True, target=ResponseTarget.REPLY)
+            return await respondEmbed(ctx, message=f"Cog `{cog_name}` has not been loaded.", error=True, target=ResponseTarget.REPLY)
 
         except NoEntryPointError:
-            return await respondEmbed(ctx, ReturnNoEntryPointError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
+            return await respondEmbed(ctx, message=ReturnNoEntryPointError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
 
         except ExtensionFailed:
-            return await respondEmbed(ctx, ExtensionFailedError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
+            return await respondEmbed(ctx, message=ExtensionFailedError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
 
 
     # Retrieving system info from the bot instance
@@ -240,7 +240,7 @@ class OwnerOnly(Cog):
         deleteAfterSuccess = 30    # default timer for deleting the message after succeed
 
         if not await self.bot.is_owner(ctx.author):
-            return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
+            return await respondEmbed(ctx, message=NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
 
         def convertToGiB(raw):
             return round(raw / 1024 ** 3, 2)
@@ -325,7 +325,7 @@ class OwnerOnly(Cog):
             f"Total number of outgoing packets dropped: {advancedNetwork.dropout}"
         )
 
-        await respondEmbed(ctx, "\n".join(messageLines), title="System Info (For reference only):", target=ResponseTarget.REPLY, deleteAfter=deleteAfterSuccess)
+        await respondEmbed(ctx, title="System Info (For reference only):", message="\n".join(messageLines), target=ResponseTarget.REPLY, deleteAfter=deleteAfterSuccess)
         await ctx.message.delete(delay=deleteAfterSuccess)
 
 
@@ -341,7 +341,7 @@ class OwnerOnly(Cog):
         """
 
         if not await self.bot.is_owner(ctx.author):
-            return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
+            return await respondEmbed(ctx, message=NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
 
         await self.bot.close()
 
@@ -356,7 +356,7 @@ class OwnerOnly(Cog):
         """
 
         if not await self.bot.is_owner(ctx.author):
-            return await respondEmbed(ctx, NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
+            return await respondEmbed(ctx, message=NotBotOwnerError(), error=True, target=ResponseTarget.REPLY)
 
         restarter.request(reason=f"Restart requested by bot owner.", delay=0.0)
         await self.bot.close()

@@ -132,12 +132,12 @@ class Ban(Cog):
         if isinstance(error, MissingRequiredArgument):
             # Missing argument(s)
             ctx._errorHandled = True
-            return await respondEmbed(ctx, message=f"<a:crossred:1356353067024515266> Missing argument: `{error.param.name}`. Please provide all required arguments, {ctx.author.mention}.", error=True)
+            return await respondEmbed(ctx, message=f"Missing argument: `{error.param.name}`. Please provide all required arguments, {ctx.author.mention}.", error=True)
 
         if isinstance(error, MissingPermissions):
             # The command invoker doesn't have permissions
             ctx._errorHandled = True
-            return await respondEmbed(ctx, message=f"<a:crossred:1356353067024515266> This command **requires** `ban_members` permission, and you probably **don't have** it, {ctx.author.mention}.", error=True)
+            return await respondEmbed(ctx, message=f"This command **requires** `ban_members` permission, and you probably **don't have** it, {ctx.author.mention}.", error=True)
 
         if (
             isinstance(error, BotMissingPermissions) or
@@ -145,7 +145,7 @@ class Ban(Cog):
         ):
             # The application doesn't have permissions to do so
             ctx._errorHandled = True
-            return await respondEmbed(ctx, message=f"<a:crossred:1356353067024515266> I couldn't **ban** that user. Please **double-check** my **permissions** and **role position**.", error=True)
+            return await respondEmbed(ctx, message=f"I couldn't **ban** that user. Please **double-check** my **permissions** and **role position**.", error=True)
 
 
 async def setup(bot: MyBot):
