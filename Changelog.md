@@ -12,6 +12,8 @@ predates the first tag is collected under the initial `v1.0.0` release.
 
 ## [Unreleased]
 
+## [3.5.6] - 2026-09-03
+
 ### Added
 - **Recorder:** Voice recordings are now uploaded to Cloudflare R2 and shared
   via a presigned download link (24h expiry) instead of being attached to the
@@ -21,13 +23,16 @@ predates the first tag is collected under the initial `v1.0.0` release.
   `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`) documented in
   `.env.example`, including step-by-step instructions for obtaining R2
   credentials.
+- **Ping:** New `ping` hybrid command reporting message round-trip (Time),
+  event-loop responsiveness (Micro), and gateway heartbeat latency (WS).
 
 ### Changed
 - **Recorder:** Per-user tracks are packed into a single in-memory zip
   (`_packRecordings`) and uploaded in one object; the previous size-based
   file splitting is no longer needed.
 - **Recorder:** Reworked the "Recording Finished" embed — clickable download
-  link with a raw-URL fallback and a link-expiry notice.
+  link with a raw-URL fallback and a link-expiry notice. R2 storage is now
+  required for using the recorder itself.
 - Normalized all line endings from CRLF to LF across the repository.
 
 ### Removed
@@ -70,7 +75,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - Silence-padding no longer depends on external binaries, eliminating a class of
   runtime failures on images without `ffmpeg` present.
 
-## [v3.5.4] - 2026-09-02
+## [3.5.4] - 2026-09-02
 
 ### Added
 - `respondEmbed` now supports rich embed fields: author (name/url/icon),
@@ -103,7 +108,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
   the initial response and a followup instead of assuming the first
   response is always available.
 
-## [v3.5.2] - 2026-09-02
+## [3.5.2] - 2026-09-02
 
 ### Changed
 - Moved the bot presence (status + activity) command into the
@@ -125,7 +130,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - Obsolete hybrid `ChangeStatus` cog, superseded by the owner-only
   `presence` command.
 
-## [v3.5.1] - 2026-09-01
+## [3.5.1] - 2026-09-01
 
 ### Fixed
 - `discord.opus.OpusNotLoaded` crash on every incoming voice packet when
@@ -149,7 +154,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
   The guard also refuses cleanly if the bot is connected in a non-recordable
   state rather than failing later.
 
-## [v3.5.0] - 2026-09-01
+## [3.5.0] - 2026-09-01
 
 ### Added
 - Recorder-aware guards in the music player: `join`/`play` and `ensurePlayable`
@@ -183,7 +188,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
   notification during shutdown or a gateway drop; the send is now guarded
   and the disconnect is logged as a warning.
 
-## [v3.3.0] - 2026-08-31
+## [3.3.0] - 2026-08-31
 
 ### Added
 - Slim Docker image via multi-stage build on a slim base.
@@ -201,12 +206,12 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Removed
 - Unused `VoiceChannelConfig`.
 
-## [v3.2.2] - 2026-08-29
+## [3.2.2] - 2026-08-29
 
 ### Changed
 - `lockchannel`: concurrent bulk operations and hardened embed delivery.
 
-## [v3.2.1] - 2026-08-28
+## [3.2.1] - 2026-08-28
 
 ### Added
 - Volume confirmation prompt for high levels in the music player.
@@ -217,7 +222,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - Numeric arguments now work on prefix-invoked hybrid commands.
 - `repeat` command no longer unresponsive when disabled.
 
-## [v3.1.7] - 2026-08-27
+## [3.1.7] - 2026-08-27
 
 ### Added
 - Core response layer now supports reply and private send with optional `deleteAfter`.
@@ -227,7 +232,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - Migrated `ownerOnly`, `MusicPlayer`, and moderation call sites to the unified response-embed API.
 - Converted common moderation commands to hybrid commands.
 
-## [v3.1.0] - 2026-08-26
+## [3.1.0] - 2026-08-26
 
 ### Added
 - Hardened `extensionsHandler` with a customized boolean checker.
@@ -240,7 +245,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Fixed
 - Handle `SIGTERM` for graceful shutdown under Docker.
 
-## [v3.0.0] - 2026-08-25
+## [3.0.0] - 2026-08-25
 
 ### Added
 - Default metadata handling for `TrackType.APPLE_MUSIC`.
@@ -254,12 +259,12 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Removed
 - Legacy track command.
 
-## [v2.9.7] - 2026-08-22
+## [2.9.7] - 2026-08-22
 
 ### Fixed
 - Embed no longer renders incorrectly when a track has no artwork attached.
 
-## [v2.9.3] - 2026-08-21
+## [2.9.3] - 2026-08-21
 
 ### Added
 - Standardized variables inside the music player and added helper utilities.
@@ -273,7 +278,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - Restored missing logic in the `nextTrack` session.
 - Tracks no longer remain paused after skip/previous when previously paused.
 
-## [v2.8.5] - 2026-08-20
+## [2.8.5] - 2026-08-20
 
 ### Fixed
 - Overhauled the "repeat all" logic in the music player.
@@ -283,7 +288,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Changed
 - Simplified special-source handling for Plex.
 
-## [v2.7.3] - 2026-04-07
+## [2.7.3] - 2026-04-07
 
 ### Fixed
 - Music player events could not be listened to after switching from pomice to lava-lyra.
@@ -292,12 +297,12 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Changed
 - Updated the contact email for reporting incidents.
 
-## [v2.7.0] - 2026-03-20
+## [2.7.0] - 2026-03-20
 
 ### Changed
 - Replaced the music player module from **pomice** with **lava-lyra** to adapt to Discord DAVE changes before 2026-03-31, and refactored the player accordingly.
 
-## [v2.6.6] - 2026-02-07
+## [2.6.6] - 2026-02-07
 
 ### Fixed
 - Bot no longer goes offline when `player.nextTrack()` dies.
@@ -305,12 +310,12 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Changed
 - Refactored all history carried over from the old repository, with minor optimization.
 
-## [v2.2.5] - 2025-10-17
+## [2.2.5] - 2025-10-17
 
 ### Changed
 - Rewrote the entire music player system.
 
-## [v2.2.0] - 2025-04-07
+## [2.2.0] - 2025-04-07
 
 ### Added
 - Proper error handling when a user tries to start a new conversation in an existing thread (`ChatBot`).
@@ -318,7 +323,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Changed
 - Replaced several outdated emoji icons.
 
-## [v2.1.8] - 2025-04-06
+## [2.1.8] - 2025-04-06
 
 ### Changed
 - Completely rewrote `ChatGPT.py` around a new thread structure and renamed it to `ChatBot.py`.
@@ -328,13 +333,13 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Fixed
 - Heartbeat failures resolved by adopting `AsyncOpenAI`.
 
-## [v2.1.7] - 2025-04-01
+## [2.1.7] - 2025-04-01
 
 ### Changed
 - Completely rewrote `SendFromInput.py`, renamed it to `SendAsBot.py`, and overhauled its error handling.
 - `SendAsBot` now requires admin permission.
 
-## [v2.1.5] - 2025-03-31
+## [2.1.5] - 2025-03-31
 > **Important update.**
 
 ### Changed
@@ -346,17 +351,17 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Removed
 - Large amounts of redundant code and comments.
 
-## [v2.1.4] - 2025-02-09
+## [2.1.4] - 2025-02-09
 
 ### Fixed
 - OpenAI issues after switching servers.
 
-## [v2.1.0] - 2024-12-25
+## [2.1.0] - 2024-12-25
 
 ### Fixed
 - Overflow error when a livestream is playing.
 
-## [v2.0.6] - 2024-12-22
+## [2.0.6] - 2024-12-22
 
 ### Changed
 - Rewrote the message formatter for universal language support.
@@ -364,7 +369,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Fixed
 - Minor issues in `ChatGPT.py`.
 
-## [v2.0.3] - 2024-12-21
+## [2.0.3] - 2024-12-21
 
 ### Changed
 - Rewrote `startup.py` with a fully asynchronous approach for maximum resource optimization.
@@ -378,7 +383,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - Multiprocessing.
 - Custom prompting (due to predictable edge-case issues).
 
-## [v2.0.1] - 2024-12-15
+## [2.0.1] - 2024-12-15
 
 ### Changed
 - Rewrote the MongoDB connection and logic using `motor_asyncio`.
@@ -387,7 +392,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Removed
 - Legacy plugins directory (no longer used).
 
-## [v2.0.0] - 2024-12-06
+## [2.0.0] - 2024-12-06
 > **MongoDB database integration.**
 
 ### Added
@@ -401,7 +406,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - Mute data (type, ending time, etc.) is now stored entirely in the database.
 - Moved `MessageFiltering.py` from `general` to `moderation`.
 
-## [v1.9.4] - 2024-12-04
+## [1.9.4] - 2024-12-04
 
 ### Changed
 - Rewrote `move_all()` and `end` in `VoiceChannel.py` for better resource usage.
@@ -413,13 +418,13 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Removed
 - `push_to_docker.yml` workflow.
 
-## [v1.9.3] - 2024-12-01
+## [1.9.3] - 2024-12-01
 
 ### Changed
 - Recreated `requirements.txt`, removing redundant dependencies.
 - Refactored `VoiceChannel.py` for embed support.
 
-## [v1.6.8] - 2024-11-29
+## [1.6.8] - 2024-11-29
 
 ### Added
 - Docker Compose support.
@@ -431,7 +436,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Fixed
 - `startup.py` issues under Docker Compose.
 
-## [v1.5.3] - 2024-11-22
+## [1.5.3] - 2024-11-22
 
 ### Added
 - Version tagging support.
@@ -439,13 +444,13 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Changed
 - Moved the Docker image to the GitHub Container Registry (GHCR).
 
-## [v1.5.2] - 2024-11-15
+## [1.5.2] - 2024-11-15
 
 ### Changed
 - Rewrote and simplified `ChatGPT.py`.
 - Rephrased the duration message into a more readable form for all time-based mutes/timeouts.
 
-## [v1.5.1] - 2024-11-11
+## [1.5.1] - 2024-11-11
 
 ### Added
 - Nightcore filter support in the music player.
@@ -457,19 +462,19 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Fixed
 - Muting now works correctly in voice channels.
 
-## [v1.5.0] - 2024-11-07
+## [1.5.0] - 2024-11-07
 
 ### Changed
 - Rewrote and refactored most of the moderation section.
 - Separated voice kick/mute into `vkick()`, `vmute()`, and `vumute()` in `VoiceChannel.py`.
 - Improved error handling throughout.
 
-## [v1.4.6] - 2024-10-28
+## [1.4.6] - 2024-10-28
 
 ### Changed
 - Improved error handling for unsupported audio files in the music player.
 
-## [v1.4.5] - 2024-10-23
+## [1.4.5] - 2024-10-23
 
 ### Added
 - `IPv4info.py`.
@@ -481,13 +486,13 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Removed
 - `restarter.py` (superseded by the rewrite).
 
-## [v1.4.4] - 2024-10-22
+## [1.4.4] - 2024-10-22
 
 ### Added
 - `VoiceRecorder.py`, re-adding voice-channel recording after the discord.py migration.
 - New `custom_recording` directory under `plugins`.
 
-## [v1.4.3] - 2024-10-16
+## [1.4.3] - 2024-10-16
 
 ### Changed
 - Rewrote the ChatGPT input logic and improved markdown formatting.
@@ -496,7 +501,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Security
 - Rotated the application and Azure OpenAI API keys.
 
-## [v1.4.2] - 2024-10-13
+## [1.4.2] - 2024-10-13
 
 ### Added
 - `CustomEmbed.py`.
@@ -504,7 +509,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Changed
 - Repeat and autoplay are now boolean options.
 
-## [v1.4.1] - 2024-10-01
+## [1.4.1] - 2024-10-01
 
 ### Fixed
 - Upcoming tracks now display correctly.
@@ -512,7 +517,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Changed
 - Improved the autoplay feature.
 
-## [v1.4.0] - 2024-09-30
+## [1.4.0] - 2024-09-30
 > **Wavelink-based music engine.**
 
 ### Added
@@ -530,13 +535,13 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - YouTube videos/streams can now be played.
 - Custom track information now displays correctly.
 
-## [v1.3.6] - 2024-09-07
+## [1.3.6] - 2024-09-07
 
 ### Changed
 - Switched to Azure OpenAI (from OpenAI) for better GPT-4o support; renamed `OPENAI_API_KEY` to `AZUREOPENAI_API_KEY`.
 - Rewrote and improved error handling for the Azure OpenAI migration.
 
-## [v1.3.5] - 2024-08-17
+## [1.3.5] - 2024-08-17
 
 ### Added
 - New poll system (`Poll.py`); the previous system was renamed to `Vote.py`.
@@ -548,39 +553,39 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Other
 - Bot verified and transferred to a team.
 
-## [v1.3.4] - 2024-07-30
+## [1.3.4] - 2024-07-30
 
 ### Added
 - Support for user-installed applications in ChatGPT (file rewritten to accommodate this).
 
-## [v1.3.3] - 2024-07-21
+## [1.3.3] - 2024-07-21
 
 ### Fixed
 - Adding multiple tracks to the queue.
 
-## [v1.3.2] - 2024-07-20
+## [1.3.2] - 2024-07-20
 
 ### Added
 - `ErrorHandling.py`; all custom errors were moved here.
 
-## [v1.3.1] - 2024-07-18
+## [1.3.1] - 2024-07-18
 
 ### Changed
 - Improved ChatGPT prompting.
 - `resetgpt()` is now bot-owner only.
 
-## [v1.3.0] - 2024-07-16
+## [1.3.0] - 2024-07-16
 
 ### Fixed
 - Assorted ChatGPT issues.
 
-## [v1.2.9] - 2024-06-16
+## [1.2.9] - 2024-06-16
 
 ### Changed
 - Re-separated cogs by category and renamed `cogs` back to `general`.
 - Rewrote the extension-loading logic in `startup.py`.
 
-## [v1.2.8] - 2024-06-14
+## [1.2.8] - 2024-06-14
 
 ### Changed
 - Mostly rewrote the user/guild ban logic.
@@ -589,7 +594,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - Guild ban now functions correctly.
 - Added error handling for `vkick()`.
 
-## [v1.2.5] - 2024-06-11
+## [1.2.5] - 2024-06-11
 
 ### Added
 - Volume control and a `replay()` command.
@@ -604,7 +609,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - Skipping to the last track in the queue.
 - Queue display with more than 15 tracks, and the last-track display.
 
-## [v1.2.2] - 2024-06-01
+## [1.2.2] - 2024-06-01
 
 ### Changed
 - `shutdown()` restored to its original functionality and marked as **self-destruct**.
@@ -616,12 +621,12 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Infrastructure
 - Rolled back to Microsoft Azure with the same structure as Google Cloud Run.
 
-## [v1.2.1] - 2024-05-13
+## [1.2.1] - 2024-05-13
 
 ### Added
 - `systeminfo()` command for the bot owner.
 
-## [v1.2.0] - 2024-05-13
+## [1.2.0] - 2024-05-13
 
 ### Changed
 - The bot now runs as a Quart app inside a Docker container.
@@ -633,7 +638,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Infrastructure
 - Migrated from Microsoft Azure to the Google Cloud Run API.
 
-## [v1.1.5] - 2024-04-04
+## [1.1.5] - 2024-04-04
 
 ### Added
 - `restart()` command and `restarter.py` for the bot owner (guarded by `NotBotOwnerError()`).
@@ -642,7 +647,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - Replaced `os.system()` with `subprocess`.
 - Optimized message handling; non-sticker messages in the system channel are now auto-deleted.
 
-## [v1.1.4] - 2024-03-19
+## [1.1.4] - 2024-03-19
 
 ### Added
 - Bot-owner shutdown via `<prefix>shutdown` (guarded by `NotBotOwnerError()`).
@@ -650,7 +655,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Changed
 - Optimized error handling in `ChatGPT.py`.
 
-## [v1.1.0] - 2024-03-10
+## [1.1.0] - 2024-03-10
 
 ### Fixed
 - Crashes when displaying users with default avatars.
@@ -658,12 +663,12 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Changed
 - Optimized the structure of `ReactingMessages.py`.
 
-## [v1.0.8] - 2024-02-28
+## [1.0.8] - 2024-02-28
 
 ### Changed
 - Rewrote `startup.py` and updated several return messages in `VoiceChannel.py`.
 
-## [v1.0.7] - 2024-02-26
+## [1.0.7] - 2024-02-26
 > **Framework migration: pycord → discord.py.**
 
 ### Added
@@ -672,7 +677,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Removed
 - `recording_vc()` (privacy concerns).
 
-## [v1.0.6] - 2024-02-24
+## [1.0.6] - 2024-02-24
 
 ### Added
 - "Send as silent message" option in `SendFromInput.py`.
@@ -680,7 +685,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Changed
 - Grouped major error messages into dedicated classes.
 
-## [v1.0.5] - 2024-02-03
+## [1.0.5] - 2024-02-03
 
 ### Added
 - Playback of custom audio files (mp3/wav).
@@ -691,7 +696,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Fixed
 - Custom files not playing in the music player.
 
-## [v1.0.4] - 2024-01-30
+## [1.0.4] - 2024-01-30
 
 ### Changed
 - Merged the dev build into stable.
@@ -702,7 +707,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - Crashes when displaying users with default avatars.
 - Skip attempts continuing after the final track finished.
 
-## [v1.0.3] - 2024-01-23
+## [1.0.3] - 2024-01-23
 
 ### Added
 - Lite version of the music player.
@@ -711,7 +716,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Changed
 - Rewrote `Poll.py` for multi-server support.
 
-## [v1.0.2] - 2024-01-21
+## [1.0.2] - 2024-01-21
 
 ### Added
 - Beta music player.
@@ -720,7 +725,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - Rewrote `VoiceChannel.py` toward full music-player support.
 - Optimized the displayed name in `DisplayUserInfo.py`.
 
-## [v1.0.1] - 2024-01-13
+## [1.0.1] - 2024-01-13
 
 ### Added
 - `move_bot()` command in `VoiceChannel.py`.
@@ -728,7 +733,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Infrastructure
 - Migrated hosting to Microsoft Azure.
 
-## [v1.0.0] - 2024-01-08
+## [1.0.0] - 2024-01-08
 > Initial public release on GitHub. Consolidates all pre-release development
 > from 2023-10-03 onward.
 
@@ -781,7 +786,9 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - Migrated from discord.py to Pycord.
 - First deployment; added `ban_guild()`.
 
-[Unreleased]: https://github.com/HikariApp/hikari/compare/v3.5.4...HEAD
+[Unreleased]: https://github.com/HikariApp/hikari/compare/v3.5.6...HEAD
+[3.5.6]: https://github.com/HikariApp/hikari/compare/v3.5.5...v3.5.6
+[3.5.5]: https://github.com/HikariApp/hikari/compare/v3.5.4...v3.5.5
 [3.5.4]: https://github.com/HikariApp/hikari/compare/v3.5.2...v3.5.4
 [3.5.2]: https://github.com/HikariApp/hikari/compare/v3.5.1...v3.5.2
 [3.5.1]: https://github.com/HikariApp/hikari/compare/v3.5.0...v3.5.1
