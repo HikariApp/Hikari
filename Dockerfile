@@ -31,16 +31,15 @@ RUN uv sync --frozen --no-dev
 FROM python:3.13-slim-bookworm
 
 WORKDIR /app
-VOLUME [ "/opt" ]
-
-# Copy the fully-built venv and app from the builder
-COPY --from=builder /app /app
 
 # Install runtime dependencies for audio processing.
 # These are needed for the bot to handle audio streams.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libopus0 ffmpeg \
+    && apt-get install -y --no-install-recommends libopus0 \
     && rm -rf /var/lib/apt/lists/*
+
+# Copy the fully-built venv and app from the builder
+COPY --from=builder /app /app
 
 # Put the venv on PATH so we can call the interpreter directly
 ENV PATH="/app/.venv/bin:$PATH"

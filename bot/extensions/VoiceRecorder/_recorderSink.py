@@ -33,12 +33,16 @@ from typing import Dict, Optional
 import discord
 from discord.ext.voice_recv import AudioSink, VoiceData, WaveSink
 from discord.ext.voice_recv.silence import SilenceGenerator
-from pydub import AudioSegment
 
 
 def addSilenceToWAV(inputData: bytes, silenceDuration: float) -> bytes:
     """
     Adds silence to the beginning of a WAV audio file.
+
+    This uses pure stdlib implementation, so no pydub/ffmpeg is required.
+    
+    PCM silence is just zero-valued frames, so we read the source params,
+    synthesize the right number of silent frames, and write silence + original audio.
 
     Parameters
     ----------
@@ -46,19 +50,30 @@ def addSilenceToWAV(inputData: bytes, silenceDuration: float) -> bytes:
         The input WAV audio data as bytes.
     silenceDuration : float
         The duration of silence to add in seconds.
-    
+
     Returns
     -------
     bytes
         The modified WAV audio data with silence added at the beginning.
     """
 
-    audio = AudioSegment.from_wav(io.BytesIO(inputData))
-    silence = AudioSegment.silent(duration=int(silenceDuration * 1000))  # pydub uses milliseconds
-    finalAudio = silence + audio
+    with wave.open(io.BytesIO(inputData), "rb") as wavIn:
+        params = wavIn.getparams()
+        frames = wavIn.readframes(params.nframes)
+
+    # One "frame" = nchannels * sampwidth bytes. Silence = zero bytes.
+    silenceFrames = int(silenceDuration * params.framerate)
+    silenceBytes = b"\x00" * (silenceFrames * params.nchannels * params.sampwidth)
+
     outputBuffer = io.BytesIO()
-    finalAudio.export(outputBuffer, format="wav")
-    return outputBuffer.getvalue()
+    with wave.open(outputBuffer, "wb") as wavOut:
+        wavOut.setnchannels(params.nchannels)
+        wavOut.setsampwidth(params.sampwidth)
+        wavOut.setframerate(params.framerate)
+        wavOut.writeframes(silenceBytes + frames)
+
+    outputBuffer.seek(0)
+    return outputBuffer.read()
 
 
 class MultiAudioImprovedWithSilenceSink(AudioSink):

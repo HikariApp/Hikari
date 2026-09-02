@@ -407,12 +407,23 @@ async def respondEmbed(
     if thumbnailUrl is not None:
         embed.set_thumbnail(url=thumbnailUrl)
 
-    if (isinstance(source, Context) and target is ResponseTarget.EPHEMERAL) and deleteAfter is None:
+    # Whether this response actually goes out over an interaction. THIS is what
+    # matters for ephemeral behaviour — not whether `source` is literally an
+    # Interaction. A slash-invoked hybrid command arrives as a Context whose
+    # `.interaction` is set and can send real ephemeral responses just like a
+    # raw Interaction; a prefix-invoked hybrid cannot.
+    isInteraction = interaction is not None
+
+    # Classic (Messageable) sends can't produce a real ephemeral, so approximate
+    # the "temporary, only-for-you" feel by auto-deleting after a short delay.
+    if not isInteraction and target is ResponseTarget.EPHEMERAL and deleteAfter is None:
         deleteAfter = DEFAULT_DELETE_AFTER
 
-    if deleteAfter is not None and not (
-        isinstance(source, Interaction) and target is ResponseTarget.EPHEMERAL
-    ):
+    # Append a "will be deleted in Ns" notice to the footer whenever the message
+    # is set to auto-delete — so the user knows it's transient. Skip it for real
+    # ephemerals: Discord already shows its own "Only you can see this · Dismiss
+    # message" UI there, so our notice would be redundant and inconsistent with it.
+    if deleteAfter is not None and not (isInteraction and target is ResponseTarget.EPHEMERAL):
         footerText = _withDeleteNotice(footerText, deleteAfter)
 
     if footerText is not None:

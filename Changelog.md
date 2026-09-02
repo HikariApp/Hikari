@@ -10,6 +10,42 @@ predates the first tag is collected under the initial `v1.0.0` release.
 
 ---
 
+## [3.5.5] - 2026-09-02
+
+### Removed
+- **Dropped `pydub` dependency entirely.** Silence padding in the voice
+  recorder is now done with a pure-stdlib `wave` implementation, removing the
+  need for `pydub` (and its transitive `ffmpeg` requirement) at runtime.
+- Removed `ffmpeg` from the runtime image's apt install — no longer needed now
+  that audio post-processing uses stdlib only. Image is smaller and builds faster.
+- Removed the stale `VOLUME [ "/opt" ]` from the Dockerfile. `/opt` was a
+  leftover from the days of a bundled Lavalink; the bot itself writes nothing
+  there, and Lavalink persistence is handled independently by the Lavalink
+  service/compose.
+- Deleted unused config artifacts: `configs/Bot/.gitkeep`,
+  `configs/Bot/_logging.py` (dead logger helper), and
+  `configs/Lavalink/application-example.yml`.
+
+### Changed
+- **Reworked ephemeral detection in `respondEmbed`.** Ephemeral handling now
+  keys off whether the response actually goes out over an interaction
+  (`interaction is not None`) rather than `isinstance(source, Interaction)`.
+  This correctly handles slash-invoked hybrid commands (which arrive as a
+  `Context` with a live `.interaction`) — they now get true ephemerals, while
+  prefix-invoked hybrids fall back to the auto-delete approximation. The
+  "will be deleted in Ns" footer notice is likewise skipped for real ephemerals
+  to avoid duplicating Discord's own "Only you can see this" UI.
+- Voice recorder: the "recording finished" message now replies inline
+  (`REPLY`) so it threads with the attached zip file, instead of a standalone
+  ephemeral.
+- Normalized all `respondEmbed(...)` calls to pass the text as the explicit
+  `message=` keyword argument (Recorder, OwnerOnly) for clarity and to guard
+  against positional-arg drift.
+
+### Fixed
+- Silence-padding no longer depends on external binaries, eliminating a class of
+  runtime failures on images without `ffmpeg` present.
+
 ## [v3.5.4] - 2026-09-02
 
 ### Added

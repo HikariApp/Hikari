@@ -39,20 +39,20 @@ class Recorder(commands.Cog):
 
         # Busy with music in this guild
         if isinstance(voiceClient, BetterPlayer):
-            return await respondEmbed(ctx, "The voice client is now being occupied by the music player. Please terminate the player and try again.", target=ResponseTarget.EPHEMERAL, error=True)
+            return await respondEmbed(ctx, message="The voice client is now being occupied by the music player. Please terminate the player and try again.", target=ResponseTarget.EPHEMERAL, error=True)
 
         # Connected, but not as a recorder client — can't record on this
         if voiceClient is not None and not isinstance(voiceClient, VoiceRecvClient):
-            return await respondEmbed(ctx, "I'm connected to voice in a state I can't record from. Please disconnect me and try again.", target=ResponseTarget.EPHEMERAL, error=True)
+            return await respondEmbed(ctx, message="I'm connected to voice in a state I can't record from. Please disconnect me and try again.", target=ResponseTarget.EPHEMERAL, error=True)
 
         # Already recording in this guild
         if isinstance(voiceClient, VoiceRecvClient) and voiceClient.is_listening():
-            return await respondEmbed(ctx, "Recording is already in progress.", target=ResponseTarget.EPHEMERAL, error=True)
+            return await respondEmbed(ctx, message="Recording is already in progress.", target=ResponseTarget.EPHEMERAL, error=True)
 
         # Not connected yet — need a channel from the author
         if voiceClient is None:
             if not ctx.author.voice:
-                return await respondEmbed(ctx, "I'm not in a voice channel, so please join one and I'll follow.", target=ResponseTarget.EPHEMERAL)
+                return await respondEmbed(ctx, message="I'm not in a voice channel, so please join one and I'll follow.", target=ResponseTarget.EPHEMERAL)
 
             voiceClient = await ctx.author.voice.channel.connect(cls=VoiceRecvClient)
 
@@ -72,9 +72,9 @@ class Recorder(commands.Cog):
                 self.customSink.cleanup()
                 self.customSink = None
             await voiceClient.disconnect()
-            return await respondEmbed(ctx, "An error occurred while starting the voice recording.", target=ResponseTarget.EPHEMERAL, error=True)
+            return await respondEmbed(ctx, message="An error occurred while starting the voice recording.", target=ResponseTarget.EPHEMERAL, error=True)
 
-        await respondEmbed(ctx, "Recording has **started**. Use **/stop-recording** to **stop**.", target=ResponseTarget.EPHEMERAL)
+        await respondEmbed(ctx, message="Recording has **started**. Use **/stop-recording** to **stop**.", target=ResponseTarget.EPHEMERAL)
 
 
     # Stops the recording
@@ -86,7 +86,7 @@ class Recorder(commands.Cog):
 
         voiceClient = ctx.guild.voice_client
         if not voiceClient or not voiceClient.is_listening() or self.customSink is None:
-            return await respondEmbed(ctx, "No recording in progress.", target=ResponseTarget.EPHEMERAL, error=True)
+            return await respondEmbed(ctx, message="No recording in progress.", target=ResponseTarget.EPHEMERAL, error=True)
 
         await ctx.defer()
         voiceClient.stop_listening()
@@ -116,20 +116,20 @@ class Recorder(commands.Cog):
                 zipBuffer.seek(0)
 
                 try:
-                    await respondEmbed(ctx, f"Recording finished. **{len(userTracks)}** separate track(s) attached in the zip file below:", target=ResponseTarget.EPHEMERAL)
+                    await respondEmbed(ctx, message=f"Recording finished. **{len(userTracks)}** separate track(s) attached in the zip file below:", target=ResponseTarget.REPLY)
                     await ctx.reply(
                         file=discord.File(zipBuffer, filename=f"recording_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip")
                     )
 
                 except HTTPException as e:
                     if e.status == 413 and e.code == 40005:  # File too large
-                        return await respondEmbed(ctx, "Failed to send the recording because the file was too large", target=ResponseTarget.EPHEMERAL, error=True)
+                        return await respondEmbed(ctx, message="Failed to send the recording because the file was too large", target=ResponseTarget.EPHEMERAL, error=True)
 
                     else:
                         raise e
 
             else:
-                return await respondEmbed(ctx, "Recording **failed** or the file is **empty**.", target=ResponseTarget.EPHEMERAL, error=True)
+                return await respondEmbed(ctx, message="Recording **failed** or the file is **empty**.", target=ResponseTarget.EPHEMERAL, error=True)
 
         finally:
             # Release buffers regardless of outcome so the next session starts clean

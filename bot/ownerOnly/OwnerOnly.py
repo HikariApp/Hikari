@@ -29,7 +29,7 @@ class OwnerOnly(Cog):
 
         # this is an administration cog, so we wanted to keep it simple.
         if isinstance(error, MissingRequiredArgument):
-            return await respondEmbed(ctx, f"Missing required argument: `{error.param.name}`", error=True, target=ResponseTarget.REPLY)
+            return await respondEmbed(ctx, message=f"Missing required argument: `{error.param.name}`", error=True, target=ResponseTarget.REPLY)
 
         self.logger.exception(f"Uncaught error in {ctx.cog.__cog_name__}:", exc_info=error)
 
