@@ -10,6 +10,30 @@ predates the first tag is collected under the initial `v1.0.0` release.
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Recorder:** Voice recordings are now uploaded to Cloudflare R2 and shared
+  via a presigned download link (24h expiry) instead of being attached to the
+  Discord message. This removes the reliance on the per-guild file size limit
+  for larger sessions.
+- **Config:** New `R2_*` environment variables (`R2_ACCOUNT_ID`,
+  `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`) documented in
+  `.env.example`, including step-by-step instructions for obtaining R2
+  credentials.
+
+### Changed
+- **Recorder:** Per-user tracks are packed into a single in-memory zip
+  (`_packRecordings`) and uploaded in one object; the previous size-based
+  file splitting is no longer needed.
+- **Recorder:** Reworked the "Recording Finished" embed — clickable download
+  link with a raw-URL fallback and a link-expiry notice.
+- Normalized all line endings from CRLF to LF across the repository.
+
+### Removed
+- **Recorder:** Direct Discord file upload path and the associated
+  per-guild `filesize_limit` handling.
+
 ## [3.5.5] - 2026-09-02
 
 ### Removed

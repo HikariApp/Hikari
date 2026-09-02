@@ -1,6 +1,11 @@
+from bson import timestamp
 import discord
+import asyncio
 import io
+import os
+import boto3
 import zipfile
+from botocore.config import Config
 from bot.extensions.MusicPlayer._betterPlayer import BetterPlayer
 from discord import HTTPException
 from discord.ext import commands
@@ -15,11 +20,71 @@ from helpers.respondEmbed import respondEmbed, ResponseTarget
 
 discord.opus._load_default()  # mandatory for those who wonder
 
+R2_ACCOUNT_ID = os.environ["R2_ACCOUNT_ID"]
+R2_ACCESS_KEY = os.environ["R2_ACCESS_KEY_ID"]
+R2_SECRET_KEY = os.environ["R2_SECRET_ACCESS_KEY"]
+R2_BUCKET = os.environ["R2_BUCKET"]
+
 class Recorder(commands.Cog):
     def __init__(self, bot: MyBot):
         self.bot = bot
         self.logger = self.bot.getLogger()
         self.customSink: Optional[MultiAudioImprovedWithSilenceSink] = None
+        # R2 is S3-compatible; sign with s3v4, region must be "auto"
+        self._r2 = boto3.client(
+            "s3",
+            endpoint_url=f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+            aws_access_key_id=R2_ACCESS_KEY,
+            aws_secret_access_key=R2_SECRET_KEY,
+            config=Config(signature_version="s3v4"),
+            region_name="auto",
+        )
+
+
+    async def _uploadToR2(self, data: bytes, key: str, expiresIn: int = 86400) -> str:
+        """
+        Upload bytes to R2 and return a presigned download URL.
+        boto3 is blocking, so run it off the event loop.
+        `expiresIn` is the link lifetime in seconds (default 24h).
+        """
+        def _blocking():
+            self._r2.put_object(
+                Bucket=R2_BUCKET,
+                Key=key,
+                Body=data,
+                ContentType="application/zip",
+            )
+            return self._r2.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": R2_BUCKET, "Key": key},
+                ExpiresIn=expiresIn,
+            )
+
+        return await asyncio.to_thread(_blocking)
+
+
+    def _packRecordings(self, userTracks: dict, memberById: dict) -> bytes:
+        """
+        Pack every user's WAV track into a single in-memory zip and return its bytes.
+        Names are derived from display names, sanitized and de-duped to avoid
+        collisions or invalid characters. No size splitting — R2 handles up to 5GB
+        per object.
+        """
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            used = set()
+            for userId, wavBytes in userTracks.items():
+                member = memberById.get(userId)
+                base = member.display_name if member else str(userId)
+                safe = "".join(c if c.isalnum() or c in " _-" else "_" for c in base).strip() or str(userId)
+                name = f"{safe}.wav"
+                n = 1
+                while name in used:
+                    name = f"{safe}_{n}.wav"
+                    n += 1
+                used.add(name)
+                zf.writestr(name, wavBytes)
+        return buf.getvalue()
 
 
     # This method is called when the recording is finished, either successfully or with an error.
@@ -85,7 +150,16 @@ class Recorder(commands.Cog):
         """
 
         voiceClient = ctx.guild.voice_client
-        if not voiceClient or not voiceClient.is_listening() or self.customSink is None:
+        # Busy with music in this guild
+        if isinstance(voiceClient, BetterPlayer):
+            return await respondEmbed(ctx, message="The voice client is now being occupied by the music player. Please terminate the player and try again.", target=ResponseTarget.EPHEMERAL, error=True)
+
+        # Connected, but not as a recorder client — can't stop recording on this
+        if voiceClient is not None and not isinstance(voiceClient, VoiceRecvClient):
+            return await respondEmbed(ctx, message="I'm connected to voice in a state I can't stop recording from. Please disconnect me and try again.", target=ResponseTarget.EPHEMERAL, error=True)
+
+        # Not recording in this guild
+        if not isinstance(voiceClient, VoiceRecvClient) or not voiceClient.is_listening() or self.customSink is None:
             return await respondEmbed(ctx, message="No recording in progress.", target=ResponseTarget.EPHEMERAL, error=True)
 
         await ctx.defer()
@@ -95,41 +169,43 @@ class Recorder(commands.Cog):
             userTracks = {}
             for userId in self.customSink.getRecordedUsers():
                 audioData = self.customSink.getUserAudio(userId)
-
                 if audioData and len(audioData) > 44:  # Ensure the file isn't empty
                     silenceDuration = self.customSink.getInitialSilenceDuration(userId)
                     userTracks[userId] = addSilenceToWAV(audioData, silenceDuration)
 
-            if userTracks:
-                # Resolve display names for nicer filenames inside the zip
-                # Notes that the command invoker does not required to be in a voice channel, so we can't rely on ctx.author.voice.channel.members
-                memberById = {m.id: m for m in voiceClient.channel.members}
-
-                # Create a zip file in memory and add each user's audio track to it
-                zipBuffer = io.BytesIO()
-                with zipfile.ZipFile(zipBuffer, "w", zipfile.ZIP_DEFLATED) as zf:
-                    for userId, wavBytes in userTracks.items():
-                        member = memberById.get(userId)
-                        name = member.display_name if member else str(userId)
-                        zf.writestr(f"{name}_{userId}.wav", wavBytes)
-
-                zipBuffer.seek(0)
-
-                try:
-                    await respondEmbed(ctx, message=f"Recording finished. **{len(userTracks)}** separate track(s) attached in the zip file below:", target=ResponseTarget.REPLY)
-                    await ctx.reply(
-                        file=discord.File(zipBuffer, filename=f"recording_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip")
-                    )
-
-                except HTTPException as e:
-                    if e.status == 413 and e.code == 40005:  # File too large
-                        return await respondEmbed(ctx, message="Failed to send the recording because the file was too large", target=ResponseTarget.EPHEMERAL, error=True)
-
-                    else:
-                        raise e
-
-            else:
+            if not userTracks:
                 return await respondEmbed(ctx, message="Recording **failed** or the file is **empty**.", target=ResponseTarget.EPHEMERAL, error=True)
+
+            # The invoker need not be in the channel, so resolve names from the recorded channel
+            memberById = {m.id: m for m in voiceClient.channel.members}
+
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+            zipBytes = self._packRecordings(userTracks, memberById)
+
+            # Generate a unique filename for the zip file in the R2 bucket
+            fname = f"recordings/{ctx.guild.id}/recording_{timestamp}.zip"
+
+            try:
+                url = await self._uploadToR2(zipBytes, key=fname)
+
+            except Exception as e:
+                self.logger.error(f"Failed to upload recording to R2: {e}")
+                return await respondEmbed(ctx, message="Recording captured, but the upload failed. Please try again.", target=ResponseTarget.EPHEMERAL, error=True)
+
+            await respondEmbed(
+                ctx,
+                title="Recording Finished",
+                message=(
+                    f"**{len(userTracks)}** track(s) captured."
+                    f"\n\n**Download:**"
+                    f"\nYou can download the recorded audio by clicking [here]({url})"
+                    f"\n\nIf the link doesn't work, copy and paste the following URL into your browser:"
+                    f"\n```{url}```"
+                    ),
+                footerText="Note: The download link will expire in 24 hours. Be sure to save the file before then.",
+                target=ResponseTarget.REPLY,
+            )
 
         finally:
             # Release buffers regardless of outcome so the next session starts clean
