@@ -12,6 +12,27 @@ predates the first tag is collected under the initial `v1.0.0` release.
 
 ## [Unreleased]
 
+## [3.5.7] - 2026-09-10
+
+### Fixed
+- **Startup:** Web server now reads the `WEB_HOST` / `WEB_PORT` environment
+  variables as documented. They were previously read under the wrong names
+  (`HOST` / `PORT`), so custom values in `.env` were silently ignored and the
+  defaults (`0.0.0.0` / `9000`) always applied.
+
+### Changed
+- **Docker:** Renamed the service container from `hikari-application` to
+  `hikari-dpy`.
+
+### Removed
+- **Docker:** Dropped the `./configs/Bot:/app/configs/Bot` volume mount,
+  a leftover from the pre-R2 recorder that wrote sessions to local disk.
+  The bot container is now fully stateless (all durable state lives in
+  MongoDB and Cloudflare R2).
+- Removed `SIGTERM` inside the `docker-compose.yml` since no overrides with `STOPSIGNAL`
+  were found inside `Dockerfile`.
+
+
 ## [3.5.6] - 2026-09-03
 
 ### Added
@@ -786,7 +807,8 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - Migrated from discord.py to Pycord.
 - First deployment; added `ban_guild()`.
 
-[Unreleased]: https://github.com/HikariApp/hikari/compare/v3.5.6...HEAD
+[Unreleased]: https://github.com/HikariApp/hikari/compare/v3.5.7...HEAD
+[3.5.7]: https://github.com/HikariApp/hikari/compare/v3.5.6...v3.5.7
 [3.5.6]: https://github.com/HikariApp/hikari/compare/v3.5.5...v3.5.6
 [3.5.5]: https://github.com/HikariApp/hikari/compare/v3.5.4...v3.5.5
 [3.5.4]: https://github.com/HikariApp/hikari/compare/v3.5.2...v3.5.4

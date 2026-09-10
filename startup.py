@@ -26,8 +26,8 @@ intents.members = True
 
 commandPrefix = os.getenv("DISCORD_BOT_COMMAND_PREFIX") or "!"
 
-WEB_HOST = os.getenv("HOST") or "0.0.0.0"
-WEB_PORT = int(os.getenv("PORT") or 9000)
+WEB_HOST = os.getenv("WEB_HOST") or "0.0.0.0"
+WEB_PORT = int(os.getenv("WEB_PORT") or 9000)
 
 
 class MyBot(Bot):
