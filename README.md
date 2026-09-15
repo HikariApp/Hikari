@@ -45,9 +45,9 @@ and so much more... (waiting for your discovery 😉)
 The simplest way to use Hikari is to use the publicly hosted instance of it, and we already have one over **[here][Bot_outh_link]**.
 
 <p align="center">
-  <a href="https://discord.com/oauth2/authorize?client_id=1356195507751358500"><img width="475" src="https://discordprofile.api.lolicon.io/presence/1356195507751358500" alt="Hikari's presence :)"></img></a>
+  <a href="https://discord.com/oauth2/authorize?client_id=1356195507751358500"><img width="300" src="https://discordprofile.api.lolicon.io/presence/1356195507751358500" alt="Hikari's presence :)"></img></a>
   <br>
-  <a href="https://discord.com/oauth2/authorize?client_id=1356195507751358500"><img width="475" src="https://discordprofile.api.lolicon.io/profile/1356195507751358500" alt="Hikari's profile :)"></img></a>
+  <a href="https://discord.com/oauth2/authorize?client_id=1356195507751358500"><img width="375" src="https://discordprofile.api.lolicon.io/profile/1356195507751358500" alt="Hikari's profile :)"></img></a>
 </p>
 
 You can either invite the bot to your server, or install it as a **user-installed application** as you prefer.
