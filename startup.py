@@ -13,7 +13,7 @@ from signal import SIGTERM, signal, default_int_handler
 from aiohttp import web
 
 from helpers.restarter import restarter
-from helpers.extensionsHandler import getAllExtensions
+from helpers.extensionshandler import get_all_extensions
 
 load_dotenv()
 
@@ -24,7 +24,7 @@ intents = Intents.default()
 intents.message_content = True
 intents.members = True
 
-commandPrefix = os.getenv("DISCORD_BOT_COMMAND_PREFIX") or "!"
+command_prefix = os.getenv("DISCORD_BOT_COMMAND_PREFIX") or "!"
 
 WEB_HOST = os.getenv("WEB_HOST") or "0.0.0.0"
 WEB_PORT = int(os.getenv("WEB_PORT") or 9000)
@@ -39,20 +39,20 @@ class MyBot(Bot):
 
     Attributes
     ----------
-    mongoClient : AsyncMongoClient
+    mongo_client : AsyncMongoClient
         The AsyncMongoClient instance for MongoDB operations, initialized in `setup_hook`.
     logger : logging.Logger
         The logger instance for logging bot activities.
-    webRunner : aiohttp.web.AppRunner
+    web_runner : aiohttp.web.AppRunner
         The aiohttp AppRunner for the monitoring web server, initialized in `setup_hook`.
 
     Methods
     -------
     setup_hook()
         Coroutine that sets up the bot's dependencies, including MongoDB connection, loading extensions and starting the web server.
-    getMongoClusterDB()
+    get_mongo_cluster_db()
         Returns the AsyncMongoClient instance for MongoDB operations.
-    getLogger()
+    get_logger()
         Returns the logger instance for logging bot activities.
     close()
         Coroutine that closes all connections and shuts down the bot, including the web server, Lavalink node pool, and MongoDB client.
@@ -61,12 +61,12 @@ class MyBot(Bot):
     def __init__(self):
         super().__init__(
             intents=intents,
-            command_prefix=commandPrefix,
+            command_prefix=command_prefix,
             strip_after_prefix=True,
         )
-        self.mongoClient = None   # bound in setup_hook
-        self.logger = logger      # exposed to cogs via getLogger()
-        self.webRunner = None     # aiohttp AppRunner, bound in setup_hook
+        self.mongo_client = None   # bound in setup_hook
+        self.logger = logger      # exposed to cogs via get_logger()
+        self.web_runner = None     # aiohttp AppRunner, bound in setup_hook
 
 
     async def setup_hook(self) -> None:
@@ -92,23 +92,23 @@ class MyBot(Bot):
 
         try:
             # initialize the AsyncMongoClient instance with the provided URI
-            self.mongoClient = AsyncMongoClient(uri)
+            self.mongo_client = AsyncMongoClient(uri)
 
             # self MongoDB connection test
-            if await self.mongoClient.admin.command("ping"):
+            if await self.mongo_client.admin.command("ping"):
                 logger.info("Pong! MongoDB connection established.")
 
         except Exception as e:
             raise ConnectionError(f"FATAL: could not connect to MongoDB cluster due to the following error: {e}")
 
         # then load the extensions
-        await self.loadInitialExtensions()
+        await self.load_initial_extensions()
 
         # and finally start the web server for monitoring endpoints
-        await self.startWebServer()
+        await self.start_web_server()
 
 
-    async def loadInitialExtensions(self) -> None:
+    async def load_initial_extensions(self) -> None:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
         
@@ -120,25 +120,25 @@ class MyBot(Bot):
         """
 
         logger.info("Getting extensions...")
-        initialExtensions = await getAllExtensions()
+        initial_extensions = await get_all_extensions()
 
         logger.info("Loading extensions...")
-        successCount, failedCount = 0, 0
+        success_count, failed_count = 0, 0
 
-        for extension in initialExtensions:
+        for extension in initial_extensions:
             try:
                 await self.load_extension(extension)
                 logger.info(f"loaded: {extension}")
-                successCount += 1
+                success_count += 1
 
             except Exception as e:
                 logger.error(f"FAILED: {extension} — {e}")
-                failedCount += 1
+                failed_count += 1
 
-        logger.info(f"Finished loading extensions: {successCount} extension(s) successfully loaded with {failedCount} extension(s) failed.")
+        logger.info(f"Finished loading extensions: {success_count} extension(s) successfully loaded with {failed_count} extension(s) failed.")
 
 
-    async def handleHealth(self, request) -> web.Response:
+    async def handle_health(self, request) -> web.Response:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
@@ -153,7 +153,7 @@ class MyBot(Bot):
         return web.json_response({"status": "ok"})
 
 
-    async def handleStatus(self, request) -> web.Response:
+    async def handle_status(self, request) -> web.Response:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
@@ -169,21 +169,21 @@ class MyBot(Bot):
             The response object, containing the status report in JSON format.
         """
 
-        mongoOk = False
+        mongo_ok = False
 
         try:
-            if self.mongoClient:
-                await self.mongoClient.admin.command("ping")
-                mongoOk = True
+            if self.mongo_client:
+                await self.mongo_client.admin.command("ping")
+                mongo_ok = True
 
         except Exception:
-            mongoOk = False
+            mongo_ok = False
 
         try:
-            nodeCount = len(lava_lyra.NodePool._nodes) if lava_lyra.NodePool._nodes else 0
+            node_count = len(lava_lyra.NodePool._nodes) if lava_lyra.NodePool._nodes else 0
 
         except Exception:
-            nodeCount = 0
+            node_count = 0
 
         lat = self.latency
 
@@ -192,12 +192,12 @@ class MyBot(Bot):
             "ready": self.is_ready(),
             "latency_ms": round(lat * 1000, 2) if math.isfinite(lat) else None,
             "guilds": len(self.guilds),
-            "mongo_connected": mongoOk,
-            "lavalink_nodes": nodeCount,
+            "mongo_connected": mongo_ok,
+            "lavalink_nodes": node_count,
         })
 
 
-    async def startWebServer(self) -> None:
+    async def start_web_server(self) -> None:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
@@ -211,20 +211,20 @@ class MyBot(Bot):
         app = web.Application()
 
         # Add routes for health and status endpoints
-        app.router.add_get("/health", self.handleHealth)
-        app.router.add_get("/status", self.handleStatus)
+        app.router.add_get("/health", self.handle_health)
+        app.router.add_get("/status", self.handle_status)
 
         # Start the web server
-        self.webRunner = web.AppRunner(app)
-        await self.webRunner.setup()
+        self.web_runner = web.AppRunner(app)
+        await self.web_runner.setup()
 
         # Start the site on the specified host and port
-        site = web.TCPSite(self.webRunner, WEB_HOST, WEB_PORT)
+        site = web.TCPSite(self.web_runner, WEB_HOST, WEB_PORT)
         await site.start()
         logger.info(f"Monitoring server listening on http://{WEB_HOST}:{WEB_PORT}")
 
 
-    def getMongoClusterDB(self) -> AsyncMongoClient:
+    def get_mongo_cluster_db(self) -> AsyncMongoClient:
         """
         Retrieve the `AsyncMongoClient` instance for all cogs.
 
@@ -234,10 +234,10 @@ class MyBot(Bot):
             The `AsyncMongoClient` instance for MongoDB operations.
         """
 
-        return self.mongoClient
+        return self.mongo_client
 
 
-    def getLogger(self) -> logging.Logger:
+    def get_logger(self) -> logging.Logger:
         """
         Retrieve the logger instance for the bot.
 
@@ -300,9 +300,9 @@ class MyBot(Bot):
                 logger.exception("voice teardown failed for %s", getattr(vc, "guild", "?"))
 
         # then the web server comes next
-        if self.webRunner:
+        if self.web_runner:
             try:
-                await self.webRunner.cleanup()
+                await self.web_runner.cleanup()
                 logger.info("Monitoring server stopped.")
             except Exception as e:
                 logger.error(f"Error while stopping monitoring server: {e}")
@@ -316,8 +316,8 @@ class MyBot(Bot):
             logger.error(f"Error while disconnecting LavaLyra node pool: {e}")
 
         # also the MongoDB client
-        if self.mongoClient:
-            await self.mongoClient.close()
+        if self.mongo_client:
+            await self.mongo_client.close()
             logger.info("MongoDB client closed.")
 
         # set the bot's presence to offline before closing
@@ -359,8 +359,8 @@ Hi there! {bot.user.name}#{bot.user.discriminator} is now online.
 
 ID: {bot.application_id}
 
-To invoke a command, use the prefix: '{commandPrefix}'
-e.g. {commandPrefix}help
+To invoke a command, use the prefix: '{command_prefix}'
+e.g. {command_prefix}help
 
 You can also use slash commands to do so, if the command you're trying to invoke is supported.
 e.g. /help

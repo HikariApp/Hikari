@@ -12,6 +12,33 @@ predates the first tag is collected under the initial `v1.0.0` release.
 
 ## [Unreleased]
 
+## [3.6.0] - 2026-10-05
+
+### Changed
+- **Codebase:** Converted all project identifiers (functions, methods,
+  variables, attributes, parameters) from camelCase to snake_case, e.g.
+  `respondEmbed()` → `respond_embed()`, `bot.getLogger()` →
+  `bot.get_logger()`, `ctx._errorHandled` → `ctx._error_handled`. Class names
+  stay PascalCase. Slash/hybrid command names and parameters are unchanged.
+- **Codebase:** Lowercased every module, cog file and folder under `bot/` and
+  `helpers/`, e.g. `helpers/respondEmbed.py` → `helpers/respondembed.py`,
+  `bot/general/VoiceChannel.py` → `bot/general/voicechannel.py`,
+  `bot/ownerOnly/` → `bot/owneronly/`, `bot/extensions/MusicPlayer/` →
+  `bot/extensions/musicplayer/`.
+- **Owner:** `load` / `unload` / `reload` now take the lowercase extension
+  paths, e.g. `bot.moderation.mute` instead of `bot.moderation.Mute`.
+  `DISABLE_*` environment flags are unaffected, since they were already
+  uppercased.
+- **Voice:** The internal `moveAll` helper is now `_move_all_members`, so it
+  no longer collides with the `move_all` command.
+
+### Added
+- **Repo:** `.gitattributes` enforcing LF line endings on checkout, so
+  Windows clones with `core.autocrlf=true` no longer reintroduce CRLF.
+- **Repo:** `AGENTS.md` / `CLAUDE.md` documenting the naming convention,
+  LF-only rule and license-header policy for contributors and AI agents.
+
+
 ## [3.5.7] - 2026-09-10
 
 ### Fixed
@@ -807,7 +834,8 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - Migrated from discord.py to Pycord.
 - First deployment; added `ban_guild()`.
 
-[Unreleased]: https://github.com/HikariApp/hikari/compare/v3.5.7...HEAD
+[Unreleased]: https://github.com/HikariApp/hikari/compare/v3.6.0...HEAD
+[3.6.0]: https://github.com/HikariApp/hikari/compare/v3.5.7...v3.6.0
 [3.5.7]: https://github.com/HikariApp/hikari/compare/v3.5.6...v3.5.7
 [3.5.6]: https://github.com/HikariApp/hikari/compare/v3.5.5...v3.5.6
 [3.5.5]: https://github.com/HikariApp/hikari/compare/v3.5.4...v3.5.5
