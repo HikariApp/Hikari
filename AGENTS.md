@@ -1,6 +1,8 @@
 # Agent Instructions — Hikari
 
-Hikari is a Discord bot built on discord.py (`startup.py` is the entry point; cogs live under `bot/`, shared code under `helpers/`).
+Hikari is a Discord bot built on discord.py, packaged as a uv project. All code lives in the `hikari_bot` package under `src/hikari_bot/`: `startup.py` holds the bot and `main()`, cogs live under `bot/` and shared code under `helpers/` (paths below are relative to `src/hikari_bot/`). Run it with `uv run hikari-bot` or `python -m hikari_bot`.
+
+Internal imports are absolute and go through the package, e.g. `from hikari_bot.helpers.respondembed import respond_embed` and `from hikari_bot.startup import MyBot`.
 
 ## Naming convention: snake_case
 
@@ -32,6 +34,8 @@ Some files start with an MIT license header block, either a `"""..."""` docstrin
 
 ## Extension loading
 
-`helpers/extensionshandler.py` auto-discovers every `.py` file under `bot/{general,moderation,owneronly,extensions}`. It skips files whose names start with `_`, which are helper modules.
+`helpers/extensionshandler.py` auto-discovers every `.py` file under `bot/{general,moderation,owneronly,extensions}`, relative to the installed package rather than the working directory. It skips files whose names start with `_`, which are helper modules.
+
+Extension names are relative to the package (`bot.general.poll`, not `hikari_bot.bot.general.poll`), which keeps the owner `load`/`unload`/`reload` arguments and `DISABLE_*` flags unchanged from before packaging. Always pass names through `to_module_path()` before calling `load_extension`/`unload_extension`/`reload_extension`.
 
 An extension can be disabled with the env var `DISABLE_<DOTTED_PATH_UPPERCASED_WITH_UNDERSCORES>`, e.g. `DISABLE_BOT_GENERAL_CHATBOT`. Renaming an extension file or folder therefore changes its disable flag and its `load`/`unload`/`reload` path.

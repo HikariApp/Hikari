@@ -22,13 +22,16 @@ ENV UV_COMPILE_BYTECODE=1 \
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-install-project --no-dev
 
-# Now bring in the source and install the project itself
+# Now bring in the source and install the project itself.
+# --no-editable installs a real copy into the venv instead of a link to ./src
 COPY . .
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --no-editable
 
 
 # ---- Runtime stage ----
 FROM python:3.13-slim-bookworm
+
+RUN useradd --create-home --uid 1000 app
 
 WORKDIR /app
 
@@ -42,6 +45,9 @@ RUN apt-get update \
 COPY --from=builder /app /app
 
 # Put the venv on PATH so we can call the interpreter directly
-ENV PATH="/app/.venv/bin:$PATH"
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
-CMD [ "python", "startup.py" ]
+USER app
+CMD ["python", "-m", "hikari-bot"]

@@ -12,6 +12,26 @@ predates the first tag is collected under the initial `v1.0.0` release.
 
 ## [Unreleased]
 
+## [3.7.0] - 2026-10-06
+
+### Changed
+- **Packaging:** Hikari is now an installable uv package. All code moved into
+  the `hikari_bot` package under `src/hikari_bot/` (`bot/`, `helpers/` and
+  `startup.py`), built with `uv_build`. The distribution is named
+  `hikari-bot` to avoid clashing with the `hikari` library on PyPI.
+- **Startup:** Run the bot with `uv run hikari-bot` or `python -m hikari_bot`
+  instead of `python startup.py`. The Docker image now installs the package
+  non-editable and starts it through the `hikari-bot` console script.
+- **Codebase:** Internal imports go through the package, e.g.
+  `from hikari_bot.startup import MyBot`. Cogs no longer re-import the
+  `startup` script as a second module.
+- **Extensions:** Discovery now scans the installed package instead of
+  `./bot` in the working directory. Extension names stay relative to the
+  package (`bot.general.poll`), so owner `load` / `unload` / `reload`
+  arguments and `DISABLE_*` flags are unchanged.
+- **Config:** `.env` is now looked up from the working directory rather than
+  next to the source file, so an installed copy still reads it.
+
 ## [3.6.0] - 2026-10-05
 
 ### Changed
@@ -834,7 +854,8 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - Migrated from discord.py to Pycord.
 - First deployment; added `ban_guild()`.
 
-[Unreleased]: https://github.com/HikariApp/hikari/compare/v3.6.0...HEAD
+[Unreleased]: https://github.com/HikariApp/hikari/compare/v3.7.0...HEAD
+[3.7.0]: https://github.com/HikariApp/hikari/compare/v3.6.0...v3.7.0
 [3.6.0]: https://github.com/HikariApp/hikari/compare/v3.5.7...v3.6.0
 [3.5.7]: https://github.com/HikariApp/hikari/compare/v3.5.6...v3.5.7
 [3.5.6]: https://github.com/HikariApp/hikari/compare/v3.5.5...v3.5.6
