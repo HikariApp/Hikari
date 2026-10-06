@@ -50,4 +50,4 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1
 
 USER app
-CMD ["python", "-m", "hikari-bot"]
+CMD ["python", "-m", "hikari_bot"]

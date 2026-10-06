@@ -12,6 +12,18 @@ predates the first tag is collected under the initial `v1.0.0` release.
 
 ## [Unreleased]
 
+## [3.7.1] - 2026-10-06
+
+### Fixed
+- **Docker:** The image now starts with `python -m hikari_bot`. 3.7.0
+  shipped `python -m hikari-bot`, which is not a valid module name, so the
+  container exited with `No module named hikari-bot` and restarted in a loop.
+
+### Changed
+- **Docker:** The runtime image runs as a non-root `app` user (UID 1000)
+  and sets `PYTHONDONTWRITEBYTECODE=1` / `PYTHONUNBUFFERED=1`. These shipped
+  in 3.7.0 but were not listed there.
+
 ## [3.7.0] - 2026-10-06
 
 ### Changed
@@ -854,7 +866,8 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - Migrated from discord.py to Pycord.
 - First deployment; added `ban_guild()`.
 
-[Unreleased]: https://github.com/HikariApp/hikari/compare/v3.7.0...HEAD
+[Unreleased]: https://github.com/HikariApp/hikari/compare/v3.7.1...HEAD
+[3.7.1]: https://github.com/HikariApp/hikari/compare/v3.7.0...v3.7.1
 [3.7.0]: https://github.com/HikariApp/hikari/compare/v3.6.0...v3.7.0
 [3.6.0]: https://github.com/HikariApp/hikari/compare/v3.5.7...v3.6.0
 [3.5.7]: https://github.com/HikariApp/hikari/compare/v3.5.6...v3.5.7
