@@ -38,19 +38,19 @@ class GetBannedList(Cog):
             await ctx.interaction.response.defer()
 
         banned_embed = Embed(title=f"List of Bans in {ctx.guild}", timestamp=datetime.now(), color=Color.red())
-        
+
         async for entry in ctx.guild.bans():
             if entry.user.discriminator == "0":
                 # This user has no discriminator on its username
                 banned_embed.add_field(name=f"Ban", value=f"Username: {entry.user.name}\nReason: {entry.reason}\nUser ID: {entry.user.id}\nIs Bot: {entry.user.bot}\nAccount created on: {discord.utils.format_dt(entry.user.created_at, style='R')}", inline=False)
-            
+
             else:
                 # This user has a custom discriminator on its username
                 banned_embed.add_field(name=f"Ban", value=f"Username: {entry.user.name}#{entry.user.discriminator}\nReason: {entry.reason}\nUser ID: {entry.user.id}\nIs Bot: {entry.user.bot}\nAccount created on: {discord.utils.format_dt(entry.user.created_at, style='R')}", inline=False)
-        
+
         if not banned_embed.fields:
             return await respond_embed(ctx, message="There are no banned members in this server so far. :slight_smile:")
-        
+
         await ctx.send(embed=banned_embed)
 
 

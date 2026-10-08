@@ -182,7 +182,7 @@ class OwnerOnly(Cog):
 
         except ExtensionNotLoaded:
             return await respond_embed(ctx, message=f"Cog `{cog_name}` has been already unloaded!", error=True, target=ResponseTarget.REPLY)
-        
+
         except NoEntryPointError:
             return await respond_embed(ctx, message=ReturnNoEntryPointError(cog=cog_name), error=True, target=ResponseTarget.REPLY)
 

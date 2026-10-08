@@ -26,10 +26,10 @@ class Untimeout(Cog):
     async def untimeout(self, ctx: Context, member: Member, reason: Optional[str] = None):
         """
         Remove timeouts for a member
-        
+
         Parameters
         ----------
-        
+
         member : discord.Member
             The member to unmute (Enter the User ID e.g. 529872483195806124)
         reason : Optional[str]
@@ -39,11 +39,11 @@ class Untimeout(Cog):
         -----
         This command has been heavily rewritten to support hybrid commands.
         """
-        
+
         if reason is not None:
             await member.timeout(None, reason=reason)
             return await respond_embed(ctx, message=f"{member.mention} has been **untimeout**.\nReason: **{reason}**.")
-        
+
         else:
             await member.timeout(None)
             return await respond_embed(ctx, message=f"{member.mention} has been **untimeout**.")
@@ -59,13 +59,13 @@ class Untimeout(Cog):
             # A special case to return a more user-friendly message
             ctx._error_handled = True
             return await respond_embed(ctx, message=f"Looks like you want me to **untimeout someone**, but **haven't specified** the user you would like to untimeout :thinking:  ...\nJust curious to know, **who** should I untimeout for now, {ctx.author.mention}?", error=True)
-        
+
         if isinstance(error, UserNotFound):
             # The user argument couldn't be converted to User
             # A special case to return a more user-friendly message
             ctx._error_handled = True
             return await respond_embed(ctx, message=f"I couldn't find **the user you wanted to untimeout** :thinking: ... Perhaps check if that user really **exists** on Discord, {ctx.author.mention}?", error=True)
-        
+
         if isinstance(error, MissingRequiredArgument):
             # Missing argument(s)
             ctx._error_handled = True

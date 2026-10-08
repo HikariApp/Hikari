@@ -59,15 +59,15 @@ class IPv4info:
         except Exception as e:
             # Unhandled exceptions
             raise e
-        
+
     def __repr__(self):
         return str(self.all_data)
-        
+
     @property
     def all(self) -> str:
         "Returns all information as a dictionary"
         return self.all_data
-    
+
     @property
     def hostname(self) -> str:
         "Returns the hostname associated with the IP"
@@ -77,22 +77,22 @@ class IPv4info:
     def ip(self) -> str:
         "Returns the IP address"
         return self.all_data["ip"] if "ip" in self.all_data else None
-    
+
     @property
     def city(self) -> str:
         "Returns the city of the IP belongs to"
         return self.all_data["city"] if "city" in self.all_data else None
-    
+
     @property
     def region(self) -> str:
         "Returns the region of the IP belongs to"
         return self.all_data["region"] if "region" in self.all_data else None
-    
+
     @property
     def country(self) -> str:
         "Returns the country of the IP belongs to"
         return self.all_data["country"] if "country" in self.all_data else None
-        
+
     @property
     def location(self) -> tuple:
         "Returns the latitude and longitude information of the IP"
@@ -100,17 +100,17 @@ class IPv4info:
             latitude, longitude = self.all_data["loc"].split(",")[0], self.all_data["loc"].split(",")[1]
             return (latitude, longitude)
         return
-    
+
     @property
     def organization(self) -> str:
         "Returns the organization of the IP belongs to"
         return self.all_data["org"] if "org" in self.all_data else None
-    
+
     @property
     def postal(self) -> str:
         "Returns the postal code of the IP"
         return self.all_data["postal"] if "postal" in self.all_data else None
-    
+
     @property
     def time(self) -> datetime:
         "Returns the current UTC time of the IP"
@@ -120,7 +120,7 @@ class IPv4info:
     def timezone(self) -> str:
         "Returns the timezone of the IP"
         return self.all_data["timezone"] if "timezone" in self.all_data else None
-    
+
     @property
     def bogon(self) -> bool:
         "Checks if the IP is a bogon address"

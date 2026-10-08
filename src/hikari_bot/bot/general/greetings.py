@@ -62,24 +62,24 @@ class CustomWelcomeMessage(Modal):
                 if await dm_welcome_message_collections.find_one_and_update({"id": interaction.guild.id}, {"$set": { "message": self.dm_welcome_message.value }}, new=True) is None:  # Update the message
                     await dm_welcome_message_collections.insert_one({"id": interaction.guild.id, 'message': self.dm_welcome_message.value})
                 update_dm = True
-            
+
             if self.server_welcome_message.value != "":
                 if await server_welcome_message_collections.find_one_and_update({"id": interaction.guild.id}, {"$set": { "message": self.server_welcome_message.value }}, new=True) is None:  # Update the message
                     await server_welcome_message_collections.insert_one({"id": interaction.guild.id, 'message': self.server_welcome_message.value})
                 update_server = True
-            
+
             if update_dm or update_server:
                 update_success_embed.add_field(name="", value=f"The **welcome message** for {"**DM**" if update_dm else "**system channel**"} has been **updated** for this server.")
-            
+
             else:
                 update_success_embed.add_field(name="", value=f"Both **welcome messages** for **DM** and **system channel** has been **updated** for this server.")
-            
+
             await interaction.response.send_message(embed=update_success_embed)
 
         except Exception as e:
             update_failure_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> An error occured while updating the welcome messages.\nDetails: {e}")
             await interaction.response.send_message(embed=update_failure_embed)
-            
+
 
 class Greetings(Cog):
     def __init__(self, bot: Bot):
@@ -99,13 +99,13 @@ class Greetings(Cog):
     @welcome.error
     async def welcome_error(self, interaction: Interaction, error):
         welcome_error_embed = Embed(title="", color=discord.Colour.red())
-        
+
         if isinstance(error, MissingPermissions):
             welcome_error_embed.add_field(name="", value=f"<a:CrossRed:1274034371724312646> This command **requires** `Manage Server` permission, and you probably **don't have** it, {interaction.user.mention}.")
             await interaction.response.send_message(embed=welcome_error_embed)
         else:
             raise error
-        
+
 
     # Greets the bot and recive a greeting message from the bot
     @app_commands.command(description="Greets the bot")
@@ -155,7 +155,7 @@ The administration team of this server
         database = self.db["welcome_message"]
         dm_welcome_message_collections = database["dm"]
         server_welcome_message_collections = database["guild"]
-        
+
         # Return the message as a dictionary (if any)
         dm_welcome_message = await dm_welcome_message_collections.find_one({"id": member.guild.id})
         server_welcome_message = await server_welcome_message_collections.find_one({"id": member.guild.id})
@@ -167,10 +167,10 @@ The administration team of this server
         # DM the user with welcome message when a new member joined the server and the member is not a bot.
         if not member.bot:
             await member.send(dm_welcome_message)
-        
+
         # Send a welcome message to the system channel when a new user joined the server
         channel = member.guild.system_channel
-        
+
         if channel is not None:
             await channel.send(server_welcome_message)
 

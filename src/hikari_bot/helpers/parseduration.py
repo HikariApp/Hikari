@@ -36,7 +36,7 @@ def parse_duration(duration_str: str) -> Union[dict, str]:
     ----------
     duration_str : str
         The duration string to be parsed. It can contain multiple time units (e.g., "1h30m", "2d5h", "3w2d4h").
-    
+
     Returns
     -------
     None
@@ -56,7 +56,7 @@ def parse_duration(duration_str: str) -> Union[dict, str]:
     }
 
     matches = re.findall(r"(\d+)(mo|[smhdwy])", duration_str)
-    
+
     if not matches:    # If no valid matches are found, return None to indicate an improper format
         return
 
@@ -72,7 +72,7 @@ def parse_duration(duration_str: str) -> Union[dict, str]:
     }
 
     for amount, unit in matches:
-    
+
         if unit in units:
             total_seconds += int(amount) * units[unit]
             duration_breakdown[{

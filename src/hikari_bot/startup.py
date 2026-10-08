@@ -111,7 +111,7 @@ class MyBot(Bot):
     async def load_initial_extensions(self) -> None:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
-        
+
         Load extensions from the extensions folder.
 
         Returns
@@ -376,7 +376,7 @@ Have a great day!
 def main():
     try:
         token = os.environ.get("DISCORD_BOT_TOKEN")
-        
+
         if not token or not token.strip():
             raise SystemExit("No valid tokens were found in the environment variable. Please add your token to the Secrets pane.")
 

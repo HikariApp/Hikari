@@ -28,7 +28,7 @@ class PollNew(Cog):
                 message_id = int(message)
 
             return message_id
-        
+
         except ValueError:
             # The type of message user provided was not a valid type
             return
@@ -59,7 +59,7 @@ class PollNew(Cog):
         if (duration.value == "custom" and custom_duration is None) or (duration.value != "custom" and custom_duration is not None):
             PollErrorEmbed.add_field(name=f"", value=f"Please enter a vaild duration for the poll!", inline=False)
             return await interaction.response.send_message(embed=PollErrorEmbed)
-        
+
         if duration.value == "custom":
             vaild_duration = custom_duration
 
@@ -118,26 +118,26 @@ class PollNew(Cog):
         else:   # Returns if no "poll_message" were specified and self.most_recent_poll_message[guild_id] does not exsist.
             PollErrorEmbed.add_field(name=f"", value=f"There is currently no vaild polls on this server, or `poll_message` has not been specified yet.", inline=False)
             return await interaction.followup.send(embed=PollErrorEmbed)
-        
+
         if poll_to_edit is None:
             PollErrorEmbed.add_field(name=f"", value=f"The poll you wanted to terminate were not created on this server!", inline=False)
             return await interaction.followup.send(embed=PollErrorEmbed)
-        
+
         elif poll_to_edit.poll is None:
             PollErrorEmbed.add_field(name=f"", value=f"There is no poll attached on this message!", inline=False)
             return await interaction.followup.send(embed=PollErrorEmbed)
-        
+
         elif poll_to_edit.poll.is_finalised():
             PollErrorEmbed.add_field(name=f"", value=f"The poll has been already terminated!", inline=False)
             return await interaction.followup.send(embed=PollErrorEmbed)
-        
+
         else:
             await poll_to_edit.end_poll()
             PollSuccessEmbed.add_field(name=f"", value=f"The poll has been terminated.", inline=False)
             msg = await interaction.followup.send(embed=PollSuccessEmbed, ephemeral=True, silent=True)
             await asyncio.sleep(1.5)
             await msg.delete()
-        
+
 
 async def setup(bot: Bot):
     await bot.add_cog(PollNew(bot))

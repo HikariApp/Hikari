@@ -26,4 +26,3 @@ async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(_Music(bot))
     await bot.add_cog(MusicGeneral(bot))
     await bot.add_cog(MusicQueueSystem(bot))
-    

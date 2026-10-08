@@ -112,7 +112,7 @@ async def get_all_extensions() -> list[str]:
     list[str]
         A list of extension names for all loadable extensions, e.g. `bot.general.poll`.
 
-    
+
     """
 
     extensions: list[str] = []

@@ -73,7 +73,7 @@ class LockChannel(Cog):
             If True, the channel will be locked. If False, it will be unlocked.
         reason : str, optional
             The reason for the lock/unlock action, which will be logged in the audit log.
-        
+
         Returns
         -------
         None
@@ -303,7 +303,7 @@ class LockChannel(Cog):
         ----------
         channel : discord.TextChannel, optional
             The text channel to lock. If not provided, current channel will be locked.
-        
+
         reason : str, optional
             Reason for locking the channel
         """

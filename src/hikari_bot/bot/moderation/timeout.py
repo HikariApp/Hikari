@@ -50,7 +50,7 @@ class Timeout(Cog):
         """
 
         total_duration = parse_duration(duration_str)
-        
+
         if total_duration is None:
             return await respond_embed(ctx, message=f"Looks like the time format you entered is not valid :thinking: ... Perhaps enter again and give me a chance to handle it, {ctx.author.mention} :pleading_face:?\n\n**Supported time format:**\n**1**s = **1** second | **2**m = **2** minutes | **5**h = **5** hours | **10**d = **10** days | **3**w = **3** weeks.", error=True)
 
@@ -99,21 +99,21 @@ class Timeout(Cog):
         # Error handling will be done by the error handler below
         if (member.id == ctx.author.id):
             return await respond_embed(ctx, message=f"{ctx.author.mention}, You can't **timeout yourself**!", error=True)
-        
+
         if (member.id == self.bot.user.id):
             return await respond_embed(ctx, message=f"{ctx.author.mention}, I can't **timeout myself**!", error=True)
-        
+
         if ctx.guild.get_member(member.id) is None:
             # The specified user exists, but could not be found as a member of the guild
             return await respond_embed(ctx, message=f"Looks like {member.mention} is not in the server, {ctx.author.mention} :thinking: ...", error=True)
-        
+
         # As stated above, only the server owner (or bot owner) has privileges to timeout admins
         if member.guild_permissions.administrator and (ctx.author.id != ctx.guild.owner.id or not await self.bot.is_owner(ctx.author)):
             return await respond_embed(ctx, message=f"{ctx.author.mention}, I know you're trying to **timeout an admin**, but I can't let you do that... :rolling_eyes:", error=True)
-        
+
         if member and member.top_role >= ctx.guild.get_member(self.bot.user.id).top_role:
             return await respond_embed(ctx, message=f"{ctx.author.mention}, I can't **timeout** {member.mention} because their **top role is higher than mine**.", error=True)
-        
+
         await self.apply_timeout(ctx=ctx, member=member, duration_str=duration, reason=reason)
 
 
@@ -134,7 +134,7 @@ class Timeout(Cog):
             # A special case to return a more user-friendly message
             ctx._error_handled = True
             return await respond_embed(ctx, message=f"I couldn't find **the user you wanted to timeout** :thinking: ... Perhaps check if that user really **exists** on Discord, {ctx.author.mention}?", error=True)
-        
+
         if isinstance(error, MemberNotFound):
             # The specified member could not be found
             # This will unlikely be triggered since we are using Union[User, Member] for the member argument, but we add it here just in case

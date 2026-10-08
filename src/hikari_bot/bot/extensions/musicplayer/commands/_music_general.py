@@ -35,7 +35,7 @@ class MusicGeneral(Cog):
             if player.context:
                 self.logger.error(f"An unexpected error occurred while trying to play the upcoming track: {e}")
                 return await respond_embed(player.context, message=f"An unexpected error occurred while trying play the upcoming track. The player may be stuck on the current track until the next track ends or errors again.", error=True)
-            
+
             # If there was an error and the context is not available, we just simply ignore this action.
             return
 
@@ -59,7 +59,7 @@ class MusicGeneral(Cog):
             # DO NOT REMOVE THIS CHECK or else the rollback WILL NOT WORK
             #
             return
-        
+
         await self._advance_or_report(player)
 
 
@@ -84,7 +84,7 @@ class MusicGeneral(Cog):
         ----------
         ctx : Optional`[Context]`
             The context of the command invocation. Optional.
-        
+
         search : str
             The current input string to search for.
 
@@ -103,15 +103,15 @@ class MusicGeneral(Cog):
                     Choice(name=result.title, value=result.uri)
                     for result in tracks[:25]   # Limit to 25 choices due to the limitation from Discord
                 ]
-            
+
             except TypeError:
                 # The author did not entered anything yet
                 return []
-            
+
             except Exception:
                 # An unexpected error occurred while trying to search for the track
                 return []
-        
+
         # Return a blank list because web URL's does not require to be searched, or the player object is None.
         return []
 
@@ -136,7 +136,7 @@ class MusicGeneral(Cog):
         if voice_channel is None:
             # The author is not in a voice channel, or not specified which voice channel the application should join
             return await respond_embed(ctx, message=f"{ctx.author.mention} Join a voice channel plz :pleading_face:  I don't think I can stay there without you :pensive: ...\n\nOr specify which voice channel you want me to join by using the `channel` argument.")
-        
+
         if player is None:
             # Join voice channel
             player = await voice_channel.connect(cls=BetterPlayer)
@@ -231,7 +231,7 @@ class MusicGeneral(Cog):
 
         if results is None or (isinstance(results, list) and len(results) == 0):
             return await respond_embed(ctx, message=f"I couldn't find any tracks with that query you entered :thinking: ... Perhaps try to search something else and gave me a chance to play it, {ctx.author.mention}?")
-        
+
         if isinstance(results, Playlist):
             player.queue.put(results)
             await respond_embed(ctx, message=f"Added the playlist **{results.name}** (**{len(results.tracks)}** songs) to the queue.")
@@ -265,7 +265,7 @@ class MusicGeneral(Cog):
 
         if amount < 1:  # Invalid amount
             return await respond_embed(ctx, message=f"The amount of tracks to skip must be at least 1 :thinking: ...", error=True)
-        
+
         if player.queue.is_at_history_end:  # The author has already skipped all tracks in the queue
             return await respond_embed(ctx, message=f"{ctx.author.mention}, you are already **gone through all tracks** in the queue.", error=True)
 
@@ -275,7 +275,7 @@ class MusicGeneral(Cog):
 
         elif amount == player.queue.size:  # The author just skipped to the last track
             message_lines.append(f"Skipping to the **final track** in the queue...")
-        
+
         elif amount > player.queue.size:  # The author tried to skip more tracks than available in the queue
             amount = player.queue.size  # Set amount to the size of the queue
             message_lines.append(f"The amount of tracks you tried to skip **exceeded** the **total number of available tracks** in the queue. Automatically **skipping to the last track** in the queue...")
@@ -347,7 +347,7 @@ class MusicGeneral(Cog):
             self.logger.error(f"An unexpected error occurred while trying to rollback the track(s). The previous track is None.")
             message_lines.append(f"An unexpected error occurred while trying to rollback the track(s).")
             return await respond_embed(ctx, message="\n".join(message_lines), error=True)
-        
+
         await respond_embed(ctx, message="\n".join(message_lines))
 
 
@@ -371,7 +371,7 @@ class MusicGeneral(Cog):
         except Exception as e:
             self.logger.error(f"An unexpected error occurred while trying to pause the track: {e}")
             return await respond_embed(ctx, message=f"An unexpected error occurred while trying to pause the track.", error=True)
-            
+
         await respond_embed(ctx, message="The track has been paused.")
 
 
@@ -418,7 +418,7 @@ class MusicGeneral(Cog):
 
         if custom_artwork_file is None:
             return await ctx.send(embed=now_playing_embed)
-        
+
         await ctx.send(embed=now_playing_embed, file=custom_artwork_file)
 
 
@@ -473,7 +473,7 @@ class MusicGeneral(Cog):
             except QueueException as e:
                 message_lines.append(f"The repeat mode is **already disabled** for the current track. \n\n {e}")
                 return await respond_embed(ctx, message="\n".join(message_lines), error=True)
-            
+
             except Exception as e:
                 self.logger.error(f"An error occurred while trying to disable repeat for the current track: {e}")
                 message_lines.append(f"An error occurred while trying to disable repeat for the current track.")
@@ -507,7 +507,7 @@ class MusicGeneral(Cog):
             except QueueException as e:
                 message_lines.append(f"The repeat mode is **already disabled** for the entire queue. \n\n {e}")
                 return await respond_embed(ctx, message="\n".join(message_lines), error=True)
-            
+
             except Exception as e:
                 self.logger.error(f"An error occurred while trying to disable repeat for the entire queue: {e}")
                 message_lines.append(f"An error occurred while trying to disable repeat for the entire queue.")
@@ -534,17 +534,17 @@ class MusicGeneral(Cog):
         try:
             if player.queue.is_looping:
                 player.queue.disable_loop()  # Disable looping if it's enabled
-            
+
             player.queue.clear()  # Clear the queue
             await player.stop()   # Stop the current track
-            
+
             # The controller will not be updated automatically after stopping the track, so we do it manually
             player.update_controller.start()
 
         except Exception as e:
             self.logger.error(f"An error occurred while trying to stop the track: {e}")
             return await respond_embed(ctx, message=f"An error occurred while trying to stop the track.", error=True)
-        
+
         await respond_embed(ctx, message=f"Stopped the current track and cleared the queue.")
 
 
@@ -592,7 +592,7 @@ class MusicGeneral(Cog):
         except Exception as e:
             self.logger.error(f"An error occurred while trying to change the volume: {e}")
             return await respond_embed(ctx, message=f"An error occurred while trying to change the volume.", error=True)
-        
+
         await respond_embed(ctx, message=f"Changed volume to **{value}%**")
 
 
@@ -626,14 +626,14 @@ class MusicGeneral(Cog):
 
         # Set the filter to a nightcore style. We have to use pomice.Timescale to adjust the pitch and speed.
         player: BetterPlayer = cast(BetterPlayer, ctx.voice_client)
-        
+
         if not await ensure_playable(ctx, player):  # Ensure the player is in a playable state
             return
 
         if player.filters.empty:
             await player.add_filter(Timescale.nightcore(), fast_apply=True)
             await respond_embed(ctx, message=f"**Activating** nightcore mode... The track may be briefly interrupted.")
-        
+
         else:
             await player.reset_filters(fast_apply=True)
             await respond_embed(ctx, message=f"**Deactivating** nightcore mode... The track may be briefly interrupted.")

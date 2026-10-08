@@ -28,10 +28,10 @@ class Unban(Cog):
     async def unban(self, ctx: Context, user: User, reason: Optional[str] = None):
         """
         Unbans a user.
-        
+
         Parameters
         ----------
-        
+
         user : discord.User
             The user to unban (Enter the User ID e.g. 529872483195806124)
         reason : Optional[str]
@@ -47,11 +47,11 @@ class Unban(Cog):
 
         if not await is_banned(ctx, user):
             return await respond_embed(ctx, message=f"{user.mention} is **not banned** currently.", error=True)
-            
+
         if reason is None:
             await ctx.guild.unban(user)
             return await respond_embed(ctx, message=f":white_check_mark: {user.mention} has been **unbanned**.")
-        
+
         else:
             await ctx.guild.unban(user, reason=reason)
             return await respond_embed(ctx, message=f":white_check_mark: {user.mention} has been **unbanned**.\nReason: **{reason}**")
@@ -67,13 +67,13 @@ class Unban(Cog):
             # A special case to return a more user-friendly message
             ctx._error_handled = True
             return await respond_embed(ctx, message=f"Looks like you want me to **unban someone**, but **haven't specified** the user you would like to unban :thinking:  ...\nJust curious to know, **who** should I unban for now, {ctx.author.mention}?", error=True)
-        
+
         if isinstance(error, UserNotFound):
             # The user argument couldn't be converted to User
             # A special case to return a more user-friendly message
             ctx._error_handled = True
             return await respond_embed(ctx, message=f"I couldn't find **the user you wanted to unban** :thinking: ... Perhaps check if that user really **exists** on Discord, {ctx.author.mention}?", error=True)
-        
+
         if isinstance(error, MissingRequiredArgument):
             # Missing argument(s)
             ctx._error_handled = True

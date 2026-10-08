@@ -37,7 +37,7 @@ class MusicQueueSystem(Cog):
             return await ctx.send(embed=embed)
 
         view = QueueView(player=player, page_size=PAGE_SIZE)
-        
+
         await ctx.send(embed=embed, view=view or None)
 
 

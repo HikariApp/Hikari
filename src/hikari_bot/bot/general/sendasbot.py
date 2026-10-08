@@ -12,9 +12,9 @@ from hikari_bot.helpers.respondembed import respond_embed, ResponseTarget
 async def _empty_message_error(source: Union[Context, Interaction]) -> Optional[Message]:
     """
     This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
-    
+
     Returns an embed for when the user tries to send nothing.
-    
+
     Parameters
     ----------
     source : Union[Context, Interaction]

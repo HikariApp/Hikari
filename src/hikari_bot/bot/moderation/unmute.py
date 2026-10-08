@@ -27,10 +27,10 @@ class Unmute(Cog):
     async def unmute(self, ctx: Context, member: Member, reason: Optional[str] = None):
         """
         Unmutes a member from text.
-        
+
         Parameters
         ----------
-        
+
         member : discord.Member
             The member to unmute (Enter the User ID e.g. 529872483195806124)
         reason : Optional[str]
@@ -65,7 +65,7 @@ class Unmute(Cog):
             if reason is None:
                 await member.remove_roles(muted_role)
                 await respond_embed(ctx, message=f"{member.mention} has been **unmuted**.")
-                
+
             else:
                 await member.remove_roles(muted_role, reason=reason)
                 await respond_embed(ctx, message=f"{member.mention} has been **unmuted**.\nReason: **{reason}**.")
@@ -87,13 +87,13 @@ class Unmute(Cog):
             # A special case to return a more user-friendly message
             ctx._error_handled = True
             return await respond_embed(ctx, message=f"Looks like you want me to **unmute someone**, but **haven't specified** the user you would like to unmute :thinking:  ...\nJust curious to know, **who** should I unmute for now, {ctx.author.mention}?", error=True)
-        
+
         if isinstance(error, UserNotFound):
             # The user argument couldn't be converted to User
             # A special case to return a more user-friendly message
             ctx._error_handled = True
             return await respond_embed(ctx, message=f"I couldn't find **the user you wanted to unmute** :thinking: ... Perhaps check if that user really **exists** on Discord, {ctx.author.mention}?", error=True)
-        
+
         if isinstance(error, MissingRequiredArgument):
             # Missing argument(s)
             ctx._error_handled = True

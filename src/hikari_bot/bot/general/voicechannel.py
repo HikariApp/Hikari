@@ -92,7 +92,7 @@ class VoiceChannel(Cog):
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
         Moves all members in the guild's voice channels to a specified voice channel or disconnects them if `specified_vc` is None.
-        
+
         Parameters
         ----------
         guild : Guild
@@ -471,7 +471,7 @@ class VoiceChannel(Cog):
 
         database = self.db.moderation_mute
         mute_voice_collection = database["mute_voice"]
-        
+
         if duration_str is not None:  # For time-based mute only
             total_duration = parse_duration(duration_str)
             if total_duration is None:
@@ -487,7 +487,7 @@ class VoiceChannel(Cog):
         await member.edit(mute=True, **reason_karg)
 
         await respond_embed(ctx, message=f"{member.mention} has been **muted from voice** {duration_message}:zipper_mouth:{reason_message}")
-        
+
         # Save mute info to the database
         if duration_str is not None:
             mute_expiration_time = datetime.now(timezone.utc) + timedelta(seconds=total_duration["total_seconds"])    # For time-based mute only
@@ -576,21 +576,21 @@ class VoiceChannel(Cog):
         # Error handling will be done by the error handler below
         if (member.id == ctx.author.id):
             return await respond_embed(ctx, message=f"{ctx.author.mention}, You can't **mute yourself from voice**!", error=True)
-        
+
         if (member.id == self.bot.user.id):
             return await respond_embed(ctx, message=f"{ctx.author.mention}, I can't **mute myself from voice**!", error=True)
-        
+
         if ctx.guild.get_member(member.id) is None:
             # The specified user exists, but could not be found as a member of the guild
             return await respond_embed(ctx, message=f"Looks like {member.mention} is not in the server, {ctx.author.mention} :thinking: ...", error=True)
-        
+
         # As stated above, only the server owner (or bot owner) has privileges to mute admins from voice
         if member.guild_permissions.administrator and (ctx.author.id != ctx.guild.owner.id or not await self.bot.is_owner(ctx.author)):
             return await respond_embed(ctx, message=f"{ctx.author.mention}, I know you're trying to **mute an admin from voice**, but I can't let you do that... :rolling_eyes:", error=True)
-        
+
         if member and member.top_role >= ctx.guild.get_member(self.bot.user.id).top_role:
             return await respond_embed(ctx, message=f"{ctx.author.mention}, I can't **mute** {member.mention} from voice because their **top role is higher than mine**.", error=True)
-        
+
         await self.apply_mute_vc(ctx=ctx, member=member, duration_str=duration, reason=reason)
 
 
@@ -611,7 +611,7 @@ class VoiceChannel(Cog):
             # A special case to return a more user-friendly message
             ctx._error_handled = True
             return await respond_embed(ctx, message=f"I couldn't find **the user you wanted to mute from voice channels** :thinking: ... Perhaps check if that user really **exists** on Discord, {ctx.author.mention}?")
-        
+
         if isinstance(error, MemberNotFound):
             # The specified member could not be found
             # This will unlikely be triggered since we are using Union[User, Member] for the member argument, but we add it here just in case
@@ -695,14 +695,14 @@ class VoiceChannel(Cog):
             # A special case to return a more user-friendly message
             ctx._error_handled = True
             return await respond_embed(ctx, message=f"Looks like you want me to **unmute someone from voice channels**, but **haven't specified** the user you would like to unmute :thinking:  ...\nJust curious to know, **who** should I unmute for now, {ctx.author.mention}?")
-        
+
         if isinstance(error, BadUnionArgument) or isinstance(error, UserNotFound):
             # The member argument couldn't be converted to either User or Member
             # This includes the case where a User is provided but does not exist
             # A special case to return a more user-friendly message
             ctx._error_handled = True
             return await respond_embed(ctx, message=f"I couldn't find **the user you wanted to unmute from voice channels** :thinking: ... Perhaps check if that user really **exists** on Discord, {ctx.author.mention}?")
-        
+
         if isinstance(error, MissingRequiredArgument):
             # Missing argument(s)
             ctx._error_handled = True
@@ -729,7 +729,7 @@ class VoiceChannel(Cog):
     async def vkick(self, ctx: Context, member: Member | User, reason: Optional[str] = None):
         """
         Kicks a member from voice channels.
-        
+
         Parameters
         ----------
         member : discord.Member | discord.User
@@ -741,7 +741,7 @@ class VoiceChannel(Cog):
 
         if member.voice is None:
             return await respond_embed(ctx, message=f"{member.mention} is **not in voice** currently.", error=True)
-        
+
         if member == ctx.author:
             return await respond_embed(ctx, message=f"{ctx.author.mention}, You can't **kick yourself from voice**!", error=True)
 
@@ -751,11 +751,11 @@ class VoiceChannel(Cog):
         if ctx.guild.get_member(member.id) is None:
             # The specified user exists, but could not be found as a member of the guild
             return await respond_embed(ctx, message=f"Looks like {member.mention} is not in the server, {ctx.author.mention} :thinking: ...", error=True)
-        
+
         # As stated above, only the server owner (or bot owner) has privileges to kick admins
         if member.guild_permissions.administrator and (ctx.author.id != ctx.guild.owner.id or not await self.bot.is_owner(ctx.author)):
             return await respond_embed(ctx, message=f"{ctx.author.mention}, I know you're trying to **kick an admin from voice**, but I can't let you do that... :rolling_eyes:", error=True)
-        
+
         if member and member.top_role >= ctx.guild.get_member(self.bot.user.id).top_role:
             return await respond_embed(ctx, message=f"{ctx.author.mention}, I can't **kick** {member.mention} from voice because their **top role is higher than mine**.", error=True)
 
@@ -788,7 +788,7 @@ class VoiceChannel(Cog):
             # A special case to return a more user-friendly message
             ctx._error_handled = True
             return await respond_embed(ctx, message=f"I couldn't find **the user you wanted to kick from voice** :thinking: ... Perhaps check if that user really **exists** on Discord, {ctx.author.mention}?")
-        
+
         if isinstance(error, MemberNotFound):
             # The specified member could not be found
             # This will unlikely be triggered since we are using Union[User, Member] for the member argument, but we add it here just in case

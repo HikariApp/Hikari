@@ -190,7 +190,7 @@ async def _send_via_interaction(
     -----
     `delete_after` skipped entirely for ephemerals, since they're transient
     by nature (and deleting an ephemeral WebhookMessage can error anyway).
-    
+
     For non-ephemerals, `InteractionResponse.send_message` supports `delete_after`
     natively so we hand it straight through, while `Webhook.send` (followup) does
     not, so on that branch we self-schedule via non-blocking `Message.delete(delay=...)`.
@@ -236,7 +236,7 @@ async def _notice_via_interaction(interaction: Interaction, embed: Embed, label:
 
     Used when the source is a raw Interaction
     and there's no channel to reply in.
-    
+
     If the notice fails to send, the error is logged and swallowed.
 
     Parameters
@@ -266,7 +266,7 @@ async def _notice_via_interaction(interaction: Interaction, embed: Embed, label:
 def _with_delete_notice(footer_text: Optional[str], delete_after: float) -> str:
     """
     Returns a footer text with a notice about the message being deleted after a certain time.
-    
+
     Parameters
     ----------
     footer_text : str, optional

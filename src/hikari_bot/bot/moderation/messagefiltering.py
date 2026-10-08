@@ -33,14 +33,14 @@ class MessageFiltering(commands.Cog):
                 current_status = "enabled" if mode else "disabled"
                 sysdel_failure_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> The **delete on system channel** option is already **{current_status}** for this server.")
                 return await interaction.response.send_message(embed=sysdel_failure_embed, ephemeral=True)
-            
+
             else:
                 # Update the setting since the requested mode is different
                 await delete_on_system_channel_collection.update_one(
                     {"id": interaction.guild.id}, 
                     {"$set": {"delete_on_system_channel": mode}}
                 )
-        
+
         else:
             # Insert a new document if it doesn't already exist
             await delete_on_system_channel_collection.insert_one({"id": interaction.guild.id, "delete_on_system_channel": mode})
@@ -50,11 +50,11 @@ class MessageFiltering(commands.Cog):
         sysdel_success_embed.add_field(name="", value=f"The **delete on system channel** option has been **{updated_status}** for this server.")
         await interaction.response.send_message(embed=sysdel_success_embed, ephemeral=True)
 
-    
+
     @sysdel.error
     async def sysdel_error(self, interaction: Interaction, error):
         sysdel_error_embed = Embed(title="", color=discord.Colour.red())
-        
+
         if isinstance(error, MissingPermissions):
             sysdel_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `Manage Server` permission, and you probably **don't have** it, {interaction.user.mention}.")
             await interaction.response.send_message(embed=sysdel_error_embed)
@@ -86,7 +86,7 @@ class MessageFiltering(commands.Cog):
 
         if existing_setting:
             self.is_sysdel = existing_setting.get("delete_on_system_channel")    # Get current mode for the guild
-        
+
         if self.is_sysdel and message.stickers == [] and message.channel == message.guild.system_channel:
             await message.delete()
 

@@ -80,12 +80,12 @@ class BetterPlayer(Player):
     def set_context(self, ctx: Context) -> None:
         """
         Store the command context on the player for later use (e.g., sending embeds).
-        
+
         Parameters
         ----------
         ctx : Context
             The command context to store.
-        
+
         Returns
         -------
         None
@@ -137,7 +137,7 @@ class BetterPlayer(Player):
         ```python
         # Example usage in a command, you should call this with unpacked values in order to avoid errors
         embed, custom_artwork_file = await player.now_playing_embed(player.current)
-        
+
         if custom_artwork_file is not None:
             # Send both embed and custom artwork file if available
             await ctx.send(embed=embed, file=custom_artwork_file)
@@ -156,7 +156,7 @@ class BetterPlayer(Player):
             title="Now playing",
             color=self.context.author.color if self.context else Color.blurple()    # Defaults to user color. Use blurple in case self.context has not been set
         )
-        
+
         # Display the track requester, if any
         if track and track.requester:
             embed.set_author(name=f"{track.requester.display_name}", icon_url=track.requester.display_avatar.url)
@@ -201,7 +201,7 @@ class BetterPlayer(Player):
 
             if audio_metadata and audio_metadata.duration:
                 embed.add_field(name="Duration:", value=audio_metadata.duration, inline=False)
-            
+
             if audio_metadata and audio_metadata.genre:
                 embed.add_field(name="Genre:", value=audio_metadata.genre, inline=False)
 
@@ -249,7 +249,7 @@ class BetterPlayer(Player):
         else:
             # Default sources, just let the player to handle it
             embed.description = f"{'**:red_circle: LIVE**' if track.is_stream else ''} [{track.title}]({track.uri})"
-            
+
             if track.thumbnail:
                 embed.set_image(url=track.thumbnail)
 
@@ -314,7 +314,7 @@ class BetterPlayer(Player):
 
         if self._is_rolling_back:
             return
-        
+
         # Calculate the target index to move back to, ensure it clamps to 0
         target_index = max(self.queue.current_track_index - (amount - 1 if self.queue.is_at_history_end else amount), 0) 
 
@@ -382,14 +382,14 @@ class BetterPlayer(Player):
             # Otherwise, this could generally mean that we are at the end of the queue
             # Stop playback and set the isEnded flag
             self.queue.is_at_history_end = True
-        
+
             # Reset _current_index to the end of the queue to prevent overflow
             self.queue._current_index = len(self.queue._playback_history) - 1
 
             # Update controller message if applicable
             if not self.update_controller.is_running():
                 self.update_controller.start()
-            
+
             # Done
             # This is just a trick to notify the caller that the command was completed successfully
             return True
@@ -406,7 +406,7 @@ class BetterPlayer(Player):
 
         # Return the track being played
         return next_track
- 
+
 
     # Update the controller message with the current track information
     @tasks.loop(count=1)

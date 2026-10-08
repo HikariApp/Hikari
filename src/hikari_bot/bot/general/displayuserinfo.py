@@ -53,7 +53,7 @@ class AvatarSelectForGuild(Select):
             avatar_url = member.display_avatar.url if member else self.user.display_avatar.url
             embed = await create_avatar_embed(self.user, avatar_url)
             embed.title = "Server Avatar"
-        
+
         embed.set_footer(text=f"Requested by {interaction.user.display_name}", icon_url=interaction.user.avatar.url)
         await interaction.response.edit_message(embed=embed)
 
@@ -82,12 +82,12 @@ class DisplayUserInfo(Cog):
         - The embed now displays the avatar in a larger format for better visibility.
         - The formatting of the embed has been improved for clarity.
         """
-        
+
         user = user or ctx.author
         embed = await create_avatar_embed(user, user.display_avatar.url)
         embed.title = "Global Avatar"
         view = None
-        
+
         if ctx.guild is not None:    # If not in a guild just show the global avatar to prevent errors
             select = AvatarSelectForGuild(user)
             view = View()
@@ -126,7 +126,7 @@ class DisplayUserInfo(Cog):
         member: Optional[Member] = None
         if ctx.guild:
             member = ctx.guild.get_member(user.id)
-        
+
         embed = Embed()
         embed.set_author(name=f"{user.global_name if user.global_name else user.display_name} {' \U0001F451' if (member and member.id == member.guild.owner.id) else ''}", icon_url=f"{user.display_avatar.url}")
         embed.set_thumbnail(url=user.display_avatar.url)
@@ -144,7 +144,7 @@ class DisplayUserInfo(Cog):
         embed.add_field(name="", value="\u202a", inline=False)  # Empty field for spacing
 
         embed.add_field(name="Member on Discord:", value=f"**{utils.format_dt(user.created_at, style='D')} ({utils.format_dt(user.created_at, style='R')})**", inline=False)
-        
+
         if isinstance(user, Member):
             embed.add_field(name="Member since:", value=f"**{utils.format_dt(member.joined_at, style='D')} ({utils.format_dt(member.joined_at, style='R')})**", inline=False)
 

@@ -40,7 +40,7 @@ def add_silence_to_wav(input_data: bytes, silence_duration: float) -> bytes:
     Adds silence to the beginning of a WAV audio file.
 
     This uses pure stdlib implementation, so no pydub/ffmpeg is required.
-    
+
     PCM silence is just zero-valued frames, so we read the source params,
     synthesize the right number of silent frames, and write silence + original audio.
 
@@ -79,7 +79,7 @@ def add_silence_to_wav(input_data: bytes, silence_duration: float) -> bytes:
 class MultiAudioImprovedWithSilenceSink(AudioSink):
     """
     Collects incoming voice into one WaveSink per user.
-    
+
     Each user's audio is kept fully separated in its own buffer; mix_audio() is a *final* step that
     optionally collapses them into a single track.
     """
@@ -205,7 +205,7 @@ class MultiAudioImprovedWithSilenceSink(AudioSink):
         ----------
         audio_data_dict : Dict[int, bytes]
             A dictionary mapping user IDs to their respective WAV audio data as bytes.
-        
+
         Returns
         -------
         bytes, optional

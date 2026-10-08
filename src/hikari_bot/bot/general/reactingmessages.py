@@ -23,27 +23,27 @@ class ReactingMessages(Cog):
         try:
             await message.add_reaction(emoji)
             return True
-        
+
         except discord.HTTPException as error:
             if error.status == 400 and error.code == 10014:
                 # An invaild emoji was given
                 return await interaction.response.send_message(NotVaildEmojiError())
-            
+
             else:
                 raise error  # Raise other errors to ensure they aren't ignored
-                
+
 
     # Function of remoing reactions for the bot
     async def remove_reaction(self, interaction, message, emoji):
         try:
             await message.remove_reaction(emoji, self.bot.user)
             return True
-        
+
         except discord.HTTPException as error:
             if error.status == 400 and error.code == 10014:
                 # An invaild emoji was given
                 return await interaction.response.send_message(NotVaildEmojiError())
-            
+
             else:
                 raise error  # Raise other errors to ensure they aren't ignored
 
@@ -61,7 +61,7 @@ class ReactingMessages(Cog):
                 message_id = int(message)
 
             return message_id
-        
+
         except ValueError:
             # The type of message user provided was not a valid type
             return
@@ -77,7 +77,7 @@ class ReactingMessages(Cog):
         if message_id is None:
             # The type of message user provided was not a valid type
             return await interaction.response.send_message(InvaildTypeError())
-        
+
         message = await interaction.channel.fetch_message(message_id)
 
         # Adding the reaction to the message
@@ -95,7 +95,7 @@ class ReactingMessages(Cog):
         if message_id is None:
             # The type of message user provided was not a valid type
             return await interaction.response.send_message(InvaildTypeError())
-        
+
         message = await interaction.channel.fetch_message(message_id)
 
         # Removing the reaction from the message
@@ -112,7 +112,7 @@ class ReactingMessages(Cog):
         if message_id is None:
             # The type of message user provided was not a valid type
             return await interaction.response.send_message(InvaildTypeError())
-        
+
         message = await interaction.channel.fetch_message(message_id)
         await interaction.response.defer()
         # Listing all the reactions from the message
@@ -144,7 +144,7 @@ class ReactingMessages(Cog):
         if message_id is None:
             # The type of message user provided was not a valid type
             return await interaction.response.send_message(InvaildTypeError())
-        
+
         message = await interaction.channel.fetch_message(message_id)
         await interaction.response.send_message("Clearing reactions...", ephemeral=True, silent=True, delete_after=0)
         # Clearing all the reactions from the message

@@ -24,7 +24,7 @@ prompt_character_name = "AI Assistant" # Default character name, can be changed 
 
 class AIMongoDB:
     """Repository for AI-related database operations"""
-    
+
     def __init__(self, db_cluster):
         self.db_cluster = db_cluster
         self.database = db_cluster["chatbot"]
@@ -33,14 +33,14 @@ class AIMongoDB:
         self.files_collection = self.database["files"]
         self.user_access_collection = self.database["user_access"]
         self.server_access_collection = self.database["server_access"]
-    
-    
+
+
     async def initialize_assistants(self) -> None:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
         Create and ensure assistants exist in the database
-        
+
         Returns
         -------
         None
@@ -104,8 +104,8 @@ class AIMongoDB:
                     "assistant_id": assistant.id,
                     "name": assistant_data["name"]
                 })
-    
-    
+
+
     async def get_access_level(self, client: discord.Client, user_id: int, guild_id: int) -> str:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
@@ -133,32 +133,32 @@ class AIMongoDB:
 
         try:
             user = await client.fetch_user(user_id)    # Fetch the user from Discord API
-        
+
         except NotFound as e:
             if e.status == 404 and e.code == 10013:    # User not found
                 user = None
 
             else:
                 raise e
-                
+
         if user and await client.is_owner(user):
             return "premium"    # Owner (or team members) always get premium access. Obviously.
 
         # Get user access level from the database
         user_access_entry = await self.user_access_collection.find_one({"_id": user_id})
         user_access_level = user_access_entry["access_level"] if user_access_entry else "trial"
-        
+
         # Get guild access level from the database (if guild_id is provided)
         if guild_id:
             server_access_entry = await self.server_access_collection.find_one({"_id": guild_id})
             server_access_level = server_access_entry["access_level"] if server_access_entry else "trial"
-        
+
         else:
             server_access_level = "trial"
 
         # Determine and return the maximum access level between user and server
         return max(server_access_level, user_access_level, key=lambda level: self._access_level_priority(level))
-    
+
 
     def _access_level_priority(self, level: str) -> int:
         """
@@ -183,7 +183,7 @@ class AIMongoDB:
         }
 
         return priority.get(level.lower(), 0)      # Default to 0 if the level is unknown.
-    
+
 
     async def get_assistant_by_access_level(self, access_level: str) -> str:
         """
@@ -197,7 +197,7 @@ class AIMongoDB:
         ---------- 
         access_level: int
             The level returned from `access_level_priority()`.
-        
+
         Returns
         -------
         int:
@@ -213,10 +213,10 @@ class AIMongoDB:
 
         if assistant:
             return assistant["assistant_id"]
-        
+
         else:
             raise ValueError(f"No assistant found for access level: {access_level}")
-    
+
 
     async def get_or_create_channel_entry(self, channel_id: int, guild_id: int, assistant_id: str, is_thread: bool = False) -> Dict[str, Any]:
         """
@@ -257,14 +257,14 @@ class AIMongoDB:
             await self.channels_collection.insert_one(entry)
 
         return entry
-    
+
 
     async def add_message(self, channel_id: int, message: Dict[str, str]) -> None:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
         Add a message to the channel's conversation history
-        
+
         Parameters
         ----------
         channel_id: int
@@ -281,14 +281,14 @@ class AIMongoDB:
             {"channel_id": channel_id}, 
             {"$push": {"messages": message}}
         )
-    
+
 
     async def add_file(self, channel_id: int, file_data: Dict[str, Any]) -> None:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
         Add a file to the channel's attachments
-        
+
         Parameters
         ----------
         channel_id: int
@@ -306,14 +306,14 @@ class AIMongoDB:
             {"channel_id": channel_id},
             {"$push": {"attachments": file_data}}
         )
-    
+
 
     async def reset_chat(self, channel_id: int) -> None:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
-        
+
         Delete a channel's conversation history
-        
+
         Parameters
         ----------
 
@@ -327,7 +327,7 @@ class AIMongoDB:
 
         query = {"channel_id": channel_id}
         await self.channels_collection.delete_one(query)
-    
+
 
     async def reset_server_chats(self, guild_id: int) -> None:
         """
@@ -346,13 +346,13 @@ class AIMongoDB:
         """
 
         await self.channels_collection.delete_many({"guild_id": guild_id})
-    
+
     async def reset_all_chats(self) -> None:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
-        
+
         Delete all conversation histories
-        
+
         Returns
         -------
         None
@@ -363,17 +363,17 @@ class AIMongoDB:
 
 class AIServiceAPI:
     """Service for API side AI-related operations"""
-    
+
     def __init__(self, ai_repository: AIMongoDB):
         self.ai_repository = ai_repository
-    
+
 
     async def send_message_to_openai(self, callback: discord.Message | Interaction, content: str, entry, openai_thread_id: str, assistant_id: str):
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
         Send message to OpenAI and get response
-        
+
         Parameters
         ----------
         callback: discord.Message | Interaction
@@ -391,7 +391,7 @@ class AIServiceAPI:
         -------
         str:
             The assistant's reply.
-        
+
         Raises
         ------
         Exception:
@@ -420,21 +420,21 @@ class AIServiceAPI:
 
             # Save message to database
             await self.ai_repository.add_message(callback.channel.id, {"role": "user", "content": content})
-            
+
             # Run the thread
             # Run the thread and fetch reply from API's side
             await openai_client.beta.threads.runs.create_and_poll(
                 thread_id=openai_thread_id, 
                 assistant_id=assistant_id
             )
-            
+
             all_messages = await openai_client.beta.threads.messages.list(thread_id=openai_thread_id)
             assistant_reply = "".join(message.text.value for message in all_messages.data[0].content)
-            
+
             await self.ai_repository.add_message(callback.channel.id, {"role": "assistant", "content": assistant_reply})
-            
+
             return assistant_reply
-        
+
         # Handling some common expections from OpenAI API errors
         except Exception as e:
             """
@@ -460,22 +460,22 @@ class AIServiceAPI:
                 if isinstance(callback, Interaction):
                     # This is a followup interaction
                     return await callback.followup.send(embed=error_embed)
-                
+
                 elif isinstance(callback, discord.Message):
                     # This is a channel message
                     return await callback.channel.send(embed=error_embed)
-                
+
                 else:
                     # This is an unknown type of callback
                     raise e
-            
+
             else:
                 raise e
 
 
 class ChatBotModal(Modal):
     """Modal for collecting user input for ChatBot"""
-    
+
     content = TextInput(
         label="Content",
         style=discord.TextStyle.paragraph,
@@ -495,10 +495,10 @@ class ChatBotModal(Modal):
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
         Handle modal submission
-        
+
         interaction: Interaction
             The interaction objejct from Discord.
-        
+
         Returns
         -------
         None
@@ -517,10 +517,10 @@ class ChatBotModal(Modal):
         try:
             # Determine access level
             access_level = await self.ai_repository.get_access_level(interaction.client, interaction.user.id, interaction.guild.id if interaction.guild else None)
-            
+
             try:
                 assistant_id = await self.ai_repository.get_assistant_by_access_level(access_level)
-            
+
             except ValueError as e:
                 submission_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> {str(e)}")
                 return await interaction.response.send_message(embed=submission_error_embed)
@@ -545,7 +545,7 @@ class ChatBotModal(Modal):
 
             # Send formatted response
             formatted_responses = discord_message_formatter(assistant_reply)
-            
+
             for msg in formatted_responses:
                 if msg != "":
                     webhook_message = await interaction.followup.send(msg)
@@ -564,13 +564,13 @@ class ChatBotModal(Modal):
                 assistant_id, 
                 is_thread=True
             )
-            
+
         except Forbidden as e:
             if e.status == 403 and e.code == 50013:
                 # Handling rare forbidden case
                 submission_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **create the thread** for our conversation. Please **double-check** my **permissions** and **role position**.")
                 return await interaction.response.send_message(embed=submission_error_embed)
-            
+
             else:
                 raise e
 
@@ -639,7 +639,7 @@ def discord_message_formatter(content: str, limit: Optional[int] = 2000) -> List
 
     for segment in segments:
         test_chunk = current_chunk + ('' if not current_chunk else ' ' if segment.isspace() or not any('\u4e00' <= c <= '\u9fff' for c in segment) else '') + segment
-        
+
         if len(test_chunk) <= limit:
             current_chunk = test_chunk
         else:
@@ -670,7 +670,7 @@ def discord_message_formatter(content: str, limit: Optional[int] = 2000) -> List
                 final_chunks.append(temp_chunk)
         else:
             final_chunks.append(chunk)
-    
+
     return final_chunks
 
 
@@ -688,7 +688,7 @@ async def openai_error_embed_handler(e, title):
         Error parameter from OpenAI API
     title: str
         The title of the embed
-    
+
     Returns
     -------
     None
@@ -707,7 +707,7 @@ async def openai_error_embed_handler(e, title):
         if dict_start != -1:
             # Extract the substring starting from the first '{'
             dict_string = error_message[dict_start:]
-            
+
             try:
                 # Safely evaluate the string into a Python dictionary
                 error_dict = ast.literal_eval(dict_string)
@@ -746,7 +746,7 @@ async def save_attachment_temporarily(attachment):
     This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
     Save the attachment to a temporary file with a proper extension.
-    
+
     Parameters
     ----------
     attachment: discord.Attachment
@@ -783,7 +783,7 @@ async def upload_file_to_openai(local_path):
     ----------
     local_path: str
         The file path from local device.
-    
+
     Returns
     -------
     openai.FileObject:
@@ -795,7 +795,7 @@ async def upload_file_to_openai(local_path):
 
 class ChatBot(Cog):
     """ChatBot Discord bot integration"""
-    
+
     def __init__(self, bot: Bot):
         self.bot = bot
         self.db_cluster = self.bot.get_mongo_cluster_db()
@@ -840,7 +840,7 @@ class ChatBot(Cog):
         local_path = await save_attachment_temporarily(attachment)
         try:
             openai_file = await upload_file_to_openai(local_path)
-            
+
             # Record file in database
             file_data = {
                 "channel_id": channel_id,
@@ -852,13 +852,13 @@ class ChatBot(Cog):
 
         except Exception as e:
             raise e
-        
+
         finally:
             # Clean up temp file
             if os.path.exists(local_path):
                 os.remove(local_path)
 
-    
+
     # Initialize the assistants on bot ready
     @commands.Cog.listener()
     async def on_ready(self) -> None:
@@ -902,11 +902,11 @@ class ChatBot(Cog):
         if isinstance(error, MissingPermissions):
             chatbot_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `create_public_threads` permission, and you probably **don't have** it, {interaction.user.mention}.")
             await interaction.response.send_message(embed=chatbot_error_embed)
-        
+
         elif isinstance(error, BotMissingPermissions):
             chatbot_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **create** a public thread for our conversation. Please **double-check** my **permissions** and **role position**.")
             await interaction.response.send_message(embed=chatbot_error_embed)
-        
+
         else:
             raise error
 
@@ -918,25 +918,25 @@ class ChatBot(Cog):
         # Ignore messages from bots (including self)
         if message.author.bot:
             return
-        
+
         # Only process messages in threads
         if not isinstance(message.channel, Thread):
             return
-        
+
         # Check if this is a AI chatbot thread
         thread_name = message.channel.name
         if not thread_name.startswith(f"Chat with "):
             return
-        
+
         # Check if we have an entry for this thread
         entry = await self.ai_repository.channels_collection.find_one({
             "channel_id": message.channel.id,
             "is_thread": True
         })
-        
+
         if not entry:
             return  # Not a AI chatbot thread we're tracking
-        
+
         # Process the message with typing indicator (i.e. {bot_name} is typing...)
         async with message.channel.typing():
             if message.attachments:
@@ -946,16 +946,16 @@ class ChatBot(Cog):
             # Get thread info
             openai_thread_id = entry.get("openai_thread_id")
             assistant_id = entry.get("assistant_id")
-            
+
             if not openai_thread_id or not assistant_id:
                 return
-            
+
             # Send message to OpenAI, add a dot to avoid empty message in case of empty content
             assistant_reply = await self.ai_openai.send_message_to_openai(message, message.content if message.content != "" else "{file upload}", entry, openai_thread_id, assistant_id)
-            
+
             # Send formatted response
             formatted_responses = discord_message_formatter(assistant_reply)
-            
+
             for messages_sent, msg in enumerate(formatted_responses):
                 if msg != "":
                     # For the first message, reply to the user's message directly
@@ -984,14 +984,14 @@ class ChatBot(Cog):
         type: app_commands.Choice[str]
             The reset options choice.
         """
-        
+
         if not await self.bot.is_owner(interaction.user) and type.value == "all":
             return await interaction.response.send_message(NotBotOwnerError())
-        
+
         guild_id = interaction.guild.id if interaction.guild else None
         channel_id = interaction.channel.id
         is_thread = isinstance(interaction.channel, discord.Thread)
-        
+
         # Process reset request based on type
         if type.value == "channel":
             # Check if channel exists in database
@@ -999,85 +999,85 @@ class ChatBot(Cog):
                 "channel_id": channel_id,
                 "is_thread": is_thread
             })
-            
+
             if not entry:
                 reset_embed = Embed(title="", color=discord.Color.red())
                 reset_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> No **chat history** found on <#{channel_id}>.", inline=False)
-            
+
             else:
                 await self.ai_repository.reset_chat(channel_id)
                 reset_embed = Embed(title="", color=interaction.user.color)
                 reset_embed.add_field(name="", value=f"**Chat history** reset for <#{channel_id}>.", inline=False)
-                
+
         elif type.value == "thread":
             if not is_thread:
                 reset_embed = Embed(title="", color=discord.Color.red())
                 reset_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> <#{channel_id}> is **not a thread**.", inline=False)
-            
+
             else:
                 entry = await self.ai_repository.channels_collection.find_one({
                     "channel_id": channel_id,
                     "is_thread": True
                 })
-                
+
                 if not entry:
                     reset_embed = Embed(title="", color=discord.Color.red())
                     reset_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> No **chat history** found on <#{channel_id}>.", inline=False)
-                
+
                 else:
                     await self.ai_repository.reset_chat(channel_id)
                     reset_embed = Embed(title="", color=interaction.user.color)
                     reset_embed.add_field(name="", value=f"**Chat history** reset for {interaction.channel.mention} in **current thread**.", inline=False)
-                    
-        
+
+
         elif type.value == "server":
             if not guild_id:
                 reset_embed = Embed(title="", color=discord.Color.red())
                 reset_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> <#{channel_id}> is **not belongs to** a **server**.", inline=False)
-            
+
             else:
                 server_entries = await self.ai_repository.channels_collection.find_one({"guild_id": guild_id})
-                
+
                 if not server_entries:
                     reset_embed = Embed(title="", color=discord.Color.red())
                     reset_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> No **chat history** found on **this server**.", inline=False)
-                
+
                 else:
                     await self.ai_repository.reset_server_chats(guild_id)
                     reset_embed = Embed(title="", color=interaction.user.color)
                     reset_embed.add_field(name="", value="**Chat history** reset for **this server**.", inline=False)
-                    
+
         elif type.value == "all":
             all_entries = await self.ai_repository.channels_collection.find_one({})
-            
+
             if not all_entries:
                 reset_embed = Embed(title="", color=discord.Color.red())
                 reset_embed.add_field(name="", value="<a:crossred:1356353067024515266> No **chat history** found on **all server(s), channel(s) or thread(s)**.", inline=False)
-            
+
             else:
                 await self.ai_repository.reset_all_chats()
                 reset_embed = Embed(title="", color=interaction.user.color)
                 reset_embed.add_field(name="", value="All chat history has been reset.", inline=False)
-                
+
         else:
             reset_embed = Embed(title="", color=discord.Color.red())
             reset_embed.add_field(name="", value="An unexpected error occurred while resetting chat history.", inline=False)
-        
+
         await interaction.response.send_message(embed=reset_embed, ephemeral=True)
 
 
     @resetchatbot.error
     async def resetchatbot_error(self, interaction: Interaction, error):
         resetchatbot_error_embed = Embed(title="", color=discord.Colour.red())
-        
+
         if isinstance(error, MissingPermissions):
             resetchatbot_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> This command **requires** `manage_threads` and `manage_guild` permission, and you probably **don't have** it, {interaction.user.mention}.")
             await interaction.response.send_message(embed=resetchatbot_error_embed)
-        
+
         elif isinstance(error, BotMissingPermissions):
             resetchatbot_error_embed.add_field(name="", value=f"<a:crossred:1356353067024515266> I couldn't **reset** the chatbot history. Please **double-check** my **permissions** and **role position**.")
             await interaction.response.send_message(embed=resetchatbot_error_embed)
-        
+
         else:
             raise error
 

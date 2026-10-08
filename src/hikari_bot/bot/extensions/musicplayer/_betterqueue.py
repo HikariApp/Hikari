@@ -137,7 +137,7 @@ class BetterQueue(Queue):
         #
         # Overrides the default behavior of lava_lyra.Queue.get() to update _current_index
         #
-        
+
         original_index = self._current_index if self._current_index is not None else 0
 
         try:
@@ -181,7 +181,7 @@ class BetterQueue(Queue):
         Create a copy of the current queue including all it's members.
 
         Same as `lava_lyra.Queue.copy()` but also maintains the state of `_playback_history` and `_current_index`.
-        
+
         Returns
         -------
         BetterQueue
@@ -204,7 +204,7 @@ class BetterQueue(Queue):
     def remove(self, item):
         """
         Remove the first occurrence of item.
-        
+
         This also removes the item from `_playback_history`.
 
         Parameters
@@ -216,7 +216,7 @@ class BetterQueue(Queue):
         -------
         None
         """
-    
+
         super().remove(item)
         self._playback_history.remove(item)
 
@@ -287,7 +287,7 @@ class BetterQueue(Queue):
         Similar to `Queue.find_position()` but works with our `_playback_history` and `_current_index`.
 
         It is highly recommended to use this property instead of `Queue.find_position()` as the latter
-        
+
         does not account for tracks that have already been played and removed from the queue.
 
         Returns
@@ -339,7 +339,7 @@ class BetterQueue(Queue):
 
         return bool(self._q_end)
 
-    
+
     @is_at_history_end.setter
     def is_at_history_end(self, value: bool) -> None:
         """
@@ -359,14 +359,14 @@ class BetterQueue(Queue):
 
         self._q_end = value
 
-    
+
     @property
     def is_at_history_start(self) -> bool:
         """
         Check if the queue has reached the beginning.
 
         Examaining only `_current_index` is not sufficient, as sometimes the player has a single track only, and `_current_index` will still be 0 even after the track has been played.
-        
+
         This will be `True` if `_current_index` is 0 and the queue has not reached the end.
 
         Returns

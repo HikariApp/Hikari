@@ -51,7 +51,7 @@ async def ensure_playable(ctx: Context, player: BetterPlayer | VoiceRecvClient) 
     ----------
     ctx : commands.Context
         The context of the command invocation.
-    
+
     player : BetterPlayer | discord.ext.voice_recv.VoiceRecvClient
         The player instance to check.
 
@@ -64,11 +64,11 @@ async def ensure_playable(ctx: Context, player: BetterPlayer | VoiceRecvClient) 
     if player is None:
         await respond_embed(ctx, message=f"I'm not in a voice channel, either or the player is not connected to a node.", error=True)
         return False
-    
+
     if isinstance(player, VoiceRecvClient):
         await respond_embed(ctx, message=f"The voice client is now being occupied by the voice recorder. Please terminate the recorder and try again.", target=ResponseTarget.EPHEMERAL, error=True)
         return False
-    
+
     if player.queue.history_is_empty:
         # The player is not playing anything
         # We leave the color as user color or default because this is user friendly warning, not an actual error
@@ -90,7 +90,7 @@ def build_pagination(player: BetterPlayer, page_size: int) -> List[SelectOption]
     ----------
     player : BetterPlayer
         The music player instance containing the queue.
-    
+
     page_size : int
         Number of tracks per page.
 
@@ -136,7 +136,7 @@ def create_queue_embed(player: BetterPlayer, color: Color, page: int, page_size:
 
     color : discord.Color
         The color to use for the embed.
-    
+
     page : int
         The page number to display (1-based).
 
@@ -158,10 +158,10 @@ def create_queue_embed(player: BetterPlayer, color: Color, page: int, page_size:
     if player.current is None:
         embed.add_field(name="Now Playing :notes: :", value="There are no tracks playing now", inline=False)
         embed.add_field(name="Upcoming Tracks:", value="There are no upcoming tracks will be played", inline=False)
-    
+
     else:
         current_track_index = 0
-        
+
         if total > 0:
             current_track_index = min(max(player.queue.current_track_index, 0), total - 1)
         embed.add_field(
@@ -186,7 +186,7 @@ def create_queue_embed(player: BetterPlayer, color: Color, page: int, page_size:
             page = max(1, min(page, total_pages))
             start_index_of_page = (page - 1) * page_size
             ending_index_of_page = start_index_of_page + page_size
-            
+
             for index, track in enumerate(upcoming_tracks[start_index_of_page:ending_index_of_page]):
                 abs_index = upcoming_track_start_index + start_index_of_page + (1 + index)  # 1-based absolute index
                 embed.add_field(
@@ -194,7 +194,7 @@ def create_queue_embed(player: BetterPlayer, color: Color, page: int, page_size:
                     value=f"> **#{abs_index}** - {track.title} {track.requester.mention if track.requester else ''}",
                     inline=False,
                 )
-                
+
     if player.queue.is_looping:
         embed.add_field(name="", value="\u202a", inline=False)
 

@@ -9,7 +9,7 @@ from hikari_bot.helpers.respondembed import respond_embed
 async def is_banned(ctx: Context, user: User) -> bool:
     """
     This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
-    
+
     Checks if a user is already banned in the guild.
 
     Parameters
@@ -84,7 +84,7 @@ class Ban(Cog):
         # Error handling will be done by the error handler below
         if (user.id == ctx.author.id):
             return await respond_embed(ctx, message=f"{ctx.author.mention}, You can't **ban yourself**!", error=True)
-        
+
         if (user.id == self.bot.user.id):
             return await respond_embed(ctx, message=f"{ctx.author.mention}, I can't **ban myself**!", error=True)
 
@@ -99,10 +99,10 @@ class Ban(Cog):
         # As stated above, only the server owner (or bot owner) has privileges to ban admins
         if member and member.guild_permissions.administrator and (ctx.author.id != ctx.guild.owner.id or not await self.bot.is_owner(ctx.author)):
             return await respond_embed(ctx, message=f"{ctx.author.mention}, I know you're trying to **ban an admin**, but I can't let you do that... :rolling_eyes:", error=True)
-        
+
         if member and member.top_role >= ctx.guild.get_member(self.bot.user.id).top_role:
             return await respond_embed(ctx, message=f"{ctx.author.mention}, I can't **ban** {user.mention} because their **top role is higher than mine**.", error=True)
-        
+
         # All checks passed, proceed to ban
         if reason is None:
             await member.ban() if member else await ctx.guild.ban(user)
@@ -122,13 +122,13 @@ class Ban(Cog):
             # A special case to return a more user-friendly message
             ctx._error_handled = True
             return await respond_embed(ctx, message=f"Looks like you want me to **ban someone**, but **haven't specified** the user you would like to ban :thinking:  ...\nJust curious to know, **who** should I ban for now, {ctx.author.mention}?", error=True)
-        
+
         if isinstance(error, UserNotFound):
             # The member argument couldn't be converted to either User or Member
             # A special case to return a more user-friendly message
             ctx._error_handled = True
             return await respond_embed(ctx, message=f"I couldn't find **the user you wanted to ban** :thinking: ... Perhaps check if that user really **exists** on Discord, {ctx.author.mention}?", error=True)
-        
+
         if isinstance(error, MissingRequiredArgument):
             # Missing argument(s)
             ctx._error_handled = True

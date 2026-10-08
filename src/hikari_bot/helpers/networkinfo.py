@@ -35,7 +35,7 @@ class NetworkInfo:
     Cross-platform local network interface info.
 
     Addresses/subnets via ifaddr (works everywhere).
-    
+
     Gateways are OS-specific and dispatched by platform; they return None if the
     lookup fails or the platform is unsupported, never raising.
     """
@@ -175,7 +175,7 @@ class NetworkInfo:
         """
         Query the best-route gateway via the IP Helper API (GetBestRoute
         isn't ideal for this.
-        
+
         We parse `route print` instead, which is
         locale-independent for the 0.0.0.0 / :: default rows).
 

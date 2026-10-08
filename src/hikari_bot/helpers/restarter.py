@@ -73,7 +73,7 @@ class Restarter:
     def request(self, reason: str, delay: float = 0.0) -> None:
         """
         Request a restart.
-        
+
         Note that the first request wins while subsequent requests are ignored.
 
         Parameters
@@ -113,7 +113,7 @@ class Restarter:
 
         return self._requested
 
-    
+
     def perform(self) -> None:
         """
         Perform the restart if one has been requested.
@@ -133,10 +133,10 @@ class Restarter:
         a restart first by calling `request()`, otherwise it would be
         caught by the safety guard and do nothing.
         """
-        
+
         if not self._requested:
             return    # No restart requested; nothing to do.
-        
+
         if self._delay:
             logger.info("Restarting in %s seconds (%s)...", self._delay, self._reason)
             time.sleep(self._delay)

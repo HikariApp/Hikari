@@ -53,11 +53,11 @@ class ExtensionFailedError:
 
     def __repr__(self) -> str:
         return f"Some unexpected stuff happened while executing `{self.cog}`."
-    
+
 class InvaildTypeError():
     def __repr__(self) -> str:
         return "Looks like the type of message u provided it's not a valid type :thinking:..."
-    
+
 class MessageNotFoundError():
     def __repr__(self) -> str:
         return f'''I couldn't found the message from the given ID or URL :(

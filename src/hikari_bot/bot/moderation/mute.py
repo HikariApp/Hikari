@@ -57,20 +57,20 @@ class Mute(Cog):
 
         database = self.db.moderation_mute
         mute_text_collection = database["mute_text"]
-        
+
         muted = discord.utils.get(ctx.guild.roles, name="Muted")
-        
+
         if duration_str is not None:  # For time-based mute only
             total_duration = parse_duration(duration_str)
             if total_duration is None:
                 return await respond_embed(ctx, message=f"Looks like the time format you entered is not valid :thinking: ... Perhaps enter again and give me a chance to handle it, {ctx.author.mention} :pleading_face:?\n\n**Supported time format:**\n**1**s = **1** second | **2**m = **2** minutes | **5**h = **5** hours | **10**d = **10** days | **3**w = **3** weeks | **6**y = **6** years.", error=True)
-        
+
         if muted is None:
             muted = await ctx.guild.create_role("Muted", permissions=Permissions(send_messages=False))
-        
+
         if muted in member.roles:
             return await respond_embed(ctx, message=f"{member.mention} is already muted!", error=True)
-        
+
         duration_message = "for " + " and ".join(", ".join([f"**{value}** {unit[:-1]}" + ("s" if value > 1 else "") for unit, value in total_duration.items() if unit != "total_seconds" and value != 0]).rsplit(", ", 1)) + " " if duration_str is not None else ""
         reason_message =  f"\nReason: **{reason}**" if reason is not None else ""
 
@@ -78,7 +78,7 @@ class Mute(Cog):
         await member.add_roles(muted, **reason_karg)
 
         await respond_embed(ctx, message=f":white_check_mark: {member.mention} has been **muted** {duration_message}:zipper_mouth:{reason_message}")
-        
+
         # Save mute info to the database
         if duration_str is not None:
             mute_expiration_time = datetime.now(timezone.utc) + timedelta(seconds=total_duration["total_seconds"])    # For time-based mute only
@@ -128,7 +128,7 @@ class Mute(Cog):
             # Remove the Muted role from the member
             try:
                 await member.remove_roles(role, reason="Mute duration expired")
-            
+
             except Forbidden:
                 # If the bot lacks the permissions to remove the role, skip this member
                 continue
@@ -174,21 +174,21 @@ class Mute(Cog):
         # Error handling will be done by the error handler below
         if (member.id == ctx.author.id):
             return await respond_embed(ctx, message=f"{ctx.author.mention}, You can't **mute yourself**!", error=True)
-        
+
         if (member.id == self.bot.user.id):
             return await respond_embed(ctx, message=f"{ctx.author.mention}, I can't **mute myself**!", error=True)
-        
+
         if ctx.guild.get_member(member.id) is None:
             # The specified user exists, but could not be found as a member of the guild
             return await respond_embed(ctx, message=f"Looks like {member.mention} is not in the server, {ctx.author.mention} :thinking: ...", error=True)
-        
+
         # As stated above, only the server owner (or bot owner) has privileges to mute admins
         if member.guild_permissions.administrator and (ctx.author.id != ctx.guild.owner.id or not await self.bot.is_owner(ctx.author)):
             return await respond_embed(ctx, message=f"{ctx.author.mention}, I know you're trying to **mute an admin**, but I can't let you do that... :rolling_eyes:", error=True)
-        
+
         if member and member.top_role >= ctx.guild.get_member(self.bot.user.id).top_role:
             return await respond_embed(ctx, message=f"{ctx.author.mention}, I can't **mute** {member.mention} because their **top role is higher than mine**.", error=True)
-        
+
         await self.apply_mute(ctx=ctx, member=member, duration_str=duration, reason=reason)
 
 
@@ -209,7 +209,7 @@ class Mute(Cog):
             # A special case to return a more user-friendly message
             ctx._error_handled = True
             return await respond_embed(ctx, message=f"I couldn't find **the user you wanted to mute** :thinking: ... Perhaps check if that user really **exists** on Discord, {ctx.author.mention}?", error=True)
-        
+
         if isinstance(error, MemberNotFound):
             # The specified member could not be found
             # This will unlikely be triggered since we are using Union[User, Member] for the member argument, but we add it here just in case

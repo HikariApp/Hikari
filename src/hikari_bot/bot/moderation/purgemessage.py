@@ -16,20 +16,20 @@ class PurgeMessage(commands.Cog):
     @app_commands.describe(amount="Number of messages to purge")
     async def purge(self, interaction: Interaction, amount: Optional[app_commands.Range[int, 1]] = 1):
         await interaction.response.defer(ephemeral=True)
-        
+
         def not_pinned(msg):
             return not msg.pinned
-        
+
         if amount == 1:
             purge_embed = discord.Embed(title="Message Purge", description="You have successfully purged 1 message.", color=0x00ff00)
             await interaction.channel.purge(limit=amount, check=not_pinned)
-        
+
         elif amount > 1:
             purge_embed = discord.Embed(title="Message Purge", description=f"You have successfully purged {amount} messages.", color=0x00ff00)
             await interaction.channel.purge(limit=amount, check=not_pinned)
-        
+
         msg = await interaction.followup.send(embed=purge_embed, ephemeral=True, silent=True)
-        
+
         await asyncio.sleep(1.5)
         await msg.delete()
 
@@ -37,7 +37,7 @@ class PurgeMessage(commands.Cog):
     async def purge_error(self, interaction: Interaction, error):
         if isinstance(error, MissingPermissions):
             await interaction.response.send_message("It seems that you don't have permission to purge messages!")
-        
+
         else:
             raise error
 

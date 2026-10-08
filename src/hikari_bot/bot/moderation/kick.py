@@ -54,18 +54,18 @@ class Kick(Cog):
         # Error handling will be done by the error handler below
         if (member.id == ctx.author.id):
             return await respond_embed(ctx, message=f"{ctx.author.mention}, You can't **kick yourself**!", error=True)
-        
+
         if (member.id == self.bot.user.id):
             return await respond_embed(ctx, message=f"{ctx.author.mention}, I can't **kick myself**!", error=True)
-        
+
         if ctx.guild.get_member(member.id) is None:
             # The specified user exists, but could not be found as a member of the guild
             return await respond_embed(ctx, message=f"Looks like {member.mention} is not in the server, {ctx.author.mention} :thinking: ...", error=True)
-        
+
         # As stated above, only the server owner (or bot owner) has privileges to kick admins
         if member.guild_permissions.administrator and (ctx.author.id != ctx.guild.owner.id or not await self.bot.is_owner(ctx.author)):
             return await respond_embed(ctx, message=f"{ctx.author.mention}, I know you're trying to **kick an admin**, but I can't let you do that... :rolling_eyes:", error=True)
-        
+
         if member and member.top_role >= ctx.guild.get_member(self.bot.user.id).top_role:
             return await respond_embed(ctx, message=f"{ctx.author.mention}, I can't **kick** {member.mention} because their **top role is higher than mine**.", error=True)
 
@@ -96,7 +96,7 @@ class Kick(Cog):
             # A special case to return a more user-friendly message
             ctx._error_handled = True
             return await respond_embed(ctx, message=f"I couldn't find **the user you wanted to kick** :thinking: ... Perhaps check if that user really **exists** on Discord, {ctx.author.mention}?", error=True)
-        
+
         if isinstance(error, MemberNotFound):
             # The specified member could not be found
             # This will unlikely be triggered since we are using Union[User, Member] for the member argument, but we add it here just in case

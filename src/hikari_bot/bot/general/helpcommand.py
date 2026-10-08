@@ -6,7 +6,7 @@ from typing import Optional
 class BetterHelpCommand(HelpCommand):
     """
     A customized help command with enhanced features.
-    
+
     Provides detailed help messages for commands, groups and categories.
 
     Formatted using Discord embeds for better readability.
@@ -44,7 +44,7 @@ class BetterHelpCommand(HelpCommand):
 
         for cog, commands in mapping.items():
             filtered = await self.filter_commands(commands, sort=True)
-                
+
             # Collect command names rather than full signatures
             if command_names := [c.qualified_name for c in filtered]:
                 cog_name = getattr(cog, "qualified_name", "No Category")
