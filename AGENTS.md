@@ -39,3 +39,13 @@ Some files start with an MIT license header block, either a `"""..."""` docstrin
 Extension names are relative to the package (`bot.general.poll`, not `hikari_bot.bot.general.poll`), which keeps the owner `load`/`unload`/`reload` arguments and `DISABLE_*` flags unchanged from before packaging. Always pass names through `to_module_path()` before calling `load_extension`/`unload_extension`/`reload_extension`.
 
 An extension can be disabled with the env var `DISABLE_<DOTTED_PATH_UPPERCASED_WITH_UNDERSCORES>`, e.g. `DISABLE_BOT_GENERAL_CHATBOT`. Renaming an extension file or folder therefore changes its disable flag and its `load`/`unload`/`reload` path.
+
+## Known issues
+
+### ChatBot cog is broken and disabled
+
+`bot/general/chatbot.py` has not worked since 2024 and is intentionally disabled with `DISABLE_BOT_GENERAL_CHATBOT=1`.
+
+- Failures from it are known and expected, not regressions. This includes a missing `openai` package and OpenAI API key or client errors.
+- Do not spend effort fixing or maintaining the current OpenAI integration.
+- It is due for a complete rewrite, probably moving off ChatGPT/OpenAI to another provider that hasn't been chosen yet. Ask the maintainer which provider before designing the rewrite.
