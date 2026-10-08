@@ -38,11 +38,19 @@ Some files start with an MIT license header block, either a `"""..."""` docstrin
 
 Extension names are relative to the package (`bot.general.poll`, not `hikari_bot.bot.general.poll`), which keeps the owner `load`/`unload`/`reload` arguments and `DISABLE_*` flags unchanged from before packaging. Always pass names through `to_module_path()` before calling `load_extension`/`unload_extension`/`reload_extension`.
 
-An extension can be disabled with the env var `DISABLE_<DOTTED_PATH_UPPERCASED_WITH_UNDERSCORES>`, e.g. `DISABLE_BOT_GENERAL_CHATBOT`. Renaming an extension file or folder therefore changes its disable flag and its `load`/`unload`/`reload` path.
+An extension can be disabled with the env var `DISABLE_<DOTTED_PATH_UPPERCASED_WITH_UNDERSCORES>`, e.g. `DISABLE_BOT_EXTENSIONS_CHATBOT_CHATBOT`. Renaming an extension file or folder therefore changes its disable flag and its `load`/`unload`/`reload` path.
 
-## ChatBot cog
+## ChatBot extension
 
-`bot/general/chatbot.py` runs on the Claude API through the official `anthropic` SDK and reads `ANTHROPIC_API_KEY`. It is disabled by default in `example.env` (`DISABLE_BOT_GENERAL_CHATBOT=1`) because it needs that key.
+The ChatBot lives in `bot/extensions/chatbot/`, like the music player and voice recorder. It runs on the Claude API through the official `anthropic` SDK and reads `ANTHROPIC_API_KEY`. It is disabled by default in `example.env` (`DISABLE_BOT_EXTENSIONS_CHATBOT_CHATBOT=1`) because it needs that key.
+
+`chatbot.py` holds only the cog: commands, listeners and Discord replies. Everything else lives in internal helpers next to it:
+
+- `_claudeservice.py`: Claude API calls (replies, Files API uploads and deletes), model tiers, the system prompt and how user turns are built.
+- `_chatbotrepository.py`: MongoDB access for conversations and access tiers.
+- `_chatbotui.py`: the `/chatbot` modal, splitting replies into Discord-sized messages, and error embeds.
+
+Keep new API or database code in the helpers, not in the cog.
 
 - `/chatbot` answers the first message, then opens a thread on the reply. Every later message in that thread is a turn of the same conversation.
 - Conversations live in the `chatbot.conversations` MongoDB collection, one document per thread (`_id` is the thread ID). `messages` is the Claude message history and is only ever appended to. Never edit, reorder or trim earlier turns: that breaks prompt caching and invalidates the stored thinking blocks.

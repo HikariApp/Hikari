@@ -15,6 +15,13 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ### Changed
 - **ChatBot:** Rewrote `ChatBot` on the Claude API (`anthropic` SDK), replacing
   the OpenAI Assistants integration that had been broken since 2024.
+- **ChatBot:** Moved from `bot/general/chatbot.py` to the optional
+  extensions as `bot/extensions/chatbot/chatbot.py`, split into the cog and
+  internal helpers (`_claudeservice.py`, `_chatbotrepository.py`,
+  `_chatbotui.py`). Its disable flag is now
+  `DISABLE_BOT_EXTENSIONS_CHATBOT_CHATBOT` (was
+  `DISABLE_BOT_GENERAL_CHATBOT`), and the owner `load`/`unload`/`reload`
+  name is now `bot.extensions.chatbot.chatbot`.
   Access tiers now map to Claude models: `premium` to Claude Opus 5.5,
   `basic` to Claude Sonnet 5.5 and `trial` to Claude Haiku 5.5.
 - **ChatBot:** The API key is now read from `ANTHROPIC_API_KEY` instead of
