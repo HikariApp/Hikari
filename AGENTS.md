@@ -40,12 +40,12 @@ Extension names are relative to the package (`bot.general.poll`, not `hikari_bot
 
 An extension can be disabled with the env var `DISABLE_<DOTTED_PATH_UPPERCASED_WITH_UNDERSCORES>`, e.g. `DISABLE_BOT_GENERAL_CHATBOT`. Renaming an extension file or folder therefore changes its disable flag and its `load`/`unload`/`reload` path.
 
-## Known issues
+## ChatBot cog
 
-### ChatBot cog is broken and disabled
+`bot/general/chatbot.py` runs on the Claude API through the official `anthropic` SDK and reads `ANTHROPIC_API_KEY`. It is disabled by default in `example.env` (`DISABLE_BOT_GENERAL_CHATBOT=1`) because it needs that key.
 
-`bot/general/chatbot.py` has not worked since 2024 and is intentionally disabled with `DISABLE_BOT_GENERAL_CHATBOT=1`.
-
-- Failures from it are known and expected, not regressions. This includes a missing `openai` package and OpenAI API key or client errors.
-- Do not spend effort fixing or maintaining the current OpenAI integration.
-- It is due for a complete rewrite, probably moving off ChatGPT/OpenAI to another provider that hasn't been chosen yet. Ask the maintainer which provider before designing the rewrite.
+- `/chatbot` answers the first message, then opens a thread on the reply. Every later message in that thread is a turn of the same conversation.
+- Conversations live in the `chatbot.conversations` MongoDB collection, one document per thread (`_id` is the thread ID). `messages` is the Claude message history and is only ever appended to. Never edit, reorder or trim earlier turns: that breaks prompt caching and invalidates the stored thinking blocks.
+- Access tiers come from `chatbot.user_access` / `chatbot.server_access` (`trial`, `basic`, `premium`) and map to models in `MODEL_TIERS`. A conversation keeps the tier it started with.
+- Attachments are uploaded to the Claude Files API and referenced by file ID. `/resetchatbot` deletes the uploaded files along with the conversations.
+- The old OpenAI collections (`assistants`, `discord_channels`, `files`) are no longer used.
