@@ -42,7 +42,7 @@ An extension can be disabled with the env var `DISABLE_<DOTTED_PATH_UPPERCASED_W
 
 ## ChatBot extension
 
-The ChatBot lives in `bot/extensions/chatbot/`, like the music player and voice recorder. It talks to Claude through Poe's Anthropic-compatible API (`https://api.poe.com`), using the official `anthropic` SDK with a Poe key from `POE_API_KEY`, billed to the Poe subscription's points. It is disabled by default in `example.env` (`DISABLE_BOT_EXTENSIONS_CHATBOT_CHATBOT=1`) because it needs that key.
+The ChatBot lives in `bot/extensions/chatbot/`, like the music player and voice recorder. It talks to Claude through the official `anthropic` SDK, either directly (`ANTHROPIC_API_KEY`, which takes priority) or through Poe's Anthropic-compatible API at `https://api.poe.com` (`POE_API_KEY`, billed to the Poe subscription's points, kept as a backup). `PROVIDERS` in `_claudeservice.py` holds each provider's base URL, key and model names. It is disabled by default in `example.env` (`DISABLE_BOT_EXTENSIONS_CHATBOT_CHATBOT=1`) because it needs one of those keys.
 
 `chatbot.py` holds only the cog: commands, listeners and Discord replies. Everything else lives in internal helpers next to it:
 
@@ -54,7 +54,7 @@ Keep new API or database code in the helpers, not in the cog.
 
 - `/chatbot` answers the first message, then opens a thread on the reply. Every later message in that thread is a turn of the same conversation.
 - Conversations live in the `chatbot.conversations` MongoDB collection, one document per thread (`_id` is the thread ID). `messages` is the Claude message history and is only ever appended to. Never edit, reorder or trim earlier turns: that breaks prompt caching and invalidates the stored thinking blocks.
-- Access tiers come from `chatbot.user_access` / `chatbot.server_access` (`trial`, `basic`, `premium`) and map to Poe model names in `MODEL_TIERS`. A conversation keeps the tier it started with. Haiku 4.5 supports neither adaptive thinking nor effort, so its tier sends neither.
-- Poe only offers `/v1/messages`, so there is no Files API: attachments are sent inline (base64 images and PDFs, plain-text documents) and stored in the history. `attachment_bytes` tracks them, and the limits in `_claudeservice.py` keep each document under MongoDB's 16 MB cap.
-- Don't add Anthropic beta headers or features Poe may not pass through without testing them against Poe first.
+- Access tiers come from `chatbot.user_access` / `chatbot.server_access` (`trial`, `basic`, `premium`) and map to the same models on both providers (Opus 4.7, Sonnet 4.6, Haiku 4.5), spelled per provider in `PROVIDERS` (`claude-sonnet-4-6` on Anthropic, `claude-sonnet-4.6` on Poe). Keep both providers on the same models, so a conversation can continue after switching. A conversation keeps the tier it started with. Haiku 4.5 supports neither adaptive thinking nor effort, so its tier sends neither (`TIER_EFFORT`).
+- Poe only offers `/v1/messages`, so neither provider uses the Files API: attachments are sent inline (base64 images and PDFs, plain-text documents) and stored in the history. `attachment_bytes` tracks them, and the limits in `_claudeservice.py` keep each document under MongoDB's 16 MB cap.
+- Only use features both providers support. Don't add Anthropic beta headers or features Poe may not pass through without testing them against Poe first.
 - The old OpenAI collections (`assistants`, `discord_channels`, `files`) are no longer used.

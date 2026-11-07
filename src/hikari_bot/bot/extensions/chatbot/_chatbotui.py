@@ -92,19 +92,19 @@ def error_embed(message: str) -> Embed:
     return embed
 
 
-def api_error_embed(error: anthropic.APIError) -> Embed:
-    """Build an embed describing a failed request to Claude through Poe."""
+def api_error_embed(error: anthropic.APIError, provider_name: str) -> Embed:
+    """Build an embed describing a failed request to Claude through `provider_name` (Anthropic or Poe)."""
 
     if isinstance(error, anthropic.AuthenticationError):
-        summary = "The bot's Poe API key is missing or invalid. Please let the bot owner know."
+        summary = f"The bot's {provider_name} API key is missing or invalid. Please let the bot owner know."
     elif isinstance(error, anthropic.PermissionDeniedError):
-        summary = "The bot's Poe API key isn't allowed to do this. Please let the bot owner know."
+        summary = f"The bot's {provider_name} API key isn't allowed to do this. Please let the bot owner know."
     elif isinstance(error, anthropic.RateLimitError):
         summary = "I'm getting too many requests right now. Please try again in a moment."
     elif isinstance(error, (anthropic.OverloadedError, anthropic.InternalServerError)):
         summary = "Claude is having trouble right now. Please try again in a moment."
     elif isinstance(error, anthropic.APIConnectionError):
-        summary = "I couldn't reach Poe. Please try again in a moment."
+        summary = f"I couldn't reach {provider_name}. Please try again in a moment."
     else:
         summary = "Something went wrong while talking to Claude."
 

@@ -84,7 +84,7 @@ class ChatBot(Cog):
             await interaction.followup.send(embed=error_embed(str(e)))
 
         except anthropic.APIError as e:
-            await interaction.followup.send(embed=api_error_embed(e))
+            await interaction.followup.send(embed=api_error_embed(e, self.claude.provider_name))
 
         except discord.Forbidden:
             await interaction.followup.send(embed=error_embed("I couldn't **create the thread** for our conversation. Please **double-check** my **permissions** and **role position**."))
@@ -126,7 +126,7 @@ class ChatBot(Cog):
             await message.reply(embed=error_embed(str(e)), allowed_mentions=REPLY_MENTIONS)
 
         except anthropic.APIError as e:
-            await message.reply(embed=api_error_embed(e), allowed_mentions=REPLY_MENTIONS)
+            await message.reply(embed=api_error_embed(e, self.claude.provider_name), allowed_mentions=REPLY_MENTIONS)
 
 
     # Command to initiate ChatBot interaction

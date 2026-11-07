@@ -8,16 +8,27 @@ import discord
 from anthropic import AsyncAnthropic
 
 
-# Claude is reached through Poe's Anthropic-compatible API, billed to the Poe subscription's points.
-POE_BASE_URL = "https://api.poe.com"
-
-# Each access tier maps to a Claude model on Poe. `effort` trades answer depth for cost and speed;
-# `None` means the model supports neither adaptive thinking nor effort (Claude Haiku 4.5).
-MODEL_TIERS: Dict[str, Dict[str, Optional[str]]] = {
-    "premium": {"model": "claude-opus-4.7", "effort": "medium"},
-    "basic": {"model": "claude-sonnet-4.6", "effort": "medium"},
-    "trial": {"model": "claude-haiku-4.5", "effort": None},
+# Claude is reached directly through the Anthropic API when ANTHROPIC_API_KEY is set, otherwise
+# through Poe's Anthropic-compatible API with POE_API_KEY, billed to the Poe subscription's points.
+# Both serve the same models, so a conversation can carry on after switching from one to the other.
+PROVIDERS: Dict[str, Dict[str, Any]] = {
+    "anthropic": {
+        "name": "Anthropic",
+        "key_env": "ANTHROPIC_API_KEY",
+        "base_url": "https://api.anthropic.com",
+        "models": {"premium": "claude-opus-4-7", "basic": "claude-sonnet-4-6", "trial": "claude-haiku-4-5"},
+    },
+    "poe": {
+        "name": "Poe",
+        "key_env": "POE_API_KEY",
+        "base_url": "https://api.poe.com",
+        "models": {"premium": "claude-opus-4.7", "basic": "claude-sonnet-4.6", "trial": "claude-haiku-4.5"},
+    },
 }
+
+# Effort per access tier, which trades answer depth for cost and speed. `None` means the tier's
+# model supports neither adaptive thinking nor effort (Claude Haiku 4.5).
+TIER_EFFORT: Dict[str, Optional[str]] = {"premium": "medium", "basic": "medium", "trial": None}
 TIER_PRIORITY = {"trial": 0, "basic": 1, "premium": 2}
 DEFAULT_TIER = "trial"
 
@@ -143,11 +154,25 @@ def _with_cache_breakpoint(messages: List[Dict[str, Any]]) -> List[Dict[str, Any
     return request
 
 
-class ClaudeService:
-    """Talks to Claude through Poe's Anthropic-compatible API."""
+def pick_provider() -> str:
+    """Return the provider to use: Anthropic if its key is set, otherwise Poe."""
 
-    def __init__(self, client: Optional[AsyncAnthropic] = None):
-        self.client = client or AsyncAnthropic(api_key=os.environ["POE_API_KEY"], base_url=POE_BASE_URL)
+    for provider, config in PROVIDERS.items():
+        if os.getenv(config["key_env"]):
+            return provider
+
+    raise RuntimeError("The ChatBot needs ANTHROPIC_API_KEY or POE_API_KEY to be set.")
+
+
+class ClaudeService:
+    """Talks to Claude, directly or through Poe."""
+
+    def __init__(self, provider: Optional[str] = None, client: Optional[AsyncAnthropic] = None):
+        self.provider = provider or pick_provider()
+        config = PROVIDERS[self.provider]
+        self.provider_name = config["name"]
+        self.models = config["models"]
+        self.client = client or AsyncAnthropic(api_key=os.environ[config["key_env"]], base_url=config["base_url"])
 
 
     async def close(self) -> None:
@@ -184,15 +209,17 @@ class ClaudeService:
             The request failed.
         """
 
-        tier = MODEL_TIERS.get(access_level, MODEL_TIERS[DEFAULT_TIER])
+        if access_level not in self.models:
+            access_level = DEFAULT_TIER
 
         options: Dict[str, Any] = {}
-        if tier["effort"]:
+        effort = TIER_EFFORT[access_level]
+        if effort:
             options["thinking"] = {"type": "adaptive"}
-            options["output_config"] = {"effort": tier["effort"]}
+            options["output_config"] = {"effort": effort}
 
         response = await self.client.messages.create(
-            model=tier["model"],
+            model=self.models[access_level],
             max_tokens=MAX_TOKENS,
             system=system,
             messages=_with_cache_breakpoint(messages),

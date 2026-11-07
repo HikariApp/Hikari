@@ -13,11 +13,13 @@ predates the first tag is collected under the initial `v1.0.0` release.
 ## [Unreleased]
 
 ### Changed
-- **ChatBot:** Rewrote `ChatBot` on Claude, reached through Poe's
-  Anthropic-compatible API with the official `anthropic` SDK, replacing the
-  OpenAI Assistants integration that had been broken since 2024. It uses
-  Poe subscription points. Access tiers map to `premium` Claude Opus 4.7,
-  `basic` Claude Sonnet 4.6 and `trial` Claude Haiku 4.5.
+- **ChatBot:** Rewrote `ChatBot` on Claude with the official `anthropic`
+  SDK, replacing the OpenAI Assistants integration that had been broken
+  since 2024. It talks to the Anthropic API directly when
+  `ANTHROPIC_API_KEY` is set, and otherwise to Poe's Anthropic-compatible
+  API with `POE_API_KEY`, using Poe subscription points. Access tiers map
+  to `premium` Claude Opus 4.7, `basic` Claude Sonnet 4.6 and `trial`
+  Claude Haiku 4.5 on both.
 - **ChatBot:** Moved from `bot/general/chatbot.py` to the optional
   extensions as `bot/extensions/chatbot/chatbot.py`, split into the cog and
   internal helpers (`_claudeservice.py`, `_chatbotrepository.py`,
@@ -25,8 +27,8 @@ predates the first tag is collected under the initial `v1.0.0` release.
   `DISABLE_BOT_EXTENSIONS_CHATBOT_CHATBOT` (was
   `DISABLE_BOT_GENERAL_CHATBOT`), and the owner `load`/`unload`/`reload`
   name is now `bot.extensions.chatbot.chatbot`.
-- **ChatBot:** The API key is now read from `POE_API_KEY` instead of
-  `API_KEY`.
+- **ChatBot:** The API key is now read from `ANTHROPIC_API_KEY` or
+  `POE_API_KEY` instead of `API_KEY`.
 - **ChatBot:** Conversations are stored in the new `chatbot.conversations`
   collection, one per thread. Old OpenAI-era history is not migrated.
 - **ChatBot:** Attachments accept images (PNG, JPEG, GIF, WebP), PDFs and
