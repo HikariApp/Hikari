@@ -12,35 +12,12 @@ predates the first tag is collected under the initial `v1.0.0` release.
 
 ## [Unreleased]
 
-### Changed
-- **ChatBot:** Rewrote `ChatBot` on the Claude API (`anthropic` SDK), replacing
-  the OpenAI Assistants integration that had been broken since 2024.
-- **ChatBot:** Moved from `bot/general/chatbot.py` to the optional
-  extensions as `bot/extensions/chatbot/chatbot.py`, split into the cog and
-  internal helpers (`_claudeservice.py`, `_chatbotrepository.py`,
-  `_chatbotui.py`). Its disable flag is now
-  `DISABLE_BOT_EXTENSIONS_CHATBOT_CHATBOT` (was
-  `DISABLE_BOT_GENERAL_CHATBOT`), and the owner `load`/`unload`/`reload`
-  name is now `bot.extensions.chatbot.chatbot`.
-  Access tiers now map to Claude models: `premium` to Claude Opus 5.5,
-  `basic` to Claude Sonnet 5.5 and `trial` to Claude Haiku 5.5.
-- **ChatBot:** The API key is now read from `ANTHROPIC_API_KEY` instead of
-  `API_KEY`.
-- **ChatBot:** Conversations are stored in the new `chatbot.conversations`
-  collection, one per thread. Old OpenAI-era history is not migrated.
-- **ChatBot:** Attachments accept images (PNG, JPEG, GIF, WebP), PDFs and
-  text files. Videos are no longer accepted.
-- **ChatBot:** `/resetchatbot` "current channel" now clears every ChatBot
-  thread started in that channel, and also deletes the uploaded files. It no
-  longer requires the bot itself to have `manage_threads`/`manage_guild`.
-
-### Fixed
-- **ChatBot:** The first message of a conversation is now part of the
-  thread's history, so the bot remembers it in follow-up messages.
-- **ChatBot:** Replies can no longer ping `@everyone`, `@here`, roles or
-  users, and long replies no longer break code blocks when split.
-- **ChatBot:** Messages sent quickly one after another in the same thread
-  are answered in order.
+### Removed
+- **ChatBot:** Removed the `ChatBot` cog (`/chatbot` and `/resetchatbot`).
+  Its OpenAI Assistants integration had been broken and disabled since
+  2024, and there is no API key to run a replacement. `API_KEY` and
+  `DISABLE_BOT_GENERAL_CHATBOT` are no longer used, and the `chatbot`
+  MongoDB database can be dropped.
 
 ## [3.7.1] - 2026-10-06
 
