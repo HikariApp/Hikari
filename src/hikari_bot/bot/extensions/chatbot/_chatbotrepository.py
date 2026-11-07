@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -129,16 +130,18 @@ class ChatBotRepository:
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
         Load stored attachments as `{id: (bytes, metadata)}`. Attachments that no longer exist are left out.
+        They are loaded concurrently, so a thread with several attachments waits about as long as for one.
         """
 
-        files = {}
-        for attachment_id in attachment_ids:
+        async def load(attachment_id: str) -> Optional[tuple[bytes, Dict[str, Any]]]:
             try:
                 stream = await self.attachments.open_download_stream(ObjectId(attachment_id))
-                files[attachment_id] = (await stream.read(), stream.metadata or {})
+                return await stream.read(), stream.metadata or {}
             except (NoFile, InvalidId):
-                continue
-        return files
+                return None
+
+        loaded = await asyncio.gather(*(load(attachment_id) for attachment_id in attachment_ids))
+        return {attachment_id: file for attachment_id, file in zip(attachment_ids, loaded) if file is not None}
 
 
     async def delete_attachments(self, attachment_ids: List[str]) -> None:

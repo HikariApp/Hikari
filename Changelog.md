@@ -12,20 +12,6 @@ predates the first tag is collected under the initial `v1.0.0` release.
 
 ## [Unreleased]
 
-### Changed
-- **ChatBot:** Attachments are stored once in MongoDB GridFS (the
-  `chatbot.attachments` bucket) instead of as base64 inside each
-  conversation document, which now only references them. Conversations are
-  no longer limited by MongoDB's 16 MB document size, so a thread can hold
-  up to 20 MB of attachments (was 8 MB). `/resetchatbot` deletes a
-  conversation's attachments too. Existing conversations keep working.
-
-### Fixed
-- **ChatBot:** The prompt-privacy rule now covers only the system prompt.
-  The bot sometimes refused to repeat or quote things from the
-  conversation itself, such as a word from an attached PDF or the user's
-  own earlier message, because the rule mentioned "the text above".
-
 ## [3.8.0] - 2026-11-07
 
 ### Changed
@@ -48,10 +34,13 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - **ChatBot:** Conversations are stored in the new `chatbot.conversations`
   collection, one per thread. Old OpenAI-era history is not migrated.
 - **ChatBot:** Attachments accept images (PNG, JPEG, GIF, WebP), PDFs and
-  text files, up to 5 MB each and 8 MB per conversation. Videos are no
-  longer accepted.
+  text files, up to 5 MB each and 20 MB per conversation. Videos are no
+  longer accepted. Attachments are stored once in MongoDB GridFS (the
+  `chatbot.attachments` bucket) and only referenced from the conversation,
+  and `/resetchatbot` deletes them along with it.
 - **ChatBot:** The bot declines to reveal or paraphrase its system prompt,
-  including to users who claim to be the owner.
+  including to users who claim to be the owner, while still repeating,
+  quoting or translating anything from the conversation itself.
 - **ChatBot:** The `/chatbot` modal has an optional "Instructions for this
   thread" box (up to 1500 characters), e.g. "Always reply in Traditional
   Chinese". The instructions apply to the whole thread, which gets a short
@@ -62,8 +51,8 @@ predates the first tag is collected under the initial `v1.0.0` release.
   news, prices and software versions. Replies that searched end with a
   small line of source links. Anything it says before searching ("let me
   look that up") is posted as soon as the search starts, as its own
-  message, and the answer follows when the search is done. Each message's label now includes its send
-  time in UTC, so the bot knows today's date.
+  message, and the answer follows when the search is done. Each message's
+  label now includes its send time in UTC, so the bot knows today's date.
 - **ChatBot:** The cat persona is now a default rather than a rule: people
   can ask the bot to talk normally, and it stays that way until they ask
   for the puns back.
