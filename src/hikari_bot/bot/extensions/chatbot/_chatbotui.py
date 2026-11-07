@@ -67,6 +67,7 @@ def split_message(text: str, limit: int = DISCORD_MESSAGE_LIMIT) -> List[str]:
 
     Splits between lines where possible, falls back to spaces and then to hard cuts for very long
     lines, and closes and reopens code blocks that span two chunks so each chunk renders correctly.
+    A code block still open at the end, e.g. in a reply cut off at the token limit, is closed too.
     Discord only renders headings up to `###`, so deeper headings are flattened to `###`.
     """
 
@@ -93,7 +94,8 @@ def split_message(text: str, limit: int = DISCORD_MESSAGE_LIMIT) -> List[str]:
                 fence = None if fence else line.strip()
 
     if current:
-        chunks.append(current)
+        # The reserve above always leaves room for this closing fence.
+        chunks.append(f"{current}\n```" if fence else current)
 
     return [chunk for chunk in chunks if chunk.strip()]
 

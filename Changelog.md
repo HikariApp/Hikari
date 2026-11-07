@@ -59,7 +59,8 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - **ChatBot:** The first message of a conversation is now part of the
   thread's history, so the bot remembers it in follow-up messages.
 - **ChatBot:** Replies can no longer ping `@everyone`, `@here`, roles or
-  users, and long replies no longer break code blocks when split.
+  users, and long replies no longer break code blocks when split or cut
+  off at the length limit.
 - **ChatBot:** Messages sent quickly one after another in the same thread
   are answered in order.
 
