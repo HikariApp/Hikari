@@ -45,7 +45,8 @@ predates the first tag is collected under the initial `v1.0.0` release.
   for things that may have changed since the model's training, such as
   news, prices and software versions. Replies that searched end with a
   small line of source links. Anything it says before searching ("let me
-  look that up") is sent as its own message, ahead of the answer. Each message's label now includes its send
+  look that up") is posted as soon as the search starts, as its own
+  message, and the answer follows when the search is done. Each message's label now includes its send
   time in UTC, so the bot knows today's date.
 - **ChatBot:** The cat persona is now a default rather than a rule: people
   can ask the bot to talk normally, and it stays that way until they ask

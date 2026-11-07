@@ -65,11 +65,11 @@ class ChatBot(Cog):
 
     def reply_chunks(self, reply: ClaudeReply) -> List[str]:
         """
-        Split a reply into Discord messages, followed by the cut-off note and the sources line when
-        needed. Each part of a reply that searched starts its own message.
+        Split the parts of a reply not yet sent into Discord messages, followed by the cut-off note
+        and the sources line when needed. Each part of a reply that searched starts its own message.
         """
 
-        chunks = [chunk for part in reply.parts for chunk in split_message(part)]
+        chunks = [chunk for part in reply.unsent_parts for chunk in split_message(part)]
         if reply.cut_off:
             chunks.append(CUT_OFF_NOTE)
         if reply.sources and (sources := format_sources(reply.sources)):
@@ -90,21 +90,38 @@ class ChatBot(Cog):
             user_message = build_user_message(interaction.user, text, blocks, skipped, interaction.created_at)
 
             instructions = clean_instructions(instructions)
-            reply = await self.claude.reply(self.system_prompt(instructions), access_level, [user_message])
+            thread: Optional[Thread] = None
+
+            # The first message answers the interaction and gets the thread; the rest go inside it.
+            async def send(chunk: str) -> None:
+                nonlocal thread
+                if thread is None:
+                    first = await interaction.followup.send(chunk, allowed_mentions=REPLY_MENTIONS, wait=True)
+                    message = await interaction.channel.fetch_message(first.id)
+                    thread = await message.create_thread(
+                        name=f"{THREAD_NAME_PREFIX}{interaction.user.display_name}"[:100],
+                        auto_archive_duration=1440,  # Archive after 24 hours of inactivity
+                    )
+                else:
+                    await thread.send(chunk, allowed_mentions=REPLY_MENTIONS)
+
+            # Text written before a search is shown at once, with "is typing..." in the thread while it searches
+            async def on_part(part: str) -> None:
+                for chunk in split_message(part):
+                    await send(chunk)
+                await thread.typing()
+
+            reply = await self.claude.reply(self.system_prompt(instructions), access_level, [user_message], on_part)
             user_message = self.with_search_note(user_message, reply)
             chunks = self.reply_chunks(reply)
 
-            first = await interaction.followup.send(chunks[0], allowed_mentions=REPLY_MENTIONS, wait=True)
-            message = await interaction.channel.fetch_message(first.id)
-            thread = await message.create_thread(
-                name=f"{THREAD_NAME_PREFIX}{interaction.user.display_name}"[:100],
-                auto_archive_duration=1440,  # Archive after 24 hours of inactivity
-            )
+            if thread is None:
+                await send(chunks.pop(0))
 
             await self.repository.create_conversation(thread, interaction.user.id, access_level, instructions, [user_message, reply.message], attachment_bytes)
 
-            for chunk in chunks[1:]:
-                await thread.send(chunk, allowed_mentions=REPLY_MENTIONS)
+            for chunk in chunks:
+                await send(chunk)
 
             # Everyone in the thread is affected by the starter's instructions, so say they exist
             if instructions:
@@ -135,20 +152,34 @@ class ChatBot(Cog):
             blocks, attachment_bytes, skipped = await build_attachment_blocks(message.attachments, budget)
             user_message = build_user_message(message.author, message.content, blocks, skipped, message.created_at)
 
+            replied = False
+
+            # Reply to the user's message with the first chunk, then send the rest normally
+            async def send(chunk: str) -> None:
+                nonlocal replied
+                if not replied:
+                    await message.reply(chunk, allowed_mentions=REPLY_MENTIONS)
+                    replied = True
+                else:
+                    await message.channel.send(chunk, allowed_mentions=REPLY_MENTIONS)
+
+            # Text written before a search is shown at once; the caller keeps "is typing..." up meanwhile
+            async def on_part(part: str) -> None:
+                for chunk in split_message(part):
+                    await send(chunk)
+
             reply = await self.claude.reply(
                 self.system_prompt(entry.get("instructions", "")),
                 entry.get("access_level", DEFAULT_TIER),
                 [*entry["messages"], user_message],
+                on_part,
             )
 
             user_message = self.with_search_note(user_message, reply)
             await self.repository.append_turn(message.channel.id, [user_message, reply.message], attachment_bytes)
-            chunks = self.reply_chunks(reply)
 
-            # Reply to the user's message with the first chunk, then send the rest normally
-            await message.reply(chunks[0], allowed_mentions=REPLY_MENTIONS)
-            for chunk in chunks[1:]:
-                await message.channel.send(chunk, allowed_mentions=REPLY_MENTIONS)
+            for chunk in self.reply_chunks(reply):
+                await send(chunk)
 
         except ChatBotError as e:
             await message.reply(embed=error_embed(str(e)), allowed_mentions=REPLY_MENTIONS)

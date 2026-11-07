@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import mimetypes
 import os
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 import discord
 from anthropic import AsyncAnthropic
@@ -215,6 +215,11 @@ class ClaudeReply:
     cut_off: bool                       # Whether the reply hit MAX_TOKENS
     sources: List[Dict[str, str]]       # Web pages cited by the reply, as {"url", "title"}
     search_note: Optional[Dict[str, Any]] = None    # Text block to add to the user's message when the reply searched
+    streamed_parts: int = 0             # How many leading parts were already handed to `on_part` while streaming
+
+    @property
+    def unsent_parts(self) -> List[str]:
+        return self.parts[self.streamed_parts:]
 
 
 def _collect_sources(content: List[Dict[str, Any]]) -> List[Dict[str, str]]:
@@ -307,11 +312,14 @@ class ClaudeService:
         await self.client.close()
 
 
-    async def reply(self, system: str, access_level: str, messages: List[Dict[str, Any]]) -> ClaudeReply:
+    async def reply(self, system: str, access_level: str, messages: List[Dict[str, Any]], on_part: Optional[Callable[[str], Awaitable[None]]] = None) -> ClaudeReply:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
         Send the conversation to Claude, which may search the web before answering.
+
+        The response is streamed. When Claude starts a search, the text it wrote before it (e.g. "let
+        me look that up") is passed to `on_part` straight away, so it can be shown while the search runs.
 
         Parameters
         ----------
@@ -321,11 +329,13 @@ class ClaudeService:
             The conversation's access tier, which picks the model.
         messages: list[dict]
             The full conversation, ending with the new user message.
+        on_part: Optional[Callable[[str], Awaitable[None]]]
+            Called with each finished part of the reply that comes before a search.
 
         Returns
         -------
         ClaudeReply:
-            The reply text, the assistant message to store, whether it was cut off, and its sources.
+            The reply. Its `unsent_parts` are the parts not yet passed to `on_part`.
 
         Raises
         ------
@@ -350,15 +360,29 @@ class ClaudeService:
 
         request = _with_cache_breakpoint(messages)
         content: List[Dict[str, Any]] = []
+        streamed: List[str] = []
 
         for _ in range(MAX_CONTINUATIONS + 1):
-            response = await self.client.messages.create(
+            pending = ""
+            async with self.client.messages.stream(
                 model=self.models[access_level],
                 max_tokens=MAX_TOKENS,
                 system=system,
                 messages=request,
                 **options,
-            )
+            ) as stream:
+                async for event in stream:
+                    if event.type == "content_block_delta" and event.delta.type == "text_delta":
+                        pending += event.delta.text
+
+                    elif event.type == "content_block_start" and event.content_block.type not in ("text", "thinking", "redacted_thinking"):
+                        # A tool (the web search) is starting: show what was written before it now.
+                        part, pending = _clean_reply_text(pending), ""
+                        if part and on_part:
+                            streamed.append(part)
+                            await on_part(part)
+
+                response = await stream.get_final_message()
 
             if response.stop_reason == "refusal":
                 raise ChatBotRefusal("I can't help with that one. Try asking something else, or rephrase your message.")
@@ -375,6 +399,10 @@ class ClaudeService:
         if not parts:
             raise ChatBotError("I couldn't come up with a reply this time. Please try again.")
 
+        # The parts shown while streaming should be the first parts of the finished reply. If they
+        # somehow aren't, show the finished reply after them in full rather than risk losing text.
+        streamed_parts = len(streamed) if parts[:len(streamed)] == streamed else 0
+
         text = "\n\n".join(parts)
         sources = _collect_sources(content)
-        return ClaudeReply(text, parts, _message_to_store(content, text), response.stop_reason == "max_tokens", sources, _search_note(content, sources))
+        return ClaudeReply(text, parts, _message_to_store(content, text), response.stop_reason == "max_tokens", sources, _search_note(content, sources), streamed_parts)
