@@ -1,6 +1,7 @@
 import re
 from datetime import datetime, timezone
-from typing import Awaitable, Callable, List
+from typing import Awaitable, Callable, Dict, List
+from urllib.parse import urlparse
 
 import anthropic
 import discord
@@ -95,6 +96,23 @@ def split_message(text: str, limit: int = DISCORD_MESSAGE_LIMIT) -> List[str]:
         chunks.append(current)
 
     return [chunk for chunk in chunks if chunk.strip()]
+
+
+def format_sources(sources: List[Dict[str, str]], limit: int = DISCORD_MESSAGE_LIMIT) -> str:
+    """
+    Format cited web pages as one small line of links, named by site, e.g.
+    `-# Sources: [python.org](<https://www.python.org/downloads/>)`. The angle brackets stop
+    Discord from unfurling a preview for each link.
+    """
+
+    line = "-# Sources:"
+    for source in sources:
+        site = urlparse(source["url"]).netloc.removeprefix("www.") or "link"
+        link = f" [{site}](<{source['url']}>)"
+        if len(line) + len(link) + 2 > limit:
+            break
+        line += link if line.endswith(":") else f" ·{link}"
+    return line if not line.endswith(":") else ""
 
 
 def error_embed(message: str) -> Embed:

@@ -1,6 +1,6 @@
 import asyncio
 from collections import defaultdict
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import anthropic
 import discord
@@ -16,12 +16,14 @@ from hikari_bot.bot.extensions.chatbot._chatbotui import (
     ChatBotModal,
     api_error_embed,
     error_embed,
+    format_sources,
     split_message,
 )
 from hikari_bot.bot.extensions.chatbot._claudeservice import (
     DEFAULT_TIER,
     MAX_CONVERSATION_ATTACHMENT_BYTES,
     ChatBotError,
+    ClaudeReply,
     ClaudeService,
     build_attachment_blocks,
     build_user_message,
@@ -52,6 +54,26 @@ class ChatBot(Cog):
         return system_prompt(self.bot.user.name if self.bot.user else "AI Assistant", instructions)
 
 
+    @staticmethod
+    def with_search_note(user_message: Dict[str, Any], reply: ClaudeReply) -> Dict[str, Any]:
+        """Add the reply's search note, if any, to the user's message before it is stored."""
+
+        if not reply.search_note:
+            return user_message
+        return {**user_message, "content": [*user_message["content"], reply.search_note]}
+
+
+    def reply_chunks(self, reply: ClaudeReply) -> List[str]:
+        """Split a reply into Discord messages, followed by the cut-off note and the sources line when needed."""
+
+        chunks = split_message(reply.text)
+        if reply.cut_off:
+            chunks.append(CUT_OFF_NOTE)
+        if reply.sources and (sources := format_sources(reply.sources)):
+            chunks.append(sources)
+        return chunks
+
+
     async def start_conversation(self, interaction: Interaction, text: str, instructions: str, attachment: Optional[discord.Attachment]) -> None:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
@@ -62,14 +84,12 @@ class ChatBot(Cog):
         try:
             access_level = await self.repository.get_access_level(self.bot, interaction.user, interaction.guild_id)
             blocks, attachment_bytes, skipped = await build_attachment_blocks([attachment] if attachment else [], MAX_CONVERSATION_ATTACHMENT_BYTES)
-            user_message = build_user_message(interaction.user, text, blocks, skipped)
+            user_message = build_user_message(interaction.user, text, blocks, skipped, interaction.created_at)
 
             instructions = clean_instructions(instructions)
-            reply, assistant_message, cut_off = await self.claude.reply(self.system_prompt(instructions), access_level, [user_message])
-
-            chunks = split_message(reply)
-            if cut_off:
-                chunks.append(CUT_OFF_NOTE)
+            reply = await self.claude.reply(self.system_prompt(instructions), access_level, [user_message])
+            user_message = self.with_search_note(user_message, reply)
+            chunks = self.reply_chunks(reply)
 
             first = await interaction.followup.send(chunks[0], allowed_mentions=REPLY_MENTIONS, wait=True)
             message = await interaction.channel.fetch_message(first.id)
@@ -78,7 +98,7 @@ class ChatBot(Cog):
                 auto_archive_duration=1440,  # Archive after 24 hours of inactivity
             )
 
-            await self.repository.create_conversation(thread, interaction.user.id, access_level, instructions, [user_message, assistant_message], attachment_bytes)
+            await self.repository.create_conversation(thread, interaction.user.id, access_level, instructions, [user_message, reply.message], attachment_bytes)
 
             for chunk in chunks[1:]:
                 await thread.send(chunk, allowed_mentions=REPLY_MENTIONS)
@@ -110,19 +130,17 @@ class ChatBot(Cog):
         try:
             budget = MAX_CONVERSATION_ATTACHMENT_BYTES - entry.get("attachment_bytes", 0)
             blocks, attachment_bytes, skipped = await build_attachment_blocks(message.attachments, budget)
-            user_message = build_user_message(message.author, message.content, blocks, skipped)
+            user_message = build_user_message(message.author, message.content, blocks, skipped, message.created_at)
 
-            reply, assistant_message, cut_off = await self.claude.reply(
+            reply = await self.claude.reply(
                 self.system_prompt(entry.get("instructions", "")),
                 entry.get("access_level", DEFAULT_TIER),
                 [*entry["messages"], user_message],
             )
 
-            await self.repository.append_turn(message.channel.id, [user_message, assistant_message], attachment_bytes)
-
-            chunks = split_message(reply)
-            if cut_off:
-                chunks.append(CUT_OFF_NOTE)
+            user_message = self.with_search_note(user_message, reply)
+            await self.repository.append_turn(message.channel.id, [user_message, reply.message], attachment_bytes)
+            chunks = self.reply_chunks(reply)
 
             # Reply to the user's message with the first chunk, then send the rest normally
             await message.reply(chunks[0], allowed_mentions=REPLY_MENTIONS)
