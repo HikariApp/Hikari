@@ -11,6 +11,7 @@ from discord.ext.commands import Bot, Cog
 from hikari_bot.bot.extensions.chatbot._chatbotrepository import ChatBotRepository
 from hikari_bot.bot.extensions.chatbot._chatbotui import (
     CUT_OFF_NOTE,
+    INSTRUCTIONS_NOTE,
     REPLY_MENTIONS,
     ChatBotModal,
     api_error_embed,
@@ -24,6 +25,7 @@ from hikari_bot.bot.extensions.chatbot._claudeservice import (
     ClaudeService,
     build_attachment_blocks,
     build_user_message,
+    clean_instructions,
     system_prompt,
 )
 from hikari_bot.helpers.errorhandling import NotBotOwnerError
@@ -46,11 +48,11 @@ class ChatBot(Cog):
         await self.claude.close()
 
 
-    def system_prompt(self) -> str:
-        return system_prompt(self.bot.user.name if self.bot.user else "AI Assistant")
+    def system_prompt(self, instructions: str = "") -> str:
+        return system_prompt(self.bot.user.name if self.bot.user else "AI Assistant", instructions)
 
 
-    async def start_conversation(self, interaction: Interaction, text: str, attachment: Optional[discord.Attachment]) -> None:
+    async def start_conversation(self, interaction: Interaction, text: str, instructions: str, attachment: Optional[discord.Attachment]) -> None:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
@@ -62,7 +64,8 @@ class ChatBot(Cog):
             blocks, attachment_bytes, skipped = await build_attachment_blocks([attachment] if attachment else [], MAX_CONVERSATION_ATTACHMENT_BYTES)
             user_message = build_user_message(interaction.user, text, blocks, skipped)
 
-            reply, assistant_message, cut_off = await self.claude.reply(self.system_prompt(), access_level, [user_message])
+            instructions = clean_instructions(instructions)
+            reply, assistant_message, cut_off = await self.claude.reply(self.system_prompt(instructions), access_level, [user_message])
 
             chunks = split_message(reply)
             if cut_off:
@@ -75,10 +78,14 @@ class ChatBot(Cog):
                 auto_archive_duration=1440,  # Archive after 24 hours of inactivity
             )
 
-            await self.repository.create_conversation(thread, interaction.user.id, access_level, [user_message, assistant_message], attachment_bytes)
+            await self.repository.create_conversation(thread, interaction.user.id, access_level, instructions, [user_message, assistant_message], attachment_bytes)
 
             for chunk in chunks[1:]:
                 await thread.send(chunk, allowed_mentions=REPLY_MENTIONS)
+
+            # Everyone in the thread is affected by the starter's instructions, so say they exist
+            if instructions:
+                await thread.send(INSTRUCTIONS_NOTE.format(mention=interaction.user.mention), allowed_mentions=REPLY_MENTIONS)
 
         except ChatBotError as e:
             await interaction.followup.send(embed=error_embed(str(e)))
@@ -106,7 +113,7 @@ class ChatBot(Cog):
             user_message = build_user_message(message.author, message.content, blocks, skipped)
 
             reply, assistant_message, cut_off = await self.claude.reply(
-                self.system_prompt(),
+                self.system_prompt(entry.get("instructions", "")),
                 entry.get("access_level", DEFAULT_TIER),
                 [*entry["messages"], user_message],
             )
@@ -148,8 +155,8 @@ class ChatBot(Cog):
         if isinstance(interaction.channel, discord.Thread):
             return await interaction.response.send_message(embed=error_embed(f"I don't have the ablilty to start a new conversation in an **existing thread** :thinking: ... Perhaps try to use it in a **text channel** instead. {interaction.user.mention} :pleading_face: ?"))
 
-        async def on_content(modal_interaction: Interaction, text: str) -> None:
-            await self.start_conversation(modal_interaction, text, attachment)
+        async def on_content(modal_interaction: Interaction, text: str, instructions: str) -> None:
+            await self.start_conversation(modal_interaction, text, instructions, attachment)
 
         await interaction.response.send_modal(ChatBotModal(on_content))
 

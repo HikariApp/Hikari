@@ -7,17 +7,20 @@ import discord
 from discord import AllowedMentions, Embed, Interaction
 from discord.ui import Modal, TextInput
 
+from hikari_bot.bot.extensions.chatbot._claudeservice import MAX_INSTRUCTIONS_LENGTH
+
 
 DISCORD_MESSAGE_LIMIT = 2000
 CROSS = "<a:crossred:1356353067024515266>"
 CUT_OFF_NOTE = "-# My reply was cut off because it got too long."
+INSTRUCTIONS_NOTE = "-# This thread follows custom instructions set by {mention}."
 
 # Claude's replies must never ping anyone except the person being replied to.
 REPLY_MENTIONS = AllowedMentions(everyone=False, users=False, roles=False, replied_user=True)
 
 
 class ChatBotModal(Modal):
-    """Modal that collects the first message of a ChatBot conversation"""
+    """Modal that collects the first message of a ChatBot conversation, and optional instructions for its thread"""
 
     content = TextInput(
         label="Content",
@@ -27,14 +30,22 @@ class ChatBotModal(Modal):
         max_length=4000
     )
 
-    def __init__(self, on_content: Callable[[Interaction, str], Awaitable[None]]):
+    instructions = TextInput(
+        label="Instructions for this thread (optional)",
+        style=discord.TextStyle.paragraph,
+        placeholder="e.g. Always reply in Traditional Chinese unless I ask otherwise.",
+        required=False,
+        max_length=MAX_INSTRUCTIONS_LENGTH
+    )
+
+    def __init__(self, on_content: Callable[[Interaction, str, str], Awaitable[None]]):
         self.on_content = on_content
         super().__init__(title="Talk to our AI assistant")
 
 
     async def on_submit(self, interaction: Interaction):
         await interaction.response.defer(thinking=True)
-        await self.on_content(interaction, self.content.value)
+        await self.on_content(interaction, self.content.value, self.instructions.value)
 
 
 def _wrap_line(line: str, width: int) -> List[str]:

@@ -34,8 +34,16 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - **ChatBot:** Attachments accept images (PNG, JPEG, GIF, WebP), PDFs and
   text files, up to 5 MB each and 8 MB per conversation. Videos are no
   longer accepted.
-- **ChatBot:** The bot declines, in character, to reveal or paraphrase its
-  system prompt, including to users who claim to be the owner.
+- **ChatBot:** The bot declines to reveal or paraphrase its system prompt,
+  including to users who claim to be the owner.
+- **ChatBot:** The `/chatbot` modal has an optional "Instructions for this
+  thread" box (up to 1500 characters), e.g. "Always reply in Traditional
+  Chinese". The instructions apply to the whole thread, which gets a short
+  note saying they're in use. They can change the bot's language, tone and
+  style, but not its fixed rules (no mass mentions, prompt privacy).
+- **ChatBot:** The cat persona is now a default rather than a rule: people
+  can ask the bot to talk normally, and it stays that way until they ask
+  for the puns back.
 - **ChatBot:** `/resetchatbot` "current channel" now clears every ChatBot
   thread started in that channel. It no longer requires the bot itself to
   have `manage_threads`/`manage_guild`.

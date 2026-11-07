@@ -14,7 +14,8 @@ class ChatBotRepository:
     Each conversation is one document in `chatbot.conversations`, keyed by its Discord thread ID.
     `messages` holds the Claude message history and is only ever appended to, which keeps the
     prompt cache warm and the thinking blocks valid. `attachment_bytes` counts the attachment
-    bytes stored inline in that history.
+    bytes stored inline in that history, and `instructions` holds the thread starter's custom
+    instructions, which stay the same for the whole conversation.
     """
 
     def __init__(self, db_cluster):
@@ -54,13 +55,14 @@ class ChatBotRepository:
         return await self.conversations.find_one({"_id": thread_id})
 
 
-    async def create_conversation(self, thread: Thread, owner_id: int, access_level: str, messages: List[Dict[str, Any]], attachment_bytes: int) -> None:
+    async def create_conversation(self, thread: Thread, owner_id: int, access_level: str, instructions: str, messages: List[Dict[str, Any]], attachment_bytes: int) -> None:
         await self.conversations.insert_one({
             "_id": thread.id,
             "guild_id": thread.guild.id,
             "parent_channel_id": thread.parent_id,
             "owner_id": owner_id,
             "access_level": access_level,
+            "instructions": instructions,
             "messages": messages,
             "attachment_bytes": attachment_bytes,
             "created_at": datetime.now(timezone.utc),
