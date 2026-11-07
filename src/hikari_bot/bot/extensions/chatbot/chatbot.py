@@ -25,9 +25,10 @@ from hikari_bot.bot.extensions.chatbot._claudeservice import (
     ChatBotError,
     ClaudeReply,
     ClaudeService,
-    build_attachment_blocks,
+    attachment_blocks,
     build_user_message,
     clean_instructions,
+    read_attachments,
     system_prompt,
 )
 from hikari_bot.helpers.errorhandling import NotBotOwnerError
@@ -42,7 +43,7 @@ class ChatBot(Cog):
     def __init__(self, bot: Bot):
         self.bot = bot
         self.repository = ChatBotRepository(self.bot.get_mongo_cluster_db())
-        self.claude = ClaudeService()
+        self.claude = ClaudeService(load_attachments=self.repository.load_attachments)
         self._locks: defaultdict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
 
 
@@ -77,6 +78,19 @@ class ChatBot(Cog):
         return chunks
 
 
+    async def store_attachments(self, attachments: List[discord.Attachment], budget: int) -> tuple[List[Dict[str, Any]], List[str], int, List[str]]:
+        """
+        This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
+
+        Read the usable attachments, store them in MongoDB, and return the content blocks that
+        reference them, their IDs, the bytes they use and the names of skipped attachments.
+        """
+
+        prepared, used, skipped = await read_attachments(attachments, budget)
+        attachment_ids = await self.repository.save_attachments(prepared)
+        return attachment_blocks(prepared, attachment_ids), attachment_ids, used, skipped
+
+
     async def start_conversation(self, interaction: Interaction, text: str, instructions: str, attachment: Optional[discord.Attachment]) -> None:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
@@ -84,9 +98,12 @@ class ChatBot(Cog):
         Answer the first message of a conversation, then open a thread on the reply for the rest of it.
         """
 
+        attachment_ids: List[str] = []
+        saved = False
+
         try:
             access_level = await self.repository.get_access_level(self.bot, interaction.user, interaction.guild_id)
-            blocks, attachment_bytes, skipped = await build_attachment_blocks([attachment] if attachment else [], MAX_CONVERSATION_ATTACHMENT_BYTES)
+            blocks, attachment_ids, attachment_bytes, skipped = await self.store_attachments([attachment] if attachment else [], MAX_CONVERSATION_ATTACHMENT_BYTES)
             user_message = build_user_message(interaction.user, text, blocks, skipped, interaction.created_at)
 
             instructions = clean_instructions(instructions)
@@ -119,6 +136,7 @@ class ChatBot(Cog):
                 await send(chunks.pop(0))
 
             await self.repository.create_conversation(thread, interaction.user.id, access_level, instructions, [user_message, reply.message], attachment_bytes)
+            saved = True
 
             for chunk in chunks:
                 await send(chunk)
@@ -136,6 +154,11 @@ class ChatBot(Cog):
         except discord.Forbidden:
             await interaction.followup.send(embed=error_embed("I couldn't **create the thread** for our conversation. Please **double-check** my **permissions** and **role position**."))
 
+        finally:
+            # Attachments of a turn that wasn't saved are referenced by nothing
+            if not saved and attachment_ids:
+                await self.repository.delete_attachments(attachment_ids)
+
 
     async def continue_conversation(self, message: discord.Message, entry: Dict[str, Any]) -> None:
         """
@@ -147,9 +170,12 @@ class ChatBot(Cog):
         become part of the history.
         """
 
+        attachment_ids: List[str] = []
+        saved = False
+
         try:
             budget = MAX_CONVERSATION_ATTACHMENT_BYTES - entry.get("attachment_bytes", 0)
-            blocks, attachment_bytes, skipped = await build_attachment_blocks(message.attachments, budget)
+            blocks, attachment_ids, attachment_bytes, skipped = await self.store_attachments(message.attachments, budget)
             user_message = build_user_message(message.author, message.content, blocks, skipped, message.created_at)
 
             replied = False
@@ -177,6 +203,7 @@ class ChatBot(Cog):
 
             user_message = self.with_search_note(user_message, reply)
             await self.repository.append_turn(message.channel.id, [user_message, reply.message], attachment_bytes)
+            saved = True
 
             for chunk in self.reply_chunks(reply):
                 await send(chunk)
@@ -186,6 +213,11 @@ class ChatBot(Cog):
 
         except anthropic.APIError as e:
             await message.reply(embed=api_error_embed(e, self.claude.provider_name), allowed_mentions=REPLY_MENTIONS)
+
+        finally:
+            # Attachments of a turn that wasn't saved are referenced by nothing
+            if not saved and attachment_ids:
+                await self.repository.delete_attachments(attachment_ids)
 
 
     # Command to initiate ChatBot interaction
