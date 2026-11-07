@@ -12,6 +12,8 @@ predates the first tag is collected under the initial `v1.0.0` release.
 
 ## [Unreleased]
 
+## [3.8.0] - 2026-11-07
+
 ### Changed
 - **ChatBot:** Rewrote `ChatBot` on Claude with the official `anthropic`
   SDK, replacing the OpenAI Assistants integration that had been broken
@@ -918,7 +920,8 @@ predates the first tag is collected under the initial `v1.0.0` release.
 - Migrated from discord.py to Pycord.
 - First deployment; added `ban_guild()`.
 
-[Unreleased]: https://github.com/HikariApp/hikari/compare/v3.7.1...HEAD
+[Unreleased]: https://github.com/HikariApp/hikari/compare/v3.8.0...HEAD
+[3.8.0]: https://github.com/HikariApp/hikari/compare/v3.7.1...v3.8.0
 [3.7.1]: https://github.com/HikariApp/hikari/compare/v3.7.0...v3.7.1
 [3.7.0]: https://github.com/HikariApp/hikari/compare/v3.6.0...v3.7.0
 [3.6.0]: https://github.com/HikariApp/hikari/compare/v3.5.7...v3.6.0
