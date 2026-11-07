@@ -2,10 +2,14 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import discord
+from bson import ObjectId
+from bson.errors import InvalidId
 from discord import Thread
 from discord.ext.commands import Bot
+from gridfs import AsyncGridFSBucket
+from gridfs.errors import NoFile
 
-from hikari_bot.bot.extensions.chatbot._claudeservice import DEFAULT_TIER, TIER_PRIORITY
+from hikari_bot.bot.extensions.chatbot._claudeservice import DEFAULT_TIER, TIER_PRIORITY, PreparedAttachment, stored_attachment_ids
 
 
 class ChatBotRepository:
@@ -13,9 +17,13 @@ class ChatBotRepository:
 
     Each conversation is one document in `chatbot.conversations`, keyed by its Discord thread ID.
     `messages` holds the Claude message history and is only ever appended to, which keeps the
-    prompt cache warm and the thinking blocks valid. `attachment_bytes` counts the attachment
-    bytes stored inline in that history, and `instructions` holds the thread starter's custom
-    instructions, which stay the same for the whole conversation.
+    prompt cache warm and the thinking blocks valid. `instructions` holds the thread starter's
+    custom instructions, which stay the same for the whole conversation.
+
+    Attachments are stored once, as raw bytes, in the `chatbot.attachments` GridFS bucket (the
+    `attachments.files` and `attachments.chunks` collections), and the history only references them
+    by ID. `attachment_bytes` counts the bytes a conversation's attachments use. Older conversations
+    may still hold attachments inline as base64, which keeps working.
     """
 
     def __init__(self, db_cluster):
@@ -23,6 +31,7 @@ class ChatBotRepository:
         self.conversations = database["conversations"]
         self.user_access = database["user_access"]
         self.server_access = database["server_access"]
+        self.attachments = AsyncGridFSBucket(database, bucket_name="attachments")
 
 
     async def get_access_level(self, bot: Bot, user: discord.abc.User, guild_id: Optional[int]) -> str:
@@ -84,8 +93,63 @@ class ChatBotRepository:
         """
         This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
 
-        Delete the conversations matching `query` and return how many were deleted.
+        Delete the conversations matching `query`, with their stored attachments, and return how
+        many conversations were deleted.
         """
 
+        attachment_ids = []
+        async for entry in self.conversations.find(query, {"messages": 1}):
+            attachment_ids += stored_attachment_ids(entry.get("messages", []))
+
         result = await self.conversations.delete_many(query)
+        await self.delete_attachments(attachment_ids)
         return result.deleted_count
+
+
+    async def save_attachments(self, prepared: List[PreparedAttachment]) -> List[str]:
+        """
+        This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
+
+        Store attachments in GridFS and return their IDs, in the same order.
+        """
+
+        ids = []
+        for attachment in prepared:
+            file_id = await self.attachments.upload_from_stream(
+                attachment.filename,
+                attachment.data,
+                metadata={"kind": attachment.kind, "media_type": attachment.media_type},
+            )
+            ids.append(str(file_id))
+        return ids
+
+
+    async def load_attachments(self, attachment_ids: List[str]) -> Dict[str, tuple[bytes, Dict[str, Any]]]:
+        """
+        This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
+
+        Load stored attachments as `{id: (bytes, metadata)}`. Attachments that no longer exist are left out.
+        """
+
+        files = {}
+        for attachment_id in attachment_ids:
+            try:
+                stream = await self.attachments.open_download_stream(ObjectId(attachment_id))
+                files[attachment_id] = (await stream.read(), stream.metadata or {})
+            except (NoFile, InvalidId):
+                continue
+        return files
+
+
+    async def delete_attachments(self, attachment_ids: List[str]) -> None:
+        """
+        This function is a [coroutine](https://docs.python.org/3/library/asyncio-task.html#coroutine).
+
+        Delete stored attachments, ignoring ones that are already gone.
+        """
+
+        for attachment_id in attachment_ids:
+            try:
+                await self.attachments.delete(ObjectId(attachment_id))
+            except (NoFile, InvalidId):
+                continue

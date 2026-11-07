@@ -12,6 +12,14 @@ predates the first tag is collected under the initial `v1.0.0` release.
 
 ## [Unreleased]
 
+### Changed
+- **ChatBot:** Attachments are stored once in MongoDB GridFS (the
+  `chatbot.attachments` bucket) instead of as base64 inside each
+  conversation document, which now only references them. Conversations are
+  no longer limited by MongoDB's 16 MB document size, so a thread can hold
+  up to 20 MB of attachments (was 8 MB). `/resetchatbot` deletes a
+  conversation's attachments too. Existing conversations keep working.
+
 ## [3.8.0] - 2026-11-07
 
 ### Changed
