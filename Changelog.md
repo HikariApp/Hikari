@@ -20,6 +20,12 @@ predates the first tag is collected under the initial `v1.0.0` release.
   up to 20 MB of attachments (was 8 MB). `/resetchatbot` deletes a
   conversation's attachments too. Existing conversations keep working.
 
+### Fixed
+- **ChatBot:** The prompt-privacy rule now covers only the system prompt.
+  The bot sometimes refused to repeat or quote things from the
+  conversation itself, such as a word from an attached PDF or the user's
+  own earlier message, because the rule mentioned "the text above".
+
 ## [3.8.0] - 2026-11-07
 
 ### Changed
