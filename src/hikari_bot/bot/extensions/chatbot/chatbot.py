@@ -64,9 +64,12 @@ class ChatBot(Cog):
 
 
     def reply_chunks(self, reply: ClaudeReply) -> List[str]:
-        """Split a reply into Discord messages, followed by the cut-off note and the sources line when needed."""
+        """
+        Split a reply into Discord messages, followed by the cut-off note and the sources line when
+        needed. Each part of a reply that searched starts its own message.
+        """
 
-        chunks = split_message(reply.text)
+        chunks = [chunk for part in reply.parts for chunk in split_message(part)]
         if reply.cut_off:
             chunks.append(CUT_OFF_NOTE)
         if reply.sources and (sources := format_sources(reply.sources)):

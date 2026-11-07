@@ -41,10 +41,11 @@ predates the first tag is collected under the initial `v1.0.0` release.
   Chinese". The instructions apply to the whole thread, which gets a short
   note saying they're in use. They can change the bot's language, tone and
   style, but not its fixed rules (no mass mentions, prompt privacy).
-- **ChatBot:** The bot can search the web (at most 2 searches per message)
+- **ChatBot:** The bot can search the web (at most 5 searches per message)
   for things that may have changed since the model's training, such as
   news, prices and software versions. Replies that searched end with a
-  small line of source links. Each message's label now includes its send
+  small line of source links. Anything it says before searching ("let me
+  look that up") is sent as its own message, ahead of the answer. Each message's label now includes its send
   time in UTC, so the bot knows today's date.
 - **ChatBot:** The cat persona is now a default rather than a rule: people
   can ask the bot to talk normally, and it stays that way until they ask

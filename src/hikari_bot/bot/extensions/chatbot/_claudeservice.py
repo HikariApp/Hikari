@@ -40,7 +40,7 @@ MAX_TOKENS = 16000
 # Anthropic's server-side web search, run on Anthropic's side and passed through by Poe too. The basic
 # tool version works on all three tier models. A search costs far more than a plain message (roughly
 # 20-40x the points on Poe), so each message may search at most this many times; 0 turns search off.
-WEB_SEARCH_MAX_USES = 2
+WEB_SEARCH_MAX_USES = 5
 WEB_SEARCH_TOOL = {"type": "web_search_20250305", "name": "web_search", "max_uses": WEB_SEARCH_MAX_USES}
 MAX_SOURCES = 5
 
@@ -209,7 +209,8 @@ def pick_provider() -> str:
 class ClaudeReply:
     """A finished Claude reply."""
 
-    text: str                           # The reply to show in Discord
+    text: str                           # The whole reply, as stored in the history
+    parts: List[str]                    # The reply split where it searched, one Discord message (or more) each
     message: Dict[str, Any]             # The assistant message to store in the history
     cut_off: bool                       # Whether the reply hit MAX_TOKENS
     sources: List[Dict[str, str]]       # Web pages cited by the reply, as {"url", "title"}
@@ -227,6 +228,24 @@ def _collect_sources(content: List[Dict[str, Any]]) -> List[Dict[str, str]]:
                 seen.add(url)
                 sources.append({"url": url, "title": citation.get("title") or url, "cited_text": (citation.get("cited_text") or "")[:300]})
     return sources[:MAX_SOURCES]
+
+
+def _reply_parts(content: List[Dict[str, Any]]) -> List[str]:
+    """
+    Split a reply's text where it used a tool. Text written before a search ("let me look that up")
+    and the answer after it are separate parts, while text blocks with no tool between them, such
+    as the pieces of a sentence split up around its citations, are joined back together.
+    """
+
+    parts, current = [], ""
+    for block in content:
+        if block["type"] == "text":
+            current += block["text"]
+        elif block["type"] not in ("thinking", "redacted_thinking"):
+            parts.append(current)
+            current = ""
+    parts.append(current)
+    return [part for part in map(_clean_reply_text, parts) if part]
 
 
 def _used_tools(content: List[Dict[str, Any]]) -> bool:
@@ -352,9 +371,10 @@ class ClaudeService:
                 break
             request = [*request, {"role": "assistant", "content": part}]
 
-        text = _clean_reply_text("".join(block["text"] for block in content if block["type"] == "text"))
-        if not text:
+        parts = _reply_parts(content)
+        if not parts:
             raise ChatBotError("I couldn't come up with a reply this time. Please try again.")
 
+        text = "\n\n".join(parts)
         sources = _collect_sources(content)
-        return ClaudeReply(text, _message_to_store(content, text), response.stop_reason == "max_tokens", sources, _search_note(content, sources))
+        return ClaudeReply(text, parts, _message_to_store(content, text), response.stop_reason == "max_tokens", sources, _search_note(content, sources))
