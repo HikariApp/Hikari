@@ -12,7 +12,7 @@ predates the first tag is collected under the initial `v1.0.0` release.
 
 ## [Unreleased]
 
-## [3.8.0] - 2026-11-07
+## [3.8.0] - 2026-11-08
 
 ### Changed
 - **ChatBot:** Rewrote `ChatBot` on Claude with the official `anthropic`
